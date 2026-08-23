@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <!--
+    Replaced by the value of `--base-href` at build time. Must start and end
+    with a slash when serving from a sub-path.
+  -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="SamratCT — admin panel for Samrat Charitable Trust: yojna, members, agents and payment records.">
+  <meta name="theme-color" content="#2563EB">
+
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="SamratCT">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <!-- Latin + Devanagari faces so Hindi labels render crisply. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <title>SamratCT · Admin Panel</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background-color: #F4F6FB;
+      font-family: 'Inter', 'Noto Sans Devanagari', system-ui, sans-serif;
+      overscroll-behavior: none;
+    }
+
+    /* Shown until the Flutter engine takes over. */
+    #boot {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      color: #5B6472;
+    }
+    #boot .mark {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #2563EB, #7C3AED);
+    }
+    #boot .bar {
+      width: 160px;
+      height: 4px;
+      border-radius: 4px;
+      background: #E7EAF0;
+      overflow: hidden;
+    }
+    #boot .bar i {
+      display: block;
+      width: 40%;
+      height: 100%;
+      border-radius: 4px;
+      background: #2563EB;
+      animation: slide 1.1s ease-in-out infinite;
+    }
+    @keyframes slide {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(300%); }
+    }
+
+    @media (prefers-color-scheme: dark) {
+      html, body { background-color: #0F1420; }
+      #boot { color: #9AA5B6; }
+      #boot .bar { background: #27303F; }
+    }
+  </style>
+</head>
+<body>
+  <div id="boot">
+    <div class="mark"></div>
+    <div style="font-size:14px;font-weight:600;">SamratCT Admin Panel</div>
+    <div class="bar"><i></i></div>
+  </div>
+
+  <script>
+    // Remove the boot splash as soon as Flutter paints its first frame.
+    window.addEventListener('flutter-first-frame', function () {
+      var boot = document.getElementById('boot');
+      if (boot) boot.remove();
+    });
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
