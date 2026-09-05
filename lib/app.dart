@@ -7,8 +7,8 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'state/providers.dart';
 
-class SamratAdminApp extends ConsumerWidget {
-  const SamratAdminApp({super.key});
+class RudranshAdminApp extends ConsumerWidget {
+  const RudranshAdminApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:samrat_ct/app.dart';
-import 'package:samrat_ct/core/l10n/strings.dart';
-import 'package:samrat_ct/core/utils/formatters.dart';
-import 'package:samrat_ct/data/models/models.dart';
-import 'package:samrat_ct/data/repositories/in_memory_trust_repository.dart';
-import 'package:samrat_ct/state/providers.dart';
+import 'package:rudransh_ct/app.dart';
+import 'package:rudransh_ct/core/l10n/strings.dart';
+import 'package:rudransh_ct/core/utils/formatters.dart';
+import 'package:rudransh_ct/data/models/models.dart';
+import 'package:rudransh_ct/data/repositories/in_memory_trust_repository.dart';
+import 'package:rudransh_ct/state/providers.dart';
 
 /// A repository with no artificial latency so tests settle quickly.
 InMemoryTrustRepository _fastRepo() =>
@@ -107,7 +107,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [repositoryProvider.overrideWithValue(_fastRepo())],
-        child: const SamratAdminApp(),
+        child: const RudranshAdminApp(),
       ),
     );
     await tester.pumpAndSettle();
@@ -126,7 +126,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [repositoryProvider.overrideWithValue(_fastRepo())],
-        child: const SamratAdminApp(),
+        child: const RudranshAdminApp(),
       ),
     );
     await tester.pumpAndSettle();

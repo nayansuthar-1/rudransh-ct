@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:samrat_ct/app.dart';
-import 'package:samrat_ct/core/l10n/strings.dart';
-import 'package:samrat_ct/core/router/routes.dart';
-import 'package:samrat_ct/data/repositories/in_memory_trust_repository.dart';
-import 'package:samrat_ct/state/providers.dart';
+import 'package:rudransh_ct/app.dart';
+import 'package:rudransh_ct/core/l10n/strings.dart';
+import 'package:rudransh_ct/core/router/routes.dart';
+import 'package:rudransh_ct/data/repositories/in_memory_trust_repository.dart';
+import 'package:rudransh_ct/state/providers.dart';
 
 /// Widths that bracket every breakpoint the shell reacts to.
 const _widths = <String, Size>{
@@ -29,7 +29,7 @@ Future<void> _pumpApp(WidgetTester tester, Size size) async {
           InMemoryTrustRepository(latency: Duration.zero),
         ),
       ],
-      child: const SamratAdminApp(),
+      child: const RudranshAdminApp(),
     ),
   );
   await tester.pumpAndSettle();

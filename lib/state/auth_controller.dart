@@ -55,7 +55,7 @@ class AuthController extends Notifier<AuthState> {
   AuthState build() => bypassLogin
       ? const AuthState(
           stage: AuthStage.signedIn,
-          email: 'samratctm@gmail.com',
+          email: 'rudranshctm@gmail.com',
           user: AdminUser.guest,
         )
       : const AuthState();

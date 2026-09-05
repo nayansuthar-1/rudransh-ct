@@ -8,5 +8,5 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   // Clean URLs (`/members` instead of `/#/members`).
   usePathUrlStrategy();
-  runApp(const ProviderScope(child: SamratAdminApp()));
+  runApp(const ProviderScope(child: RudranshAdminApp()));
 }

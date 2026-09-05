@@ -16,8 +16,8 @@ class AdminUser {
 
   static const guest = AdminUser(
     id: 'local-admin',
-    name: 'SAMRATCT-ADMIN',
-    email: 'samratctm@gmail.com',
+    name: 'RUDRANSHCT-ADMIN',
+    email: 'rudranshctm@gmail.com',
   );
 
   Map<String, dynamic> toMap() =>

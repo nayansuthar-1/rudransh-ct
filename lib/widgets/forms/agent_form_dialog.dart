@@ -179,7 +179,7 @@ class _AgentFormDialogState extends ConsumerState<AgentFormDialog> {
                     AppTextField(
                       label: 'Email',
                       controller: _email,
-                      hint: 'agent@samratct.org',
+                      hint: 'agent@rudranshct.org',
                       prefixIcon: Icons.mail_outline,
                       keyboardType: TextInputType.emailAddress,
                       validator: (v) =>

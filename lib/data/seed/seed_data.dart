@@ -106,7 +106,7 @@ class SeedData {
         name: _agentNames[i],
         phone: _phone(),
         email:
-            'agent${i + 1}@samratct.org',
+            'agent${i + 1}@rudranshct.org',
         area: _villages[i % _villages.length],
         district: _districts[i % _districts.length],
         commissionPercent: [2.0, 2.5, 3.0, 1.5][i % 4],

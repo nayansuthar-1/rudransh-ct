@@ -5,9 +5,9 @@ class S {
   const S._();
 
   // Brand
-  static const appName = 'SamratCT';
+  static const appName = 'Rudransh CT';
   static const appSubtitle = 'Admin Panel';
-  static const trustName = 'सम्राट चैरिटेबल ट्रस्ट';
+  static const trustName = 'रुद्रांश चैरिटेबल ट्रस्ट';
 
   // Navigation
   static const mainMenu = 'MAIN MENU';
