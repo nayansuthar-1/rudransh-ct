@@ -149,6 +149,8 @@ With one receipt per member per closing, 10,000 members fill the free database i
 - [ ] Expired OTP is rejected: manual on staging (wait 10 minutes, then enter the code)
 - [ ] Client runs a real day's work on staging and signs off
 
+> **Deferred 17 Sep 2026:** the open Phase 7 and 8 items (`supabase config push`, backup restore, running the new database tests, Hindi and expired-OTP checks, client sign-off) are postponed. They must all be done before the production launch in Phase 9.
+
 **2 Oct (Fri):** Gandhi Jayanti, national holiday. Buffer day.
 
 ### Phase 9 — Launch & handover (5 Oct, Mon)
