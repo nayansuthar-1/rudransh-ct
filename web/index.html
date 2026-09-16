@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
   <!--
     Replaced by the value of `--base-href` at build time. Must start and end
@@ -11,7 +11,8 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="Rudransh CT — admin panel for Rudransh Charitable Trust: yojna, members, agents and payment records.">
-  <meta name="theme-color" content="#2563EB">
+  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0A0A0B" media="(prefers-color-scheme: dark)">
 
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -19,10 +20,6 @@
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <!-- Latin + Devanagari faces so Hindi labels render crisply. -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <title>Rudransh CT · Admin Panel</title>
   <link rel="manifest" href="manifest.json">
@@ -32,8 +29,8 @@
       margin: 0;
       padding: 0;
       height: 100%;
-      background-color: #F4F6FB;
-      font-family: 'Inter', 'Noto Sans Devanagari', system-ui, sans-serif;
+      background-color: #FFFFFF;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
       overscroll-behavior: none;
     }
 
@@ -42,51 +39,35 @@
       position: fixed;
       inset: 0;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 18px;
-      color: #5B6472;
     }
     #boot .mark {
-      width: 52px;
-      height: 52px;
-      border-radius: 14px;
-      background: linear-gradient(135deg, #2563EB, #7C3AED);
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+      background: #111113;
+      color: #FFFFFF;
+      font-weight: 700;
+      font-size: 19px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: pulse 1.4s ease-in-out infinite;
     }
-    #boot .bar {
-      width: 160px;
-      height: 4px;
-      border-radius: 4px;
-      background: #E7EAF0;
-      overflow: hidden;
-    }
-    #boot .bar i {
-      display: block;
-      width: 40%;
-      height: 100%;
-      border-radius: 4px;
-      background: #2563EB;
-      animation: slide 1.1s ease-in-out infinite;
-    }
-    @keyframes slide {
-      0%   { transform: translateX(-100%); }
-      100% { transform: translateX(300%); }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.45; }
     }
 
     @media (prefers-color-scheme: dark) {
-      html, body { background-color: #0F1420; }
-      #boot { color: #9AA5B6; }
-      #boot .bar { background: #27303F; }
+      html, body { background-color: #0A0A0B; }
+      #boot .mark { background: #EDEDEF; color: #0B0B0D; }
     }
   </style>
 </head>
 <body>
-  <div id="boot">
-    <div class="mark"></div>
-    <div style="font-size:14px;font-weight:600;">Rudransh CT Admin Panel</div>
-    <div class="bar"><i></i></div>
-  </div>
+  <div id="boot"><div class="mark">R</div></div>
 
   <script>
     // Remove the boot splash as soon as Flutter paints its first frame.

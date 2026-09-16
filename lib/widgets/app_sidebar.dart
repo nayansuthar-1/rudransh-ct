@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../core/l10n/strings.dart';
 import '../core/router/routes.dart';
 import '../core/theme/app_colors.dart';
+import '../core/theme/app_theme.dart';
 import '../state/auth_controller.dart';
 
 enum SidebarMode { expanded, rail, drawer }
@@ -23,8 +24,8 @@ class AppSidebar extends ConsumerWidget {
   /// Called after navigation so the drawer can close itself.
   final VoidCallback? onNavigate;
 
-  static const expandedWidth = 262.0;
-  static const railWidth = 78.0;
+  static const expandedWidth = 244.0;
+  static const railWidth = 64.0;
 
   bool get _isRail => mode == SidebarMode.rail;
 
@@ -37,18 +38,24 @@ class AppSidebar extends ConsumerWidget {
       width: _isRail ? railWidth : expandedWidth,
       decoration: BoxDecoration(
         color: c.sidebar,
-        border: Border(right: BorderSide(color: c.border)),
+        border: mode == SidebarMode.drawer
+            ? null
+            : Border(right: BorderSide(color: c.border)),
       ),
       child: SafeArea(
         right: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _brand(context),
-            Divider(color: c.border, height: 1),
+            SizedBox(height: 64, child: _brand(context)),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: EdgeInsets.fromLTRB(
+                  _isRail ? Space.md : Space.md,
+                  Space.xs,
+                  _isRail ? Space.md : Space.md,
+                  Space.md,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -68,7 +75,6 @@ class AppSidebar extends ConsumerWidget {
               ),
             ),
             Divider(color: c.border, height: 1),
-            if (!_isRail) _groupLabel(context, S.system),
             _UserTile(
               name: user.name,
               email: user.email,
@@ -86,69 +92,72 @@ class AppSidebar extends ConsumerWidget {
 
   Widget _brand(BuildContext context) {
     final c = context.colors;
-    final logo = Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF2563EB), Color(0xFF7C3AED)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(11),
-      ),
-      alignment: Alignment.center,
-      child: const Icon(Icons.spa_rounded, color: Colors.white, size: 21),
-    );
+    const mark = BrandMark(size: 30);
 
+    if (_isRail) return const Center(child: mark);
     return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: _isRail ? 12 : 16,
-        vertical: 16,
-      ),
-      child: _isRail
-          ? Center(child: logo)
-          : Row(
-              children: [
-                logo,
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        S.appName,
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: c.textPrimary,
-                          height: 1.1,
-                        ),
-                      ),
-                      Text(
-                        S.appSubtitle,
-                        style: TextStyle(fontSize: 12, color: c.textSecondary),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+      padding: const EdgeInsets.symmetric(horizontal: Space.lg + Space.xs),
+      child: Row(
+        children: [
+          mark,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              S.appName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+                color: c.textPrimary,
+              ),
             ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _groupLabel(BuildContext context, String text) {
     final c = context.colors;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 8, 16, 8),
+      padding: const EdgeInsets.fromLTRB(Space.md, Space.sm, Space.md, Space.sm),
       child: Text(
         text,
         style: TextStyle(
-          fontSize: 10.5,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 1.1,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
           color: c.textMuted,
+        ),
+      ),
+    );
+  }
+}
+
+/// Square monogram used in the sidebar, top bar and login screen.
+class BrandMark extends StatelessWidget {
+  const BrandMark({super.key, this.size = 28});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: c.brand,
+        borderRadius: BorderRadius.circular(size * 0.24),
+      ),
+      child: Text(
+        'R',
+        style: TextStyle(
+          color: c.onBrand,
+          fontSize: size * 0.54,
+          fontWeight: FontWeight.w700,
+          height: 1,
         ),
       ),
     );
@@ -171,82 +180,60 @@ class _NavTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final fg = selected ? c.brand : c.textSecondary;
+    final fg = selected ? c.onBrandSoft : c.textSecondary;
+    final icon = Icon(
+      selected ? item.activeIcon : item.icon,
+      size: 20,
+      color: fg,
+    );
 
-    final tile = Container(
-      margin: EdgeInsets.symmetric(horizontal: rail ? 12 : 10, vertical: 2),
-      decoration: BoxDecoration(
-        color: selected ? c.brandSoft : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: selected ? c.brand.withValues(alpha: 0.28) : Colors.transparent,
-        ),
-      ),
+    final tile = Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
       child: Material(
-        color: Colors.transparent,
+        color: selected ? c.brandSoft : Colors.transparent,
+        borderRadius: BorderRadius.circular(Radii.control),
         child: InkWell(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(Radii.control),
           onTap: onTap,
-          hoverColor: selected ? null : c.surfaceMuted,
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: rail ? 0 : 12,
-              vertical: rail ? 12 : 10,
-            ),
+          hoverColor: selected ? Colors.transparent : c.hover,
+          child: SizedBox(
+            height: 40,
             child: rail
-                ? Icon(selected ? item.activeIcon : item.icon,
-                    size: 21, color: fg)
-                : Row(
-                    children: [
-                      Icon(selected ? item.activeIcon : item.icon,
-                          size: 20, color: fg),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              item.label,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight:
-                                    selected ? FontWeight.w700 : FontWeight.w600,
-                                color: selected ? c.brand : c.textPrimary,
-                                height: 1.2,
-                              ),
+                ? Center(child: icon)
+                : Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: Space.md),
+                    child: Row(
+                      children: [
+                        icon,
+                        const SizedBox(width: Space.md),
+                        Expanded(
+                          child: Text(
+                            item.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight:
+                                  selected ? FontWeight.w600 : FontWeight.w500,
+                              color: fg,
                             ),
-                            const SizedBox(height: 1),
-                            Text(
-                              item.sublabel,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                color: c.textMuted,
-                                height: 1.25,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (selected)
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: c.brand,
-                            shape: BoxShape.circle,
                           ),
                         ),
-                    ],
+                      ],
+                    ),
                   ),
           ),
         ),
       ),
     );
 
-    return rail ? Tooltip(message: item.label, child: tile) : tile;
+    return rail
+        ? Tooltip(
+            message: item.label,
+            waitDuration: Duration.zero,
+            child: tile,
+          )
+        : tile;
   }
 }
 
@@ -266,34 +253,24 @@ class _UserTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final avatar = Container(
-      width: 38,
-      height: 38,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(color: c.brand, shape: BoxShape.circle),
-      child: Text(
-        name.isEmpty ? '?' : name.characters.first.toUpperCase(),
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w700,
-          fontSize: 16,
-        ),
-      ),
-    );
 
     if (rail) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        child: Tooltip(message: '$name\n$email', child: Center(child: avatar)),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Center(
+          child: IconButton(
+            tooltip: '${S.logout} ($email)',
+            onPressed: onSignOut,
+            icon: const Icon(Icons.logout_rounded, size: 18),
+          ),
+        ),
       );
     }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 8, 8, 14),
+      padding: const EdgeInsets.fromLTRB(Space.lg + Space.xs, Space.md, Space.sm, Space.md),
       child: Row(
         children: [
-          avatar,
-          const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -305,7 +282,7 @@ class _UserTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     color: c.textPrimary,
                   ),
                 ),
@@ -313,25 +290,7 @@ class _UserTile extends StatelessWidget {
                   email,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 11.5, color: c.textMuted),
-                ),
-                const SizedBox(height: 3),
-                Row(
-                  children: [
-                    Container(
-                      width: 7,
-                      height: 7,
-                      decoration: BoxDecoration(
-                        color: c.success,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      S.online,
-                      style: TextStyle(fontSize: 11, color: c.success),
-                    ),
-                  ],
+                  style: TextStyle(fontSize: 12, color: c.textMuted),
                 ),
               ],
             ),
@@ -339,7 +298,7 @@ class _UserTile extends StatelessWidget {
           IconButton(
             tooltip: S.logout,
             onPressed: onSignOut,
-            icon: const Icon(Icons.logout_rounded, size: 18),
+            icon: const Icon(Icons.logout_rounded, size: 17),
           ),
         ],
       ),

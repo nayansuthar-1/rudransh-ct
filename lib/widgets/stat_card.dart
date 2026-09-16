@@ -1,123 +1,147 @@
 import 'package:flutter/material.dart';
 
-import '../core/responsive/breakpoints.dart';
 import '../core/theme/app_colors.dart';
-import 'primitives.dart';
+import '../core/theme/app_theme.dart';
 
-/// Headline metric tile used on the dashboard.
+/// Colour family of a KPI tile. Each metric on a page gets its own, so the
+/// strip can be read at a glance.
+enum StatAccent {
+  blue(Color(0xFF1A73E8), Color(0xFFE8F0FE)),
+  green(Color(0xFF1E8E3E), Color(0xFFE6F4EA)),
+  amber(Color(0xFFE37400), Color(0xFFFEF3E0)),
+  red(Color(0xFFD93025), Color(0xFFFCE8E6)),
+  purple(Color(0xFF8430CE), Color(0xFFF3E8FD)),
+  teal(Color(0xFF12848F), Color(0xFFE0F4F5));
+
+  const StatAccent(this.color, this.tint);
+
+  /// Icon circle colour.
+  final Color color;
+
+  /// Tile background in light mode.
+  final Color tint;
+}
+
+/// One headline metric inside a [StatGrid].
 class StatCard extends StatelessWidget {
   const StatCard({
     super.key,
     required this.label,
     required this.value,
     required this.icon,
+    this.accent = StatAccent.blue,
     this.caption,
     this.delta,
-    this.tone = PillTone.brand,
     this.onTap,
   });
 
   final String label;
   final String value;
   final IconData icon;
+  final StatAccent accent;
   final String? caption;
 
   /// Percentage change; positive renders green, negative red.
   final double? delta;
-  final PillTone tone;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final (fg, bg) = switch (tone) {
-      PillTone.success => (c.success, c.successSoft),
-      PillTone.warning => (c.warning, c.warningSoft),
-      PillTone.danger => (c.danger, c.dangerSoft),
-      PillTone.info => (c.info, c.infoSoft),
-      PillTone.brand => (c.brand, c.brandSoft),
-      PillTone.neutral => (c.textSecondary, c.surfaceMuted),
-    };
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final background = dark
+        ? Color.alphaBlend(accent.color.withValues(alpha: 0.16), c.surface)
+        : accent.tint;
 
-    return AppCard(
-      onTap: onTap,
-      padding: EdgeInsets.all(context.responsive(mobile: 14.0, tablet: 18.0)),
-      child: Row(
+    final content = Padding(
+      padding: const EdgeInsets.all(Space.lg),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, size: 21, color: fg),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: c.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 2),
                   child: Text(
-                    value,
+                    label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      color: c.textPrimary,
-                      height: 1.05,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: c.textSecondary,
+                      height: 1.3,
                     ),
                   ),
                 ),
-                if (caption != null || delta != null) ...[
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      if (delta != null) ...[
-                        _DeltaChip(delta: delta!),
-                        const SizedBox(width: 8),
-                      ],
-                      if (caption != null)
-                        Flexible(
-                          child: Text(
-                            caption!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: c.textMuted,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
-              ],
+              ),
+              const SizedBox(width: Space.sm),
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: accent.color,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 19, color: Colors.white),
+              ),
+            ],
+          ),
+          const SizedBox(height: Space.sm),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w600,
+                color: c.textPrimary,
+                height: 1.15,
+              ),
             ),
           ),
+          if (caption != null || delta != null) ...[
+            const SizedBox(height: Space.xs),
+            Row(
+              children: [
+                if (delta != null) ...[
+                  _Delta(delta: delta!),
+                  const SizedBox(width: 6),
+                ],
+                Flexible(
+                  child: Text(
+                    caption ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12.5, color: c.textSecondary),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
+      ),
+    );
+
+    return Material(
+      color: background,
+      borderRadius: BorderRadius.circular(Radii.dialog),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        hoverColor: accent.color.withValues(alpha: 0.06),
+        child: content,
       ),
     );
   }
 }
 
-class _DeltaChip extends StatelessWidget {
-  const _DeltaChip({required this.delta});
+class _Delta extends StatelessWidget {
+  const _Delta({required this.delta});
 
   final double delta;
 
@@ -130,17 +154,18 @@ class _DeltaChip extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
-          up ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-          size: 14,
+          up ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+          size: 13,
           color: color,
         ),
-        const SizedBox(width: 3),
+        const SizedBox(width: 2),
         Text(
-          '${up ? '+' : ''}${delta.toStringAsFixed(1)}%',
+          '${delta.abs().toStringAsFixed(1)}%',
           style: TextStyle(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w700,
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
             color: color,
+            fontFeatures: kTabular,
           ),
         ),
       ],
@@ -148,28 +173,42 @@ class _DeltaChip extends StatelessWidget {
   }
 }
 
-/// Responsive grid that keeps stat cards a sensible width at every size.
+/// KPI tiles in rows of equal height: all in one row on wide screens, two per
+/// row on phones. A lone last tile spans the full width.
 class StatGrid extends StatelessWidget {
-  const StatGrid({super.key, required this.children, this.minTileWidth = 250});
+  const StatGrid({super.key, required this.children});
 
   final List<Widget> children;
-  final double minTileWidth;
 
   @override
   Widget build(BuildContext context) {
-    const gap = 14.0;
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        var columns = (width / minTileWidth).floor();
-        columns = columns.clamp(1, children.length.clamp(1, 4));
-        final tile = (width - gap * (columns - 1)) / columns;
+        final n = children.length;
+        final columns = n <= 2 || width >= n * 200 ? n : 2;
 
-        return Wrap(
-          spacing: gap,
-          runSpacing: gap,
+        final rows = <List<Widget>>[];
+        for (var i = 0; i < n; i += columns) {
+          rows.add(children.sublist(i, (i + columns).clamp(0, n)));
+        }
+
+        return Column(
           children: [
-            for (final child in children) SizedBox(width: tile, child: child),
+            for (var r = 0; r < rows.length; r++) ...[
+              if (r > 0) const SizedBox(height: Space.md),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = 0; i < rows[r].length; i++) ...[
+                      if (i > 0) const SizedBox(width: Space.md),
+                      Expanded(child: rows[r][i]),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ],
         );
       },

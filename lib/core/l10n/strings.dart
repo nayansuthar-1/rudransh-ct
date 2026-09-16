@@ -1,17 +1,17 @@
-/// Centralised UI copy. The panel is Hindi-first with English support labels,
-/// mirroring the reference screens. Swap this class for `intl` ARB files when
-/// a second locale is needed.
+/// Centralised UI copy: English, with the trust's own Hinglish terms (Yojna,
+/// Jati, Gotra, Waris) where staff already use them. Swap this class for
+/// `intl` ARB files if a second locale is needed.
 class S {
   const S._();
 
   // Brand
   static const appName = 'Rudransh CT';
   static const appSubtitle = 'Admin Panel';
-  static const trustName = 'रुद्रांश चैरिटेबल ट्रस्ट';
+  static const trustName = 'Rudransh Charitable Trust';
 
   // Navigation
-  static const mainMenu = 'MAIN MENU';
-  static const system = 'SYSTEM';
+  static const mainMenu = 'Menu';
+  static const system = 'Account';
   static const dashboard = 'Dashboard';
   static const dashboardSub = 'Overview & analytics';
   static const members = 'Members';
@@ -29,12 +29,12 @@ class S {
   static const home = 'Home';
   static const addPayment = 'Add Payment';
   static const addAgent = 'Add Agent';
-  static const addMemberHi = 'नया सदस्य जोड़ें';
+  static const addMember = 'Add Member';
   static const requests = 'Requests';
   static const online = 'Online';
   static const logout = 'Logout';
   static const toggleTheme = 'Toggle theme';
-  static const selectYojna = 'योजना चुनें';
+  static const selectYojna = 'Select Yojna';
 
   // Dashboard
   static const totalMembers = 'Total Members';
@@ -84,10 +84,8 @@ class S {
   static const delete = 'Delete';
   static const save = 'Save';
   static const cancel = 'Cancel';
-  static const cancelHi = 'रद्द करें';
-  static const submitHi = 'जमा करें';
-  static const searchHi = 'खोजें';
-  static const search = 'Search';
+    static const submit = 'Save Member';
+    static const search = 'Search';
   static const clearFilters = 'Clear filters';
   static const markPaid = 'Mark Paid';
   static const all = 'All';
@@ -95,52 +93,54 @@ class S {
   static const confirmDeleteBody =
       'This action cannot be undone. The record will be removed permanently.';
 
-  // Add member form (mirrors the reference dialog)
-  static const addMemberTitle = 'नया सदस्य जोड़ें';
-  static const editMemberTitle = 'सदस्य संपादित करें';
-  static const selectProgram = 'कार्यक्रम/योजना का चयन करें';
-  static const copyFromExisting = 'मौजूदा सदस्य से कॉपी करें';
-  static const copyFromExistingHint = 'मौजूदा सदस्य का फ़ोन नंबर दर्ज करें';
-  static const personalInfo = 'व्यक्तिगत जानकारी';
-  static const contactInfo = 'संपर्क जानकारी';
-  static const addressInfo = 'पता जानकारी';
-  static const membershipInfo = 'सदस्यता जानकारी';
-  static const fldName = 'नाम';
-  static const fldNameHint = 'पूरा नाम';
-  static const fldFather = 'पिता/पति का नाम';
-  static const fldJati = 'जाति (Jati)';
-  static const fldGotra = 'गोत्र (Gotra) (वैकल्पिक)';
-  static const fldWaris = 'वारिसदार का नाम';
-  static const fldWarisRelation = 'वारिस से संबंध';
-  static const fldGender = 'Gender/लिंग';
-  static const fldPrimaryPhone = 'प्राथमिक फ़ोन';
-  static const fldAltPhone = 'वैकल्पिक फ़ोन (Optional)';
-  static const fldAadhaar = 'आधार संख्या';
-  static const fldVillage = 'गाँव/शहर';
-  static const fldTehsil = 'तहसील';
-  static const fldDistrict = 'ज़िला';
-  static const fldPincode = 'पिन कोड';
-  static const fldAgent = 'एजेंट';
-  static const fldJoinDate = 'सदस्यता तिथि';
+  // Add member form
+  static const addMemberTitle = 'Add Member';
+  static const editMemberTitle = 'Edit Member';
+  static const selectProgram = 'Yojna';
+  static const copyFromExisting = 'Copy details from an existing member';
+  static const copyFromExistingHint = 'Existing member\'s phone number';
+  static const personalInfo = 'Personal details';
+  static const contactInfo = 'Contact details';
+  static const addressInfo = 'Address';
+  static const membershipInfo = 'Membership';
+  static const fldName = 'Full name';
+  static const fldNameHint = 'e.g. Ramesh Kumar';
+  static const fldFather = 'Father / husband name';
+  static const fldJati = 'Jati';
+  static const fldGotra = 'Gotra (optional)';
+  static const fldWaris = 'Nominee (Waris) name';
+  static const fldWarisRelation = 'Relation to nominee';
+  static const fldGender = 'Gender';
+  static const fldPrimaryPhone = 'Phone';
+  static const fldAltPhone = 'Alternate phone (optional)';
+  static const fldAadhaar = 'Aadhaar number';
+  static const fldVillage = 'Village / city';
+  static const fldTehsil = 'Tehsil';
+  static const fldDistrict = 'District';
+  static const fldPincode = 'PIN code';
+  static const fldAgent = 'Agent';
+  static const fldJoinDate = 'Joining date';
 
   // Genders
-  static const male = 'पुरुष';
-  static const female = 'महिला';
-  static const other = 'अन्य';
+  static const male = 'Male';
+  static const female = 'Female';
+  static const other = 'Other';
 
   // Validation
-  static const required = 'यह फ़ील्ड आवश्यक है';
-  static const invalidPhone = '10 अंकों का वैध फ़ोन नंबर दर्ज करें';
-  static const invalidAadhaar = '12 अंकों की आधार संख्या दर्ज करें';
-  static const invalidEmail = 'वैध ईमेल दर्ज करें';
-  static const invalidAmount = 'वैध राशि दर्ज करें';
-  static const noResults = 'कोई परिणाम नहीं मिला';
-  static const memberNotFound = 'इस नंबर से कोई सदस्य नहीं मिला';
-  static const memberCopied = 'सदस्य की जानकारी कॉपी की गई';
+  static const required = 'This field is required';
+  static const invalidPhone = 'Enter a valid 10-digit phone number';
+  static const invalidAadhaar = 'Enter the 12-digit Aadhaar number';
+  static const invalidEmail = 'Enter a valid email address';
+  static const invalidAmount = 'Enter a valid amount';
+  static const noResults = 'No results found';
+  static const memberNotFound = 'No member found with this phone number';
+  static const memberCopied = 'Member details copied';
 
   // Auth
   static const signIn = 'Sign in';
   static const signInSubtitle = 'Admin access only';
+  static const allYojnas = 'All Yojnas';
+  static const searchMembers = 'Search members by name, reg no or phone';
   static const emailLabel = 'Email address';
   static const emailHint = 'admin@example.com';
   static const sendOtp = 'Send OTP';

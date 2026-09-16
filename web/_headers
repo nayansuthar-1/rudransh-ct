@@ -1,0 +1,22 @@
+# Cloudflare Pages response headers (copied into build/web by flutter build).
+# Flutter web file names are not content-hashed, so nothing is marked
+# immutable; Pages' default ETag revalidation keeps repeat loads cheap.
+
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+/
+  Cache-Control: no-cache
+/index.html
+  Cache-Control: no-cache
+/flutter_bootstrap.js
+  Cache-Control: no-cache
+/flutter_service_worker.js
+  Cache-Control: no-cache
+/version.json
+  Cache-Control: no-cache
+/main.dart.js
+  Cache-Control: no-cache

@@ -9,6 +9,7 @@ import '../../data/models/models.dart';
 import '../../state/providers.dart';
 import '../../state/selectors.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/inputs.dart';
 import '../../widgets/primitives.dart';
 import '../../widgets/responsive_table.dart';
 
@@ -19,60 +20,27 @@ class ClosingPayStatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (tone, icon) = switch (status) {
-      ClosingPayStatus.paid => (PillTone.success, Icons.check_circle_outline),
-      ClosingPayStatus.partial => (PillTone.warning, Icons.timelapse_rounded),
-      ClosingPayStatus.unpaid => (PillTone.danger, Icons.pending_outlined),
+    final tone = switch (status) {
+      ClosingPayStatus.paid => PillTone.success,
+      ClosingPayStatus.partial => PillTone.warning,
+      ClosingPayStatus.unpaid => PillTone.danger,
     };
-    return StatusPill(status.label, tone: tone, icon: icon);
+    return StatusPill(status.label, tone: tone);
   }
 }
 
-/// Popup that filters closed cases by settlement status.
+/// Menu that filters closed cases by settlement status.
 class PayStatusFilterButton extends ConsumerWidget {
   const PayStatusFilterButton({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.colors;
-    final selected = ref.watch(closingFilterProvider);
-
-    return PopupMenuButton<ClosingPayStatus?>(
-      tooltip: S.payStatus,
-      position: PopupMenuPosition.under,
-      onSelected: (value) =>
-          ref.read(closingFilterProvider.notifier).set(value),
-      itemBuilder: (context) => [
-        const PopupMenuItem<ClosingPayStatus?>(value: null, child: Text(S.all)),
-        for (final s in ClosingPayStatus.values)
-          PopupMenuItem<ClosingPayStatus?>(value: s, child: Text(s.label)),
-      ],
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: selected == null ? c.surface : c.brandSoft,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: selected == null ? c.borderStrong : c.brand,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.filter_alt_outlined, size: 15, color: c.textSecondary),
-            const SizedBox(width: 6),
-            Text(
-              selected?.label ?? S.payStatus,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: selected == null ? c.textPrimary : c.brand,
-              ),
-            ),
-            Icon(Icons.expand_more, size: 16, color: c.textSecondary),
-          ],
-        ),
-      ),
+    return FilterMenu<ClosingPayStatus>(
+      label: S.payStatus,
+      value: ref.watch(closingFilterProvider),
+      items: ClosingPayStatus.values,
+      itemLabel: (s) => s.label,
+      onChanged: ref.read(closingFilterProvider.notifier).set,
     );
   }
 }
@@ -93,7 +61,8 @@ class ClosingCasesTable extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cases = ref.watch(filteredClosingCasesProvider);
-    final members = ref.watch(memberByIdProvider);
+    final members =
+        ref.watch(closingMembersProvider).value ?? const <String, Member>{};
     final yojnas = ref.watch(yojnaByIdProvider);
     final async = ref.watch(closingCasesProvider);
 
@@ -117,40 +86,31 @@ class ClosingCasesTable extends ConsumerWidget {
       emptyIcon: Icons.assignment_turned_in_outlined,
       mobileTitle: memberName,
       mobileSubtitle: (c) => regNo(c),
-      mobileLeading: (context, c) => AppAvatar(name: memberName(c), size: 36),
+      mobileTrailing: (context, c) => Padding(
+        padding: const EdgeInsets.only(top: 3),
+        child: ClosingPayStatusPill(status: c.payStatus),
+      ),
       columns: [
         TableCol<ClosingCase>(
           label: S.memberName,
           flex: 2,
           minWidth: 180,
           text: memberName,
-          cell: (context, item) => Row(
-            children: [
-              if (!context.isMobile) ...[
-                AppAvatar(name: memberName(item), size: 30),
-                const SizedBox(width: 9),
-              ],
-              Expanded(
-                child: Text(
-                  memberName(item),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
+          cell: (context, item) => Text(
+            memberName(item),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.w500),
           ),
         ),
         TableCol<ClosingCase>(
           label: S.regNo,
           minWidth: 130,
+          showOnMobile: false,
           text: regNo,
           cell: (context, item) => Text(
             regNo(item),
-            style: TextStyle(fontSize: 13, color: context.colors.textSecondary),
+            style: TextStyle(color: context.colors.textSecondary),
           ),
         ),
         TableCol<ClosingCase>(
@@ -162,24 +122,19 @@ class ClosingCasesTable extends ConsumerWidget {
             yojnas[item.yojnaId]?.name ?? '—',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13),
           ),
         ),
         TableCol<ClosingCase>(
           label: S.closingDate,
           minWidth: 120,
           text: (item) => Fmt.date(item.closingDate),
-          cell: (context, item) => Text(
-            Fmt.date(item.closingDate),
-            style: const TextStyle(fontSize: 13),
-          ),
+          cell: (context, item) => Text(Fmt.date(item.closingDate)),
         ),
         TableCol<ClosingCase>(
           label: S.closingGroup,
           minWidth: 120,
           text: (item) => item.closingGroup,
-          cell: (context, item) =>
-              StatusPill(item.closingGroup, tone: PillTone.neutral),
+          cell: (context, item) => Text(item.closingGroup),
         ),
         if (showClaimColumn)
           TableCol<ClosingCase>(
@@ -192,6 +147,7 @@ class ClosingCasesTable extends ConsumerWidget {
         TableCol<ClosingCase>(
           label: S.payStatus,
           minWidth: 110,
+          showOnMobile: false,
           cell: (context, item) => ClosingPayStatusPill(status: item.payStatus),
         ),
       ],
@@ -214,24 +170,27 @@ class _ClaimProgress extends StatelessWidget {
       children: [
         Text(
           Fmt.money(item.claimAmount),
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          style: const TextStyle(fontWeight: FontWeight.w500),
         ),
-        const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: item.progress,
-            minHeight: 5,
-            backgroundColor: c.surfaceMuted,
-            valueColor: AlwaysStoppedAnimation(
-              item.progress >= 1 ? c.success : c.brand,
+        const SizedBox(height: 5),
+        SizedBox(
+          width: 120,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: LinearProgressIndicator(
+              value: item.progress,
+              minHeight: 3,
+              backgroundColor: c.surfaceMuted,
+              valueColor: AlwaysStoppedAnimation(
+                item.progress >= 1 ? c.success : c.brand,
+              ),
             ),
           ),
         ),
         const SizedBox(height: 3),
         Text(
           '${Fmt.moneyCompact(item.collectedAmount)} collected',
-          style: TextStyle(fontSize: 10.5, color: c.textMuted),
+          style: TextStyle(fontSize: 12, color: c.textMuted),
         ),
       ],
     );
@@ -259,7 +218,7 @@ class _CaseActions extends ConsumerWidget {
                   .setPayStatus(item, ClosingPayStatus.paid);
               if (context.mounted) showToast(context, 'Marked as paid');
             },
-            icon: Icon(Icons.check_circle_outline, size: 18, color: c.success),
+            icon: Icon(Icons.check_rounded, size: 18, color: c.success),
           ),
         PopupMenuButton<int>(
           tooltip: S.actions,
@@ -275,9 +234,12 @@ class _CaseActions extends ConsumerWidget {
                     .setPayStatus(item, ClosingPayStatus.unpaid);
               case 2:
                 final ok = await confirmDialog(context);
-                if (!ok) return;
-                await ref.read(closingCasesProvider.notifier).remove(item.id);
-                if (context.mounted) showToast(context, 'Closing case removed');
+                if (!ok || !context.mounted) return;
+                await runWithToast(
+                  context,
+                  () => ref.read(closingCasesProvider.notifier).remove(item.id),
+                  success: 'Closing case removed',
+                );
             }
           },
           itemBuilder: (context) => [
@@ -296,7 +258,7 @@ class _CaseActions extends ConsumerWidget {
 }
 
 void _showCaseDetails(BuildContext context, WidgetRef ref, ClosingCase item) {
-  final member = ref.read(memberByIdProvider)[item.memberId];
+  final member = ref.read(closingMembersProvider).value?[item.memberId];
   final yojna = ref.read(yojnaByIdProvider)[item.yojnaId];
 
   AppDialog.show<void>(
@@ -304,7 +266,6 @@ void _showCaseDetails(BuildContext context, WidgetRef ref, ClosingCase item) {
     builder: (_) => AppDialog(
       title: member?.name ?? 'Closing case',
       subtitle: member?.regNo,
-      icon: Icons.assignment_turned_in_outlined,
       maxWidth: 560,
       actions: [
         OutlinedButton(
@@ -318,7 +279,7 @@ void _showCaseDetails(BuildContext context, WidgetRef ref, ClosingCase item) {
           DetailRow(label: S.scheme, value: yojna?.name ?? '—'),
           DetailRow(label: S.closingDate, value: Fmt.date(item.closingDate)),
           DetailRow(label: S.closingGroup, value: item.closingGroup),
-          DetailRow(label: 'Nominee (वारिसदार)', value: item.nomineeName),
+          DetailRow(label: 'Nominee (Waris)', value: item.nomineeName),
           DetailRow(label: S.claimAmount, value: Fmt.money(item.claimAmount)),
           DetailRow(
             label: 'Collected',
@@ -327,9 +288,8 @@ void _showCaseDetails(BuildContext context, WidgetRef ref, ClosingCase item) {
           DetailRow(label: 'Pending', value: Fmt.money(item.pendingAmount)),
           DetailRow(label: S.payStatus, value: item.payStatus.label),
           if (member != null) ...[
-            const SizedBox(height: 8),
             DetailRow(label: S.phone, value: Fmt.phone(member.primaryPhone)),
-            DetailRow(label: 'पता', value: member.address),
+            DetailRow(label: 'Address', value: member.address),
           ],
         ],
       ),

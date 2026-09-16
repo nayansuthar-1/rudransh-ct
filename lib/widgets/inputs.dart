@@ -4,9 +4,10 @@ import 'package:flutter/services.dart';
 import '../core/l10n/strings.dart';
 import '../core/responsive/breakpoints.dart';
 import '../core/theme/app_colors.dart';
+import '../core/theme/app_theme.dart';
 import '../core/utils/formatters.dart';
 
-/// Label above a control, with the red asterisk used across the reference UI.
+/// Label above a control; required fields get a quiet asterisk.
 class FieldLabel extends StatelessWidget {
   const FieldLabel(this.label, {super.key, this.required = false});
 
@@ -24,18 +25,16 @@ class FieldLabel extends StatelessWidget {
       child: Text.rich(
         TextSpan(
           children: [
-            if (required)
-              TextSpan(
-                text: '* ',
-                style: TextStyle(color: c.danger, fontWeight: FontWeight.w700),
-              ),
             TextSpan(text: label),
+            if (required)
+              TextSpan(text: ' *', style: TextStyle(color: c.danger)),
           ],
         ),
         style: TextStyle(
-          fontSize: 12.5,
-          fontWeight: FontWeight.w600,
-          color: c.textSecondary,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+          color: c.textPrimary,
+          height: 1.3,
         ),
       ),
     );
@@ -99,9 +98,9 @@ class AppTextField extends StatelessWidget {
           style: const TextStyle(fontSize: 14),
           decoration: InputDecoration(
             hintText: hint,
-            prefixIcon: prefixIcon == null ? null : Icon(prefixIcon, size: 18),
+            prefixIcon: prefixIcon == null ? null : Icon(prefixIcon, size: 17),
             prefixIconConstraints:
-                const BoxConstraints(minWidth: 42, minHeight: 40),
+                const BoxConstraints(minWidth: 38, minHeight: 38),
             suffixIcon: suffix,
           ),
         ),
@@ -154,14 +153,20 @@ class AppDropdown<T> extends StatelessWidget {
         DropdownButtonFormField<T>(
           initialValue: safeValue,
           isExpanded: true,
+          isDense: true,
           validator: validator,
           hint: hint == null
               ? null
               : Text(hint!, style: TextStyle(fontSize: 14, color: c.textMuted)),
-          icon: Icon(Icons.keyboard_arrow_down_rounded, color: c.textSecondary),
-          style: TextStyle(fontSize: 14, color: c.textPrimary),
+          icon: Icon(Icons.unfold_more_rounded, size: 17, color: c.textMuted),
+          style: TextStyle(
+            fontSize: 14,
+            color: c.textPrimary,
+            fontFamily: kFontFamily,
+            fontFamilyFallback: kFontFallback,
+          ),
           dropdownColor: c.surface,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(Radii.panel),
           onChanged: enabled ? onChanged : null,
           items: [
             if (includeAllOption)
@@ -208,7 +213,7 @@ class AppDateField extends StatelessWidget {
       children: [
         FieldLabel(label, required: required),
         InkWell(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(Radii.control),
           onTap: () async {
             final picked = await showDatePicker(
               context: context,
@@ -222,14 +227,17 @@ class AppDateField extends StatelessWidget {
             decoration: const InputDecoration(),
             child: Row(
               children: [
-                Icon(Icons.calendar_today_outlined, size: 16, color: c.textMuted),
-                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     value == null ? '—' : Fmt.date(value),
-                    style: TextStyle(fontSize: 14, color: c.textPrimary),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: c.textPrimary,
+                    ),
                   ),
                 ),
+                Icon(Icons.calendar_today_outlined,
+                    size: 15, color: c.textMuted),
               ],
             ),
           ),
@@ -239,35 +247,265 @@ class AppDateField extends StatelessWidget {
   }
 }
 
-/// Debounce-free search box used on list pages.
-class SearchField extends StatelessWidget {
+/// Search box used on list pages.
+class SearchField extends StatefulWidget {
   const SearchField({
     super.key,
     required this.onChanged,
     this.hint = S.search,
-    this.controller,
+    this.value,
     this.width,
   });
 
   final ValueChanged<String> onChanged;
   final String hint;
-  final TextEditingController? controller;
+
+  /// Current query held in app state. When it changes elsewhere (the top-bar
+  /// search) the box updates to match.
+  final String? value;
   final double? width;
 
   @override
+  State<SearchField> createState() => _SearchFieldState();
+}
+
+class _SearchFieldState extends State<SearchField> {
+  late final _controller = TextEditingController(text: widget.value ?? '');
+
+  @override
+  void didUpdateWidget(covariant SearchField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final value = widget.value;
+    if (value != null && value != _controller.text) {
+      _controller.value = TextEditingValue(
+        text: value,
+        selection: TextSelection.collapsed(offset: value.length),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final field = TextField(
-      controller: controller,
-      onChanged: onChanged,
-      style: const TextStyle(fontSize: 14),
-      decoration: InputDecoration(
-        hintText: hint,
-        prefixIcon: const Icon(Icons.search, size: 18),
-        prefixIconConstraints:
-            const BoxConstraints(minWidth: 40, minHeight: 40),
+    final hint = widget.hint;
+    final width = widget.width;
+    final field = SizedBox(
+      height: 40,
+      child: TextField(
+        controller: _controller,
+        onChanged: widget.onChanged,
+        style: const TextStyle(fontSize: 14),
+        textAlignVertical: TextAlignVertical.center,
+        decoration: InputDecoration(
+          hintText: hint,
+          contentPadding: const EdgeInsets.symmetric(horizontal: Space.md),
+          prefixIcon: const Icon(Icons.search, size: 20),
+          prefixIconConstraints:
+              const BoxConstraints(minWidth: 40, minHeight: 40),
+        ),
       ),
     );
     return width == null ? field : SizedBox(width: width, child: field);
+  }
+}
+
+/// Compact filter button — "Status: Paid ▾" — that opens a menu. Filter bars
+/// use these instead of full-width dropdowns so they wrap cleanly on phones.
+class FilterMenu<T> extends StatelessWidget {
+  const FilterMenu({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.itemLabel,
+    required this.onChanged,
+    this.allLabel = S.all,
+  });
+
+  final String label;
+  final T? value;
+  final List<T> items;
+  final String Function(T) itemLabel;
+  final ValueChanged<T?> onChanged;
+  final String allLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final active = value != null && items.contains(value);
+
+    return PopupMenuButton<_Choice<T>>(
+      tooltip: label,
+      position: PopupMenuPosition.under,
+      offset: const Offset(0, 4),
+      constraints: const BoxConstraints(minWidth: 180, maxHeight: 420),
+      onSelected: (choice) => onChanged(choice.value),
+      itemBuilder: (context) => [
+        _item(context, _Choice<T>(null), allLabel, !active),
+        const PopupMenuDivider(height: 9),
+        for (final item in items)
+          _item(context, _Choice<T>(item), itemLabel(item), item == value),
+      ],
+      child: FilterButtonFrame(
+        active: active,
+        child: Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: active ? '$label: ' : label,
+                style: TextStyle(
+                  color: active ? c.onBrandSoft : c.textPrimary,
+                  fontWeight: active ? FontWeight.w400 : FontWeight.w500,
+                ),
+              ),
+              if (active)
+                TextSpan(
+                  text: itemLabel(value as T),
+                  style: TextStyle(
+                    color: c.onBrandSoft,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+            ],
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+  }
+
+  PopupMenuItem<_Choice<T>> _item(
+    BuildContext context,
+    _Choice<T> choice,
+    String text,
+    bool selected,
+  ) {
+    final c = context.colors;
+    return PopupMenuItem<_Choice<T>>(
+      value: choice,
+      height: 38,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              text,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 13.5, color: c.textPrimary),
+            ),
+          ),
+          if (selected) Icon(Icons.check, size: 16, color: c.brand),
+        ],
+      ),
+    );
+  }
+}
+
+/// Wraps a filter value so "All" (null) can be told apart from a dismissed
+/// menu, which PopupMenuButton reports as null too.
+class _Choice<T> {
+  const _Choice(this.value);
+  final T? value;
+}
+
+/// The 36px bordered frame shared by [FilterMenu] and one-off filter buttons.
+class FilterButtonFrame extends StatelessWidget {
+  const FilterButtonFrame({
+    super.key,
+    required this.child,
+    this.active = false,
+    this.icon = Icons.keyboard_arrow_down_rounded,
+  });
+
+  final Widget child;
+  final bool active;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Container(
+      height: 36,
+      constraints: const BoxConstraints(maxWidth: 260),
+      padding: const EdgeInsets.only(left: Space.md, right: Space.sm),
+      decoration: BoxDecoration(
+        color: active ? c.brandSoft : c.surface,
+        borderRadius: BorderRadius.circular(Radii.control),
+        border: Border.all(color: active ? c.brandSoft : c.borderStrong),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: DefaultTextStyle.merge(
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: active ? c.onBrandSoft : c.textPrimary,
+              ),
+              child: child,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Icon(icon, size: 18, color: active ? c.onBrandSoft : c.textMuted),
+        ],
+      ),
+    );
+  }
+}
+
+/// Search box plus filter buttons in one wrapping row.
+class FilterBar extends StatelessWidget {
+  const FilterBar({
+    super.key,
+    required this.search,
+    this.filters = const [],
+    this.onClear,
+  });
+
+  final Widget search;
+  final List<Widget> filters;
+
+  /// Shown as "Clear" when set.
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final mobile = context.isMobile;
+    final extras = [
+      ...filters,
+      if (onClear != null)
+        TextButton(
+          onPressed: onClear,
+          style: TextButton.styleFrom(minimumSize: const Size(0, 40)),
+          child: const Text('Clear'),
+        ),
+    ];
+
+    if (mobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          search,
+          if (extras.isNotEmpty) ...[
+            const SizedBox(height: Space.sm),
+            Wrap(spacing: Space.sm, runSpacing: Space.sm, children: extras),
+          ],
+        ],
+      );
+    }
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [SizedBox(width: 320, child: search), ...extras],
+    );
   }
 }
 
@@ -327,42 +565,30 @@ class FormGrid extends StatelessWidget {
   }
 }
 
-/// Titled block inside a form (व्यक्तिगत जानकारी, संपर्क जानकारी …).
+/// Titled block inside a form (Personal details, Contact details …).
 class FormSection extends StatelessWidget {
-  const FormSection({
-    super.key,
-    required this.title,
-    required this.child,
-    this.icon,
-  });
+  const FormSection({super.key, required this.title, required this.child});
 
   final String title;
   final Widget child;
-  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 16, color: c.brand),
-              const SizedBox(width: 7),
-            ],
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 14.5,
-                fontWeight: FontWeight.w700,
-                color: c.textPrimary,
-              ),
-            ),
-          ],
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: c.textPrimary,
+          ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: Space.sm),
+        Divider(color: c.border, height: 1),
+        const SizedBox(height: Space.lg),
         child,
       ],
     );

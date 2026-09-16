@@ -52,5 +52,5 @@ extension ResponsiveContext on BuildContext {
 
   /// Horizontal padding for page content.
   double get pageGutter =>
-      responsive(mobile: 14, tablet: 20, laptop: 24, desktop: 28);
+      responsive(mobile: 16, tablet: 24, laptop: 32, desktop: 32);
 }

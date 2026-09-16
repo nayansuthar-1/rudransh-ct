@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/models.dart';
 import '../../state/providers.dart';
@@ -19,7 +20,8 @@ class YojnaPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(yojnaListProvider);
     final yojnas = async.value ?? const <Yojna>[];
-    final counts = ref.watch(membersPerYojnaProvider);
+    final counts =
+        ref.watch(membersPerYojnaProvider).value ?? const <String, int>{};
 
     return PageBody(
       children: [
@@ -30,11 +32,11 @@ class YojnaPage extends ConsumerWidget {
             FilledButton.icon(
               onPressed: () => showYojnaFormDialog(context),
               icon: const Icon(Icons.add, size: 17),
-              label: const Text('नई योजना'),
+              label: const Text('New Yojna'),
             ),
           ],
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: Space.xl),
         if (async.isLoading && async.value == null)
           const LoadingState()
         else if (async.hasError && async.value == null)
@@ -45,19 +47,19 @@ class YojnaPage extends ConsumerWidget {
         else if (yojnas.isEmpty)
           AppCard(
             child: EmptyState(
-              message: 'अभी तक कोई योजना नहीं बनाई गई',
+              message: 'No Yojna has been created yet',
               icon: Icons.workspaces_outline,
               action: FilledButton.icon(
                 onPressed: () => showYojnaFormDialog(context),
                 icon: const Icon(Icons.add, size: 17),
-                label: const Text('नई योजना बनाएँ'),
+                label: const Text('Create Yojna'),
               ),
             ),
           )
         else
           LayoutBuilder(
             builder: (context, constraints) {
-              const gap = 16.0;
+              const gap = 12.0;
               final columns =
                   (constraints.maxWidth / 340).floor().clamp(1, 3);
               final width =
@@ -97,128 +99,140 @@ class _YojnaCard extends ConsumerWidget {
     return AppCard(
       borderColor: selected ? c.brand : null,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: c.brandSoft,
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  yojna.code,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: c.brand,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      yojna.name,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: c.textPrimary,
-                        height: 1.25,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 6, 0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        StatusPill(
-                          yojna.isActive ? S.active : S.inactive,
-                          tone: yojna.isActive
-                              ? PillTone.success
-                              : PillTone.neutral,
+                        Text(
+                          yojna.code,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: c.textMuted,
+                            letterSpacing: 0.4,
+                          ),
                         ),
-                        if (selected)
-                          const StatusPill('Selected', tone: PillTone.brand),
+                        const SizedBox(height: 2),
+                        Text(
+                          yojna.name,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: c.textPrimary,
+                            height: 1.3,
+                          ),
+                        ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-              _YojnaMenu(yojna: yojna),
-            ],
+                const SizedBox(width: 8),
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: StatusPill(
+                    selected
+                        ? 'In scope'
+                        : (yojna.isActive ? S.active : S.inactive),
+                    tone: selected
+                        ? PillTone.brand
+                        : (yojna.isActive ? PillTone.success : PillTone.neutral),
+                  ),
+                ),
+                _YojnaMenu(yojna: yojna),
+              ],
+            ),
           ),
-          if (yojna.description.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text(
-              yojna.description,
-              style: TextStyle(
-                fontSize: 12.5,
-                color: c.textSecondary,
-                height: 1.45,
+          if (yojna.description.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+              child: Text(
+                yojna.description,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13.5,
+                  color: c.textSecondary,
+                  height: 1.5,
+                ),
               ),
             ),
-          ],
           const SizedBox(height: 14),
-          Divider(color: c.border, height: 1),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: _Metric(
-                  label: S.membersCount,
-                  value: Fmt.number(memberCount),
-                ),
+          Container(
+            decoration: BoxDecoration(
+              border: Border.symmetric(
+                horizontal: BorderSide(color: c.border),
               ),
-              Expanded(
-                child: _Metric(
-                  label: 'सहयोग',
-                  value: Fmt.money(yojna.contributionAmount),
-                ),
+            ),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: _Metric(
+                      label: S.membersCount,
+                      value: Fmt.number(memberCount),
+                    ),
+                  ),
+                  VerticalDivider(width: 1, color: c.border),
+                  Expanded(
+                    child: _Metric(
+                      label: 'Contribution',
+                      value: Fmt.money(yojna.contributionAmount),
+                    ),
+                  ),
+                  VerticalDivider(width: 1, color: c.border),
+                  Expanded(
+                    child: _Metric(
+                      label: 'Claim',
+                      value: Fmt.moneyCompact(yojna.claimAmount),
+                    ),
+                  ),
+                ],
               ),
-              Expanded(
-                child: _Metric(
-                  label: 'क्लेम',
-                  value: Fmt.moneyCompact(yojna.claimAmount),
-                ),
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => ref
-                      .read(selectedYojnaIdProvider.notifier)
-                      .select(yojna.id),
-                  icon: const Icon(Icons.filter_center_focus, size: 15),
-                  label: const Text('Set scope'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+            child: Row(
+              children: [
+                Flexible(
+                  child: TextButton(
+                    onPressed: selected
+                        ? () => ref
+                            .read(selectedYojnaIdProvider.notifier)
+                            .select(null)
+                        : () => ref
+                            .read(selectedYojnaIdProvider.notifier)
+                            .select(yojna.id),
+                    child: Text(
+                      selected ? 'Show all schemes' : 'Set as scope',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: FilledButton.icon(
+                const SizedBox(width: Space.sm),
+                const Spacer(),
+                OutlinedButton(
                   onPressed: () =>
                       showYojnaFormDialog(context, existing: yojna),
-                  icon: const Icon(Icons.edit_outlined, size: 15),
-                  label: const Text(S.edit),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 34),
                   ),
+                  child: const Text(S.edit),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -235,25 +249,29 @@ class _Metric extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(label, style: TextStyle(fontSize: 11, color: c.textMuted)),
-        const SizedBox(height: 3),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Text(
-            value,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: c.textPrimary,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: TextStyle(fontSize: 12.5, color: c.textMuted)),
+          const SizedBox(height: 2),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: c.textPrimary,
+                fontFeatures: kTabular,
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -279,17 +297,28 @@ class _YojnaMenu extends ConsumerWidget {
                 .read(yojnaListProvider.notifier)
                 .edit(yojna.copyWith(isActive: !yojna.isActive));
           case 2:
-            final members = ref.read(membersPerYojnaProvider)[yojna.id] ?? 0;
+            final members =
+                ref.read(membersPerYojnaProvider).value?[yojna.id] ?? 0;
+            if (members > 0) {
+              showToast(
+                context,
+                'This Yojna has $members members, so it cannot be deleted. '
+                'Deactivate it instead.',
+                error: true,
+              );
+              return;
+            }
             final ok = await confirmDialog(
               context,
-              title: 'योजना हटाएँ?',
-              message: members > 0
-                  ? 'इस योजना में $members सदस्य हैं। हटाने पर वे किसी योजना से नहीं जुड़े रहेंगे।'
-                  : S.confirmDeleteBody,
+              title: 'Delete Yojna?',
+              message: S.confirmDeleteBody,
             );
-            if (!ok) return;
-            await ref.read(yojnaListProvider.notifier).remove(yojna.id);
-            if (context.mounted) showToast(context, 'योजना हटाई गई');
+            if (!ok || !context.mounted) return;
+            await runWithToast(
+              context,
+              () => ref.read(yojnaListProvider.notifier).remove(yojna.id),
+              success: 'Yojna deleted',
+            );
         }
       },
       itemBuilder: (context) => [

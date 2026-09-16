@@ -1,0 +1,212 @@
+# Test, build and deploy the admin panel.
+#   push to main   → production (Cloudflare Pages production branch)
+#   pull request   → preview URL, built against the staging Supabase project
+#
+# Repository secrets:
+#   CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID
+#   SUPABASE_URL_PROD,    SUPABASE_PUBLISHABLE_KEY_PROD
+#   SUPABASE_URL_STAGING, SUPABASE_PUBLISHABLE_KEY_STAGING
+# Repository variable:
+#   CLOUDFLARE_PAGES_PROJECT (default: rudransh-ct)
+
+name: CI & deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  deployments: write
+  pull-requests: write
+
+env:
+  FLUTTER_VERSION: 3.44.5
+
+jobs:
+  database:
+    name: Migrations & RLS checks
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply migrations and run checks
+        run: |
+          psql -v ON_ERROR_STOP=1 -q -f supabase/tests/auth_stub.sql
+          for f in supabase/migrations/*.sql; do
+            echo "::group::$f"
+            psql -v ON_ERROR_STOP=1 -q -f "$f"
+            echo "::endgroup::"
+          done
+          psql -v ON_ERROR_STOP=1 -q -f supabase/tests/database_test.sql
+      - name: Parallel saves get unique numbers
+        run: bash supabase/tests/concurrent_numbering_test.sh
+
+  api:
+    name: Repository against PostgREST
+    runs-on: ubuntu-latest
+    needs: database
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+      POSTGREST_VERSION: v16.3
+      JWT_SECRET: ci-only-jwt-secret-that-is-at-least-32-characters
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Schema and seed
+        run: |
+          psql -v ON_ERROR_STOP=1 -q -f supabase/tests/auth_stub.sql
+          for f in supabase/migrations/*.sql; do psql -v ON_ERROR_STOP=1 -q -f "$f"; done
+          psql -v ON_ERROR_STOP=1 -q -f supabase/tests/integration_seed.sql
+          psql -v ON_ERROR_STOP=1 -q -c "alter role authenticator password 'authenticator'"
+
+      - name: Start PostgREST
+        run: |
+          curl -fsSL "https://github.com/PostgREST/postgrest/releases/download/$POSTGREST_VERSION/postgrest-$POSTGREST_VERSION-linux-static-x86-64.tar.xz" | tar -xJ
+          cat > postgrest.conf <<EOF
+          db-uri = "postgres://authenticator:authenticator@localhost:5432/postgres"
+          db-schemas = "public"
+          db-anon-role = "anon"
+          db-max-rows = 1000
+          jwt-secret = "$JWT_SECRET"
+          server-port = 3900
+          EOF
+          ./postgrest postgrest.conf > postgrest.log 2>&1 &
+          for i in $(seq 1 30); do curl -fs http://localhost:3900/ > /dev/null && break; sleep 1; done
+          curl -fs http://localhost:3900/ > /dev/null || { cat postgrest.log; exit 1; }
+
+      - name: Sign test JWTs
+        run: |
+          b64() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
+          jwt() {
+            h=$(printf '{"alg":"HS256","typ":"JWT"}' | b64)
+            p=$(printf '{"sub":"%s","role":"authenticated","exp":4102444800}' "$1" | b64)
+            s=$(printf '%s.%s' "$h" "$p" | openssl dgst -sha256 -hmac "$JWT_SECRET" -binary | b64)
+            echo "$h.$p.$s"
+          }
+          echo "POSTGREST_ADMIN_JWT=$(jwt 00000000-0000-0000-0000-00000000a001)" >> "$GITHUB_ENV"
+          echo "POSTGREST_STRANGER_JWT=$(jwt 00000000-0000-0000-0000-00000000a002)" >> "$GITHUB_ENV"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Integration tests
+        env:
+          POSTGREST_URL: http://localhost:3900
+        run: flutter test test/integration/
+
+      - name: PostgREST log
+        if: failure()
+        run: cat postgrest.log
+
+  app:
+    name: Analyze, test, build & deploy
+    runs-on: ubuntu-latest
+    needs: [database, api]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+      - name: Pick environment
+        id: env
+        env:
+          IS_PROD: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          PROD_URL: ${{ secrets.SUPABASE_URL_PROD }}
+          PROD_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY_PROD }}
+          STAGING_URL: ${{ secrets.SUPABASE_URL_STAGING }}
+          STAGING_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY_STAGING }}
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ "$IS_PROD" = "true" ]; then url="$PROD_URL"; key="$PROD_KEY"; else url="$STAGING_URL"; key="$STAGING_KEY"; fi
+          if [ -z "$url" ] || [ -z "$key" ] || [ -z "$CF_TOKEN" ]; then
+            # Forked PRs and unconfigured repos: test only, never ship a demo build.
+            echo "Deploy secrets missing; skipping build and deploy."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "::add-mask::$key"
+          {
+            echo "deploy=true"
+            echo "url=$url"
+            echo "key=$key"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build web
+        if: steps.env.outputs.deploy == 'true'
+        run: >
+          flutter build web --release
+          --dart-define=SUPABASE_URL=${{ steps.env.outputs.url }}
+          --dart-define=SUPABASE_PUBLISHABLE_KEY=${{ steps.env.outputs.key }}
+
+      - name: Refuse a build without Supabase config
+        if: steps.env.outputs.deploy == 'true'
+        run: |
+          if grep -q "any 6-digit code signs you in" build/web/main.dart.js; then
+            echo "::error::Build is in demo mode; check the Supabase secrets."
+            exit 1
+          fi
+
+      - name: Deploy to Cloudflare Pages
+        id: deploy
+        if: steps.env.outputs.deploy == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: >
+            pages deploy build/web
+            --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT || 'rudransh-ct' }}
+            --branch=${{ github.head_ref || github.ref_name }}
+            --commit-dirty=true
+
+      - name: Comment preview URL
+        if: github.event_name == 'pull_request' && steps.deploy.outputs.deployment-url != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: |
+          body="Preview (staging data): $URL"
+          gh pr comment ${{ github.event.pull_request.number }} --body "$body" --edit-last \
+            || gh pr comment ${{ github.event.pull_request.number }} --body "$body"

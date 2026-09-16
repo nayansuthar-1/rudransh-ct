@@ -6,6 +6,7 @@ import '../../core/l10n/strings.dart';
 import '../../core/responsive/breakpoints.dart';
 import '../../core/router/routes.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/models.dart';
 import '../../state/providers.dart';
@@ -21,18 +22,15 @@ class DashboardPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.colors;
-    final stats = ref.watch(dashboardStatsProvider);
+    final statsAsync = ref.watch(dashboardStatsProvider);
+    final stats = statsAsync.value ?? DashboardStats.empty;
     final yojna = ref.watch(selectedYojnaProvider);
-    final membersAsync = ref.watch(membersProvider);
 
     return PageBody(
       children: [
         SectionHeader(
           title: S.dashboard,
-          subtitle: yojna == null
-              ? 'सभी योजनाओं का सारांश'
-              : '${yojna.name} · ${S.dashboardSub}',
+          subtitle: yojna == null ? 'Summary across all Yojnas' : yojna.name,
           actions: [
             OutlinedButton.icon(
               onPressed: () => _refreshAll(ref),
@@ -41,27 +39,34 @@ class DashboardPage extends ConsumerWidget {
             ),
           ],
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: Space.xl),
 
-        if (membersAsync.isLoading && membersAsync.value == null)
-          const LoadingState(height: 140)
+        if (statsAsync.isLoading && statsAsync.value == null)
+          const AppCard(child: LoadingState(height: 104))
+        else if (statsAsync.hasError && statsAsync.value == null)
+          AppCard(
+            child: ErrorStateView(
+              error: statsAsync.error!,
+              onRetry: () => ref.invalidate(dashboardStatsProvider),
+            ),
+          )
         else
           StatGrid(
             children: [
               StatCard(
                 label: S.totalMembers,
                 value: Fmt.number(stats.totalMembers),
-                icon: Icons.groups_rounded,
-                tone: PillTone.brand,
+                icon: Icons.groups_outlined,
+                accent: StatAccent.blue,
                 caption:
-                    '${S.active}: ${stats.activeMembers} | ${S.inactive}: ${stats.inactiveMembers}',
+                    '${Fmt.number(stats.activeMembers)} active · ${Fmt.number(stats.inactiveMembers)} inactive',
                 onTap: () => context.go(AppRoutes.members),
               ),
               StatCard(
                 label: S.closingMembers,
                 value: Fmt.number(stats.closedMembers),
-                icon: Icons.check_circle_outline_rounded,
-                tone: PillTone.success,
+                icon: Icons.assignment_turned_in_outlined,
+                accent: StatAccent.purple,
                 caption: S.closedMembers,
                 onTap: () => context.go(AppRoutes.closing),
               ),
@@ -69,80 +74,61 @@ class DashboardPage extends ConsumerWidget {
                 label: S.totalAgents,
                 value: Fmt.number(stats.totalAgents),
                 icon: Icons.badge_outlined,
-                tone: PillTone.info,
-                caption: '${stats.activeAgents} ${S.active.toLowerCase()}',
+                accent: StatAccent.teal,
+                caption: '${Fmt.number(stats.activeAgents)} active',
                 onTap: () => context.go(AppRoutes.agents),
               ),
               StatCard(
                 label: S.monthCollection,
                 value: Fmt.moneyCompact(stats.monthCollection),
-                icon: Icons.account_balance_wallet_outlined,
-                tone: PillTone.warning,
+                icon: Icons.currency_rupee_rounded,
+                accent: StatAccent.green,
                 delta: stats.collectionDelta,
                 caption: Fmt.month(DateTime.now()),
                 onTap: () => context.go(AppRoutes.payments),
               ),
             ],
           ),
-        const SizedBox(height: 18),
+        const SizedBox(height: Space.xxl),
 
         // ---- Closed cases ---------------------------------------------
-        AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SectionHeader(
-                title: S.closedCases,
-                leading: Icon(Icons.verified_outlined, size: 19, color: c.success),
-                dense: true,
-                actions: [
-                  const PayStatusFilterButton(),
-                  OutlinedButton.icon(
-                    onPressed: () => _refreshAll(ref),
-                    icon: const Icon(Icons.refresh_rounded, size: 15),
-                    label: const Text(S.refresh),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 11,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              const ClosingCasesTable(
-                pageSize: 6,
-                emptyMessage: S.noClosedCases,
-                showClaimColumn: false,
-              ),
-            ],
+        const SectionHeader(
+          title: S.closedCases,
+          dense: true,
+          actions: [PayStatusFilterButton()],
+        ),
+        const SizedBox(height: Space.md),
+        const AppCard(
+          child: ClosingCasesTable(
+            pageSize: 6,
+            emptyMessage: S.noClosedCases,
+            showClaimColumn: false,
           ),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: Space.xxl),
 
         // ---- Split panels ---------------------------------------------
-        _SplitRow(
-          left: const _MembersByYojnaCard(),
-          right: const _TopAgentsCard(),
+        const _SplitRow(
+          left: _MembersByYojnaSection(),
+          right: _TopAgentsSection(),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: Space.xxl),
 
-        const _RecentPaymentsCard(),
+        const _RecentPaymentsSection(),
       ],
     );
   }
 
   void _refreshAll(WidgetRef ref) {
-    ref.invalidate(membersProvider);
+    // Reloads every server-backed view (stats, pages, totals).
+    ref.read(dataRevisionProvider.notifier).bump();
     ref.invalidate(agentsProvider);
-    ref.invalidate(paymentsProvider);
     ref.invalidate(closingCasesProvider);
     ref.invalidate(yojnaListProvider);
   }
 }
 
-/// Two panels side by side on wide screens, stacked otherwise.
+/// Two sections side by side on wide screens, stacked otherwise.
 class _SplitRow extends StatelessWidget {
   const _SplitRow({required this.left, required this.right});
 
@@ -154,52 +140,59 @@ class _SplitRow extends StatelessWidget {
     if (context.screenWidth < Breakpoints.tablet) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [left, const SizedBox(height: 18), right],
+        children: [left, const SizedBox(height: Space.xxl), right],
       );
     }
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(flex: 3, child: left),
-          const SizedBox(width: 18),
-          Expanded(flex: 2, child: right),
-        ],
-      ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: left),
+        const SizedBox(width: 24),
+        Expanded(child: right),
+      ],
     );
   }
 }
 
-class _MembersByYojnaCard extends ConsumerWidget {
-  const _MembersByYojnaCard();
+class _MembersByYojnaSection extends ConsumerWidget {
+  const _MembersByYojnaSection();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.colors;
     final yojnas = ref.watch(yojnaListProvider).value ?? const <Yojna>[];
-    final counts = ref.watch(membersPerYojnaProvider);
+    final counts =
+        ref.watch(membersPerYojnaProvider).value ?? const <String, int>{};
     final total = counts.values.fold<int>(0, (a, b) => a + b);
 
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SectionHeader(title: S.membersByYojna, dense: true),
-          const SizedBox(height: 16),
-          if (yojnas.isEmpty)
-            const EmptyState(message: S.noResults, compact: true)
-          else
-            for (final y in yojnas) ...[
-              _BarRow(
-                label: y.name,
-                value: counts[y.id] ?? 0,
-                total: total == 0 ? 1 : total,
-                color: c.brand,
-              ),
-              const SizedBox(height: 14),
-            ],
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Height matches a header with a text button, so both columns align.
+        const SizedBox(
+          height: 34,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: SectionHeader(title: S.membersByYojna, dense: true),
+          ),
+        ),
+        const SizedBox(height: Space.md),
+        AppCard(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+          child: yojnas.isEmpty
+              ? const EmptyState(message: S.noResults, compact: true)
+              : Column(
+                  children: [
+                    for (var i = 0; i < yojnas.length; i++)
+                      _BarRow(
+                        label: yojnas[i].name,
+                        value: counts[yojnas[i].id] ?? 0,
+                        total: total,
+                        divider: i < yojnas.length - 1,
+                      ),
+                  ],
+                ),
+        ),
+      ],
     );
   }
 }
@@ -209,78 +202,102 @@ class _BarRow extends StatelessWidget {
     required this.label,
     required this.value,
     required this.total,
-    required this.color,
+    required this.divider,
   });
 
   final String label;
   final int value;
   final int total;
-  final Color color;
+  final bool divider;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
     final fraction = total == 0 ? 0.0 : value / total;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: divider ? Border(bottom: BorderSide(color: c.border)) : null,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 13, color: c.textPrimary),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 14, color: c.textPrimary),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  Fmt.number(value),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: c.textPrimary,
+                    fontFeatures: kTabular,
+                  ),
+                ),
+                SizedBox(
+                  width: 48,
+                  child: Text(
+                    '${(fraction * 100).toStringAsFixed(0)}%',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: c.textMuted,
+                      fontFeatures: kTabular,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 10),
-            Text(
-              '${Fmt.number(value)}  ·  ${(fraction * 100).toStringAsFixed(0)}%',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: c.textSecondary,
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: LinearProgressIndicator(
+                value: fraction,
+                minHeight: 4,
+                backgroundColor: c.brandSoft.withValues(alpha: 0.5),
+                valueColor: AlwaysStoppedAnimation(c.brand),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 7),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: LinearProgressIndicator(
-            value: fraction,
-            minHeight: 8,
-            backgroundColor: c.surfaceMuted,
-            valueColor: AlwaysStoppedAnimation(color),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
 
-class _TopAgentsCard extends ConsumerWidget {
-  const _TopAgentsCard();
+class _TopAgentsSection extends ConsumerWidget {
+  const _TopAgentsSection();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     final agents = ref.watch(agentsProvider).value ?? const <Agent>[];
-    final collections = ref.watch(collectionByAgentProvider);
-    final counts = ref.watch(memberCountByAgentProvider);
+    final collections =
+        ref.watch(collectionByAgentProvider).value ?? const <String, double>{};
+    final counts =
+        ref.watch(memberCountByAgentProvider).value ?? const <String, int>{};
 
     final ranked = [...agents]..sort(
         (a, b) => (collections[b.id] ?? 0).compareTo(collections[a.id] ?? 0),
       );
     final top = ranked.take(5).toList();
 
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SectionHeader(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: 34,
+          child: SectionHeader(
             title: S.topAgents,
             dense: true,
             actions: [
@@ -290,86 +307,122 @@ class _TopAgentsCard extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          if (top.isEmpty)
-            const EmptyState(message: S.noResults, compact: true)
-          else
-            for (final a in top)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 7),
-                child: Row(
+        ),
+        const SizedBox(height: Space.md),
+        AppCard(
+          child: top.isEmpty
+              ? const EmptyState(message: S.noResults, compact: true)
+              : Column(
                   children: [
-                    AppAvatar(name: a.name, size: 34),
-                    const SizedBox(width: 11),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            a.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w600,
-                              color: c.textPrimary,
+                    for (var i = 0; i < top.length; i++)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 11,
+                        ),
+                        decoration: BoxDecoration(
+                          border: i == top.length - 1
+                              ? null
+                              : Border(bottom: BorderSide(color: c.border)),
+                        ),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 22,
+                              child: Text(
+                                '${i + 1}',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: c.textMuted,
+                                  fontFeatures: kTabular,
+                                ),
+                              ),
                             ),
-                          ),
-                          Text(
-                            '${a.code} · ${counts[a.id] ?? 0} ${S.membersCount.toLowerCase()}',
-                            style: TextStyle(fontSize: 11.5, color: c.textMuted),
-                          ),
-                        ],
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    top[i].name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: c.textPrimary,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${top[i].code} · ${counts[top[i].id] ?? 0} ${S.membersCount.toLowerCase()}',
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      color: c.textMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              Fmt.moneyCompact(collections[top[i].id] ?? 0),
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: c.textPrimary,
+                                fontFeatures: kTabular,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      Fmt.moneyCompact(collections[a.id] ?? 0),
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: c.textPrimary,
-                      ),
-                    ),
                   ],
                 ),
-              ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-class _RecentPaymentsCard extends ConsumerWidget {
-  const _RecentPaymentsCard();
+class _RecentPaymentsSection extends ConsumerWidget {
+  const _RecentPaymentsSection();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final payments = ref.watch(scopedPaymentsProvider).take(6).toList();
-    final members = ref.watch(memberByIdProvider);
+    final page = ref.watch(recentPaymentsProvider).value ?? PaymentPage.empty;
+    final payments = page.items;
+    final members = page.members;
 
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SectionHeader(
-            title: S.recentPayments,
-            dense: true,
-            actions: [
-              TextButton(
-                onPressed: () => context.go(AppRoutes.payments),
-                child: const Text(S.viewAll),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          ResponsiveTable<Payment>(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionHeader(
+          title: S.recentPayments,
+          dense: true,
+          actions: [
+            TextButton(
+              onPressed: () => context.go(AppRoutes.payments),
+              child: const Text(S.viewAll),
+            ),
+          ],
+        ),
+        const SizedBox(height: Space.md),
+        AppCard(
+          child: ResponsiveTable<Payment>(
             paginate: false,
             rows: payments,
             emptyMessage: S.noResults,
             mobileTitle: (p) => members[p.memberId]?.name ?? '—',
-            mobileSubtitle: (p) => p.receiptNo,
+            mobileSubtitle: (p) => '${p.receiptNo} · ${Fmt.date(p.date)}',
+            mobileTrailing: (context, p) => Text(
+              Fmt.money(p.amount),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: context.colors.textPrimary,
+                fontFeatures: kTabular,
+              ),
+            ),
             columns: [
               TableCol<Payment>(
                 label: S.memberName,
@@ -380,36 +433,30 @@ class _RecentPaymentsCard extends ConsumerWidget {
                   members[p.memberId]?.name ?? '—',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.w500),
                 ),
               ),
               TableCol<Payment>(
                 label: S.receiptNo,
                 minWidth: 110,
                 hideBelow: ScreenSize.laptop,
+                showOnMobile: false,
                 text: (p) => p.receiptNo,
-                cell: (context, p) =>
-                    Text(p.receiptNo, style: const TextStyle(fontSize: 13)),
+                cell: (context, p) => Text(p.receiptNo),
               ),
               TableCol<Payment>(
                 label: S.date,
                 minWidth: 110,
+                showOnMobile: false,
                 text: (p) => Fmt.date(p.date),
-                cell: (context, p) => Text(
-                  Fmt.date(p.date),
-                  style: const TextStyle(fontSize: 13),
-                ),
+                cell: (context, p) => Text(Fmt.date(p.date)),
               ),
               TableCol<Payment>(
                 label: S.mode,
                 minWidth: 100,
                 hideBelow: ScreenSize.laptop,
                 text: (p) => p.mode.label,
-                cell: (context, p) =>
-                    Text(p.mode.label, style: const TextStyle(fontSize: 13)),
+                cell: (context, p) => Text(p.mode.label),
               ),
               TableCol<Payment>(
                 label: S.status,
@@ -420,19 +467,17 @@ class _RecentPaymentsCard extends ConsumerWidget {
                 label: S.amount,
                 minWidth: 110,
                 numeric: true,
+                showOnMobile: false,
                 text: (p) => Fmt.money(p.amount),
                 cell: (context, p) => Text(
                   Fmt.money(p.amount),
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
             ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

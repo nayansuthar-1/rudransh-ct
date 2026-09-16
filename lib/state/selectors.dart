@@ -4,6 +4,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/models.dart';
 import 'providers.dart';
 
+/// Rows per page for the members and payments tables.
+const listPageSize = 20;
+
+/// Waits out fast typing before a search hits the backend. Returns false when
+/// a newer keystroke has already replaced this request.
+Future<bool> _settled(Ref ref, String text) async {
+  if (text.trim().isEmpty) return true;
+  await Future<void>.delayed(const Duration(milliseconds: 300));
+  return ref.mounted;
+}
+
 // ---------------------------------------------------------------------------
 // Member filtering
 // ---------------------------------------------------------------------------
@@ -62,40 +73,47 @@ final memberFilterProvider =
   MemberFilterNotifier.new,
 );
 
-/// Members of the scheme selected in the top bar (all schemes when null).
-final scopedMembersProvider = Provider<List<Member>>((ref) {
-  final members = ref.watch(membersProvider).value ?? const <Member>[];
-  final yojnaId = ref.watch(selectedYojnaIdProvider);
-  if (yojnaId == null) return members;
-  return members.where((m) => m.yojnaId == yojnaId).toList();
-});
-
-final filteredMembersProvider = Provider<List<Member>>((ref) {
-  final members = ref.watch(scopedMembersProvider);
+/// Top-bar scheme scope plus the members page filters.
+final memberQueryProvider = Provider<MemberQuery>((ref) {
   final f = ref.watch(memberFilterProvider);
-  final q = f.query.trim().toLowerCase();
-
-  final result = members.where((m) {
-    if (q.isNotEmpty && !m.searchIndex.contains(q)) return false;
-    if (f.status != null && m.status != f.status) return false;
-    if (f.agentId != null && m.agentId != f.agentId) return false;
-    if (f.district != null && m.district != f.district) return false;
-    return true;
-  }).toList();
-
-  result.sort((a, b) => b.joinDate.compareTo(a.joinDate));
-  return result;
+  return MemberQuery(
+    yojnaId: ref.watch(selectedYojnaIdProvider),
+    text: f.query.trim(),
+    status: f.status,
+    agentId: f.agentId,
+    district: f.district,
+  );
 });
 
-final memberDistrictsProvider = Provider<List<String>>((ref) {
-  final members = ref.watch(membersProvider).value ?? const <Member>[];
-  final set = members
-      .map((m) => m.district)
-      .where((d) => d.trim().isNotEmpty)
-      .toSet()
-      .toList()
-    ..sort();
-  return set;
+/// Zero-based page of the members table. Resets when the query changes.
+class MemberPageNotifier extends Notifier<int> {
+  @override
+  int build() {
+    ref.watch(memberQueryProvider);
+    return 0;
+  }
+
+  void set(int page) => state = page;
+}
+
+final memberPageProvider =
+    NotifierProvider<MemberPageNotifier, int>(MemberPageNotifier.new);
+
+final membersPageProvider = FutureProvider<PageResult<Member>>((ref) async {
+  watchBackendData(ref);
+  final query = ref.watch(memberQueryProvider);
+  final page = ref.watch(memberPageProvider);
+  if (!await _settled(ref, query.text)) return PageResult.empty();
+  return ref.read(repositoryProvider).fetchMembersPage(
+        query,
+        offset: page * listPageSize,
+        limit: listPageSize,
+      );
+});
+
+final memberDistrictsProvider = FutureProvider<List<String>>((ref) {
+  watchBackendData(ref);
+  return ref.read(repositoryProvider).fetchMemberDistricts();
 });
 
 // ---------------------------------------------------------------------------
@@ -122,27 +140,15 @@ final filteredAgentsProvider = Provider<List<Agent>>((ref) {
 });
 
 /// Member count per agent, used on the agents table.
-final memberCountByAgentProvider = Provider<Map<String, int>>((ref) {
-  final members = ref.watch(membersProvider).value ?? const <Member>[];
-  final counts = <String, int>{};
-  for (final m in members) {
-    final id = m.agentId;
-    if (id == null) continue;
-    counts[id] = (counts[id] ?? 0) + 1;
-  }
-  return counts;
+final memberCountByAgentProvider = FutureProvider<Map<String, int>>((ref) {
+  watchBackendData(ref);
+  return ref.read(repositoryProvider).fetchMemberCountByAgent();
 });
 
 /// Total collected per agent, used for the "Top Agents" panel.
-final collectionByAgentProvider = Provider<Map<String, double>>((ref) {
-  final payments = ref.watch(paymentsProvider).value ?? const <Payment>[];
-  final totals = <String, double>{};
-  for (final p in payments) {
-    final id = p.agentId;
-    if (id == null || p.status != PaymentStatus.paid) continue;
-    totals[id] = (totals[id] ?? 0) + p.amount;
-  }
-  return totals;
+final collectionByAgentProvider = FutureProvider<Map<String, double>>((ref) {
+  watchBackendData(ref);
+  return ref.read(repositoryProvider).fetchCollectionByAgent();
 });
 
 // ---------------------------------------------------------------------------
@@ -222,80 +228,80 @@ final paymentFilterProvider =
   PaymentFilterNotifier.new,
 );
 
-final scopedPaymentsProvider = Provider<List<Payment>>((ref) {
-  final payments = ref.watch(paymentsProvider).value ?? const <Payment>[];
-  final yojnaId = ref.watch(selectedYojnaIdProvider);
-  if (yojnaId == null) return payments;
-  return payments.where((p) => p.yojnaId == yojnaId).toList();
-});
-
-final filteredPaymentsProvider = Provider<List<Payment>>((ref) {
-  final payments = ref.watch(scopedPaymentsProvider);
-  final members = ref.watch(memberByIdProvider);
+final paymentQueryProvider = Provider<PaymentQuery>((ref) {
   final f = ref.watch(paymentFilterProvider);
-  final q = f.query.trim().toLowerCase();
-
-  final result = payments.where((p) {
-    if (f.mode != null && p.mode != f.mode) return false;
-    if (f.status != null && p.status != f.status) return false;
-    if (f.kind != null && p.kind != f.kind) return false;
-    if (f.from != null && p.date.isBefore(f.from!)) return false;
-    if (f.to != null && p.date.isAfter(f.to!)) return false;
-    if (q.isNotEmpty) {
-      final member = members[p.memberId];
-      final haystack = [
-        p.receiptNo,
-        p.reference,
-        member?.name ?? '',
-        member?.regNo ?? '',
-        member?.primaryPhone ?? '',
-      ].join(' ').toLowerCase();
-      if (!haystack.contains(q)) return false;
-    }
-    return true;
-  }).toList();
-
-  result.sort((a, b) => b.date.compareTo(a.date));
-  return result;
+  return PaymentQuery(
+    yojnaId: ref.watch(selectedYojnaIdProvider),
+    text: f.query.trim(),
+    mode: f.mode,
+    status: f.status,
+    kind: f.kind,
+    from: f.from,
+    to: f.to,
+  );
 });
 
-/// Totals for the payment page summary strip.
-@immutable
-class PaymentTotals {
-  const PaymentTotals({
-    required this.count,
-    required this.paid,
-    required this.pending,
-    required this.failed,
-  });
+/// Zero-based page of the payments table. Resets when the query changes.
+class PaymentPageNotifier extends Notifier<int> {
+  @override
+  int build() {
+    ref.watch(paymentQueryProvider);
+    return 0;
+  }
 
-  final int count;
-  final double paid;
-  final double pending;
-  final double failed;
-
-  double get total => paid + pending + failed;
+  void set(int page) => state = page;
 }
 
-final paymentTotalsProvider = Provider<PaymentTotals>((ref) {
-  final payments = ref.watch(filteredPaymentsProvider);
-  var paid = 0.0, pending = 0.0, failed = 0.0;
-  for (final p in payments) {
-    switch (p.status) {
-      case PaymentStatus.paid:
-        paid += p.amount;
-      case PaymentStatus.pending:
-        pending += p.amount;
-      case PaymentStatus.failed:
-        failed += p.amount;
-    }
-  }
-  return PaymentTotals(
-    count: payments.length,
-    paid: paid,
-    pending: pending,
-    failed: failed,
-  );
+final paymentPageProvider =
+    NotifierProvider<PaymentPageNotifier, int>(PaymentPageNotifier.new);
+
+final paymentsPageProvider = FutureProvider<PaymentPage>((ref) async {
+  watchBackendData(ref);
+  final query = ref.watch(paymentQueryProvider);
+  final page = ref.watch(paymentPageProvider);
+  if (!await _settled(ref, query.text)) return PaymentPage.empty;
+  return ref.read(repositoryProvider).fetchPaymentsPage(
+        query,
+        offset: page * listPageSize,
+        limit: listPageSize,
+      );
+});
+
+/// Totals for the payment page summary strip, across all pages.
+final paymentTotalsProvider = FutureProvider<PaymentTotals>((ref) async {
+  watchBackendData(ref);
+  final query = ref.watch(paymentQueryProvider);
+  if (!await _settled(ref, query.text)) return PaymentTotals.empty;
+  return ref.read(repositoryProvider).fetchPaymentTotals(query);
+});
+
+/// Pending payments across all schemes, for the requests bell.
+final pendingPaymentCountProvider = FutureProvider<int>((ref) async {
+  watchBackendData(ref);
+  final totals = await ref
+      .read(repositoryProvider)
+      .fetchPaymentTotals(const PaymentQuery(status: PaymentStatus.pending));
+  return totals.count;
+});
+
+/// Latest payments in the top-bar scope, for the dashboard.
+final recentPaymentsProvider = FutureProvider<PaymentPage>((ref) {
+  watchBackendData(ref);
+  final yojnaId = ref.watch(selectedYojnaIdProvider);
+  return ref
+      .read(repositoryProvider)
+      .fetchPaymentsPage(PaymentQuery(yojnaId: yojnaId), offset: 0, limit: 6);
+});
+
+/// Latest payments of one member, for the member detail sheet.
+final memberRecentPaymentsProvider =
+    FutureProvider.autoDispose.family<PaymentPage, String>((ref, memberId) {
+  watchBackendData(ref);
+  return ref.read(repositoryProvider).fetchPaymentsPage(
+        PaymentQuery(memberId: memberId),
+        offset: 0,
+        limit: 6,
+      );
 });
 
 // ---------------------------------------------------------------------------
@@ -329,121 +335,30 @@ final filteredClosingCasesProvider = Provider<List<ClosingCase>>((ref) {
   return cases.where((c) => c.payStatus == status).toList();
 });
 
+/// The members behind the closing cases, keyed by id.
+final closingMembersProvider = FutureProvider<Map<String, Member>>((ref) async {
+  watchBackendData(ref);
+  final cases = await ref.watch(closingCasesProvider.future);
+  if (cases.isEmpty) return const {};
+  final members = await ref
+      .read(repositoryProvider)
+      .fetchMembersByIds(cases.map((c) => c.memberId));
+  return {for (final m in members) m.id: m};
+});
+
 // ---------------------------------------------------------------------------
 // Dashboard
 // ---------------------------------------------------------------------------
 
-@immutable
-class DashboardStats {
-  const DashboardStats({
-    required this.totalMembers,
-    required this.activeMembers,
-    required this.inactiveMembers,
-    required this.closedMembers,
-    required this.totalAgents,
-    required this.activeAgents,
-    required this.monthCollection,
-    required this.previousMonthCollection,
-    required this.pendingClaims,
-  });
-
-  static const empty = DashboardStats(
-    totalMembers: 0,
-    activeMembers: 0,
-    inactiveMembers: 0,
-    closedMembers: 0,
-    totalAgents: 0,
-    activeAgents: 0,
-    monthCollection: 0,
-    previousMonthCollection: 0,
-    pendingClaims: 0,
-  );
-
-  final int totalMembers;
-  final int activeMembers;
-  final int inactiveMembers;
-  final int closedMembers;
-  final int totalAgents;
-  final int activeAgents;
-  final double monthCollection;
-  final double previousMonthCollection;
-  final double pendingClaims;
-
-  /// Month-over-month change, `null` when there is no baseline.
-  double? get collectionDelta {
-    if (previousMonthCollection <= 0) return null;
-    return (monthCollection - previousMonthCollection) /
-        previousMonthCollection *
-        100;
-  }
-}
-
-final dashboardStatsProvider = Provider<DashboardStats>((ref) {
-  final members = ref.watch(scopedMembersProvider);
-  final agents = ref.watch(agentsProvider).value ?? const <Agent>[];
-  final payments = ref.watch(scopedPaymentsProvider);
-  final cases = ref.watch(scopedClosingCasesProvider);
-
-  final now = DateTime.now();
-  final monthStart = DateTime(now.year, now.month);
-  final prevStart = DateTime(now.year, now.month - 1);
-
-  var monthTotal = 0.0;
-  var prevTotal = 0.0;
-  for (final p in payments) {
-    if (p.status != PaymentStatus.paid) continue;
-    if (!p.date.isBefore(monthStart)) {
-      monthTotal += p.amount;
-    } else if (!p.date.isBefore(prevStart)) {
-      prevTotal += p.amount;
-    }
-  }
-
-  return DashboardStats(
-    totalMembers: members.length,
-    activeMembers:
-        members.where((m) => m.status == MemberStatus.active).length,
-    inactiveMembers:
-        members.where((m) => m.status == MemberStatus.inactive).length,
-    closedMembers: members.where((m) => m.isClosed).length,
-    totalAgents: agents.length,
-    activeAgents: agents.where((a) => a.isActive).length,
-    monthCollection: monthTotal,
-    previousMonthCollection: prevTotal,
-    pendingClaims: cases
-        .where((c) => c.payStatus != ClosingPayStatus.paid)
-        .fold<double>(0, (sum, c) => sum + c.pendingAmount),
-  );
+/// Stat tiles for the scheme selected in the top bar.
+final dashboardStatsProvider = FutureProvider<DashboardStats>((ref) {
+  watchBackendData(ref);
+  final yojnaId = ref.watch(selectedYojnaIdProvider);
+  return ref.read(repositoryProvider).fetchDashboardStats(yojnaId);
 });
 
 /// Member counts grouped by scheme, ignoring the top-bar scope.
-final membersPerYojnaProvider = Provider<Map<String, int>>((ref) {
-  final members = ref.watch(membersProvider).value ?? const <Member>[];
-  final counts = <String, int>{};
-  for (final m in members) {
-    counts[m.yojnaId] = (counts[m.yojnaId] ?? 0) + 1;
-  }
-  return counts;
+final membersPerYojnaProvider = FutureProvider<Map<String, int>>((ref) {
+  watchBackendData(ref);
+  return ref.read(repositoryProvider).fetchMembersPerYojna();
 });
-
-/// Paid collection totals for the last six months (oldest first).
-final monthlyCollectionProvider = Provider<List<({DateTime month, double total})>>(
-  (ref) {
-    final payments = ref.watch(scopedPaymentsProvider);
-    final now = DateTime.now();
-    final buckets = <DateTime, double>{};
-    for (var i = 5; i >= 0; i--) {
-      buckets[DateTime(now.year, now.month - i)] = 0;
-    }
-    for (final p in payments) {
-      if (p.status != PaymentStatus.paid) continue;
-      final key = DateTime(p.date.year, p.date.month);
-      if (buckets.containsKey(key)) {
-        buckets[key] = buckets[key]! + p.amount;
-      }
-    }
-    return buckets.entries
-        .map((e) => (month: e.key, total: e.value))
-        .toList();
-  },
-);

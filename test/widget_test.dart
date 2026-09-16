@@ -115,7 +115,7 @@ void main() {
     expect(find.text(S.appName), findsOneWidget);
     expect(find.text(S.totalMembers), findsOneWidget);
     expect(find.text(S.closedCases), findsOneWidget);
-    expect(find.text(S.addPayment), findsWidgets);
+    expect(find.byTooltip(S.add), findsOneWidget);
   });
 
   testWidgets('narrow layout swaps the sidebar for a drawer', (tester) async {

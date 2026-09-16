@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-/// A scheme / programme run by the trust (सुरक्षा सहयोग योजना etc.).
+/// A scheme / programme (Yojna) run by the trust.
 @immutable
 class Yojna {
   const Yojna({
@@ -17,7 +17,7 @@ class Yojna {
 
   final String id;
 
-  /// Display name, Hindi (e.g. `सुरक्षा सहयोग योजना`).
+  /// Display name as the trust writes it.
   final String name;
 
   /// Short uppercase code used in registration numbers (e.g. `SSY`).

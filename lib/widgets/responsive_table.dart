@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/l10n/strings.dart';
 import '../core/responsive/breakpoints.dart';
 import '../core/theme/app_colors.dart';
+import '../core/theme/app_theme.dart';
 import 'primitives.dart';
 
 /// One column of a [ResponsiveTable].
@@ -16,6 +17,7 @@ class TableCol<T> {
     this.numeric = false,
     this.hideBelow,
     this.text,
+    this.showOnMobile = true,
   });
 
   final String label;
@@ -23,7 +25,7 @@ class TableCol<T> {
   /// Rendered cell content.
   final Widget Function(BuildContext context, T row) cell;
 
-  /// Plain-text projection, used by the mobile card layout and CSV export.
+  /// Plain-text projection, used by the mobile list layout.
   final String Function(T row)? text;
 
   /// Fixed width; when null the column shares leftover space by [flex].
@@ -35,6 +37,10 @@ class TableCol<T> {
   /// Hide the column when the screen is narrower than this size.
   final ScreenSize? hideBelow;
 
+  /// Set false when the phone layout already shows this value in the row's
+  /// title or subtitle.
+  final bool showOnMobile;
+
   double get resolvedMinWidth => width ?? minWidth;
 
   bool visibleAt(ScreenSize size) {
@@ -43,8 +49,8 @@ class TableCol<T> {
   }
 }
 
-/// Table that turns into a stack of cards on phones and scrolls horizontally
-/// when the columns cannot fit the viewport.
+/// Table that becomes a divided list on phones and scrolls horizontally when
+/// its columns cannot fit. Place it inside an [AppCard].
 class ResponsiveTable<T> extends StatefulWidget {
   const ResponsiveTable({
     super.key,
@@ -58,9 +64,12 @@ class ResponsiveTable<T> extends StatefulWidget {
     this.paginate = true,
     this.mobileTitle,
     this.mobileSubtitle,
-    this.mobileLeading,
     this.mobileTrailing,
     this.rowKey,
+    this.totalCount,
+    this.page,
+    this.onPageChanged,
+    this.busy = false,
   });
 
   final List<TableCol<T>> columns;
@@ -75,13 +84,22 @@ class ResponsiveTable<T> extends StatefulWidget {
   final int pageSize;
   final bool paginate;
 
-  // Mobile card configuration.
+  // Phone list configuration.
   final String Function(T row)? mobileTitle;
   final String Function(T row)? mobileSubtitle;
-  final Widget Function(BuildContext context, T row)? mobileLeading;
   final Widget Function(BuildContext context, T row)? mobileTrailing;
 
   final Object Function(T row)? rowKey;
+
+  // Server-side paging: when [onPageChanged] is set, [rows] is already the
+  // current page, [page] is its zero-based index and [totalCount] the number
+  // of rows across all pages.
+  final int? totalCount;
+  final int? page;
+  final ValueChanged<int>? onPageChanged;
+
+  /// Shows a thin progress bar while a new page or filter result loads.
+  final bool busy;
 
   @override
   State<ResponsiveTable<T>> createState() => _ResponsiveTableState<T>();
@@ -91,12 +109,27 @@ class _ResponsiveTableState<T> extends State<ResponsiveTable<T>> {
   int _page = 0;
   final _horizontal = ScrollController();
 
+  bool get _remote => widget.onPageChanged != null;
+
+  int get _total =>
+      _remote ? (widget.totalCount ?? widget.rows.length) : widget.rows.length;
+
+  int get _currentPage => _remote ? (widget.page ?? 0) : _page;
+
   @override
   void didUpdateWidget(covariant ResponsiveTable<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.rows.length != oldWidget.rows.length) {
+    if (!_remote && widget.rows.length != oldWidget.rows.length) {
       final maxPage = _maxPage;
       if (_page > maxPage) _page = maxPage;
+    }
+  }
+
+  void _changePage(int page) {
+    if (_remote) {
+      widget.onPageChanged!(page);
+    } else {
+      setState(() => _page = page);
     }
   }
 
@@ -107,11 +140,11 @@ class _ResponsiveTableState<T> extends State<ResponsiveTable<T>> {
   }
 
   int get _maxPage => widget.paginate
-      ? ((widget.rows.length - 1) ~/ widget.pageSize).clamp(0, 1 << 30)
+      ? ((_total - 1) ~/ widget.pageSize).clamp(0, 1 << 30)
       : 0;
 
   List<T> get _visibleRows {
-    if (!widget.paginate) return widget.rows;
+    if (!widget.paginate || _remote) return widget.rows;
     final start = _page * widget.pageSize;
     if (start >= widget.rows.length) return const [];
     return widget.rows.sublist(
@@ -123,48 +156,70 @@ class _ResponsiveTableState<T> extends State<ResponsiveTable<T>> {
   @override
   Widget build(BuildContext context) {
     if (widget.rows.isEmpty) {
-      return EmptyState(message: widget.emptyMessage, icon: widget.emptyIcon);
+      // A delete can empty the last server page; step back to the new last one.
+      if (_remote && _total > 0 && _currentPage > _maxPage) {
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => widget.onPageChanged!(_maxPage));
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _BusyBar(visible: widget.busy),
+          EmptyState(message: widget.emptyMessage, icon: widget.emptyIcon),
+        ],
+      );
     }
 
-    final body = context.isMobile ? _buildCards(context) : _buildTable(context);
+    final body = context.isMobile ? _buildList(context) : _buildTable(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _BusyBar(visible: widget.busy),
         body,
-        if (widget.paginate && widget.rows.length > widget.pageSize)
+        if (widget.paginate && _total > widget.pageSize)
           _Pager(
-            page: _page,
+            page: _currentPage,
             maxPage: _maxPage,
-            total: widget.rows.length,
+            total: _total,
             pageSize: widget.pageSize,
-            onChanged: (p) => setState(() => _page = p),
+            onChanged: _changePage,
           ),
       ],
     );
   }
 
-  // ---- Desktop / tablet --------------------------------------------------
+  // ---- Tablet and up -----------------------------------------------------
 
   Widget _buildTable(BuildContext context) {
     final size = context.screenSize;
     final cols =
         widget.columns.where((c) => c.visibleAt(size)).toList(growable: false);
-    const actionsWidth = 108.0;
+    const actionsWidth = 92.0;
+    const hPad = 16.0;
 
     final minWidth = cols.fold<double>(0, (sum, c) => sum + c.resolvedMinWidth) +
         (widget.rowActions != null ? actionsWidth : 0) +
-        24;
+        hPad * 2;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final fits = constraints.maxWidth >= minWidth;
+        final rows = _visibleRows;
         final content = Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _headerRow(context, cols, fits, actionsWidth),
-            for (final row in _visibleRows)
-              _dataRow(context, cols, row, fits, actionsWidth),
+            _headerRow(context, cols, fits, actionsWidth, hPad),
+            for (var i = 0; i < rows.length; i++)
+              _dataRow(
+                context,
+                cols,
+                rows[i],
+                fits,
+                actionsWidth,
+                hPad,
+                last: i == rows.length - 1,
+              ),
           ],
         );
 
@@ -172,11 +227,9 @@ class _ResponsiveTableState<T> extends State<ResponsiveTable<T>> {
 
         return Scrollbar(
           controller: _horizontal,
-          thumbVisibility: true,
           child: SingleChildScrollView(
             controller: _horizontal,
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.only(bottom: 10),
             child: SizedBox(width: minWidth, child: content),
           ),
         );
@@ -189,20 +242,19 @@ class _ResponsiveTableState<T> extends State<ResponsiveTable<T>> {
     List<TableCol<T>> cols,
     bool fits,
     double actionsWidth,
+    double hPad,
   ) {
     final c = context.colors;
     final style = TextStyle(
-      fontSize: 12,
-      fontWeight: FontWeight.w600,
+      fontSize: 13,
+      fontWeight: FontWeight.w500,
       color: c.textSecondary,
-      letterSpacing: 0.2,
     );
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      padding: EdgeInsets.symmetric(horizontal: hPad, vertical: Space.md),
       decoration: BoxDecoration(
         color: c.surfaceMuted,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
         border: Border(bottom: BorderSide(color: c.border)),
       ),
       child: Row(
@@ -214,15 +266,12 @@ class _ResponsiveTableState<T> extends State<ResponsiveTable<T>> {
               child: Text(
                 col.label,
                 style: style,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: col.numeric ? TextAlign.right : TextAlign.left,
               ),
             ),
-          if (widget.rowActions != null)
-            SizedBox(
-              width: actionsWidth,
-              child: Text(S.actions, style: style, textAlign: TextAlign.right),
-            ),
+          if (widget.rowActions != null) SizedBox(width: actionsWidth),
         ],
       ),
     );
@@ -234,48 +283,59 @@ class _ResponsiveTableState<T> extends State<ResponsiveTable<T>> {
     T row,
     bool fits,
     double actionsWidth,
-  ) {
+    double hPad, {
+    required bool last,
+  }) {
     final c = context.colors;
-    final inner = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      child: Row(
-        children: [
-          for (final col in cols)
-            _cellSlot(
-              col: col,
-              fits: fits,
-              child: Align(
-                alignment:
-                    col.numeric ? Alignment.centerRight : Alignment.centerLeft,
-                child: col.cell(context, row),
+    final inner = ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 52),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 8),
+        child: Row(
+          children: [
+            for (final col in cols)
+              _cellSlot(
+                col: col,
+                fits: fits,
+                child: Align(
+                  alignment: col.numeric
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
+                  child: DefaultTextStyle.merge(
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      color: c.textPrimary,
+                    ),
+                    child: col.cell(context, row),
+                  ),
+                ),
               ),
-            ),
-          if (widget.rowActions != null)
-            SizedBox(
-              width: actionsWidth,
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: widget.rowActions!(context, row),
+            if (widget.rowActions != null)
+              SizedBox(
+                width: actionsWidth,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: widget.rowActions!(context, row),
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: c.border)),
+        border:
+            last ? null : Border(bottom: BorderSide(color: c.border)),
       ),
-      child: widget.onRowTap == null
-          ? inner
-          : Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => widget.onRowTap!(row),
-                hoverColor: c.surfaceMuted,
-                child: inner,
-              ),
-            ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: widget.onRowTap == null ? null : () => widget.onRowTap!(row),
+          hoverColor: c.hover,
+          child: inner,
+        ),
+      ),
     );
   }
 
@@ -285,7 +345,10 @@ class _ResponsiveTableState<T> extends State<ResponsiveTable<T>> {
     required Widget child,
   }) {
     final padded = Padding(
-      padding: const EdgeInsets.only(right: 12),
+      padding: EdgeInsets.only(
+        right: 16,
+        left: col.numeric ? 8 : 0,
+      ),
       child: child,
     );
     if (col.width != null) return SizedBox(width: col.width, child: padded);
@@ -293,101 +356,37 @@ class _ResponsiveTableState<T> extends State<ResponsiveTable<T>> {
     return Expanded(flex: col.flex, child: padded);
   }
 
-  // ---- Mobile ------------------------------------------------------------
+  // ---- Phones ------------------------------------------------------------
 
-  Widget _buildCards(BuildContext context) {
+  Widget _buildList(BuildContext context) {
     final c = context.colors;
-    final cols = widget.columns;
+    final fields = widget.columns.skip(1).where((col) => col.showOnMobile);
+    final rows = _visibleRows;
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final row in _visibleRows)
-          Container(
-            margin: const EdgeInsets.only(bottom: 10),
+        for (var i = 0; i < rows.length; i++)
+          DecoratedBox(
             decoration: BoxDecoration(
-              color: c.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: c.border),
+              border: i == rows.length - 1
+                  ? null
+                  : Border(bottom: BorderSide(color: c.border)),
             ),
             child: Material(
               color: Colors.transparent,
               child: InkWell(
-                borderRadius: BorderRadius.circular(12),
                 onTap: widget.onRowTap == null
                     ? null
-                    : () => widget.onRowTap!(row),
+                    : () => widget.onRowTap!(rows[i]),
                 child: Padding(
-                  padding: const EdgeInsets.all(13),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (widget.mobileLeading != null) ...[
-                            widget.mobileLeading!(context, row),
-                            const SizedBox(width: 10),
-                          ],
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  widget.mobileTitle?.call(row) ??
-                                      cols.first.text?.call(row) ??
-                                      '',
-                                  style: TextStyle(
-                                    fontSize: 14.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: c.textPrimary,
-                                  ),
-                                ),
-                                if (widget.mobileSubtitle != null)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 2),
-                                    child: Text(
-                                      widget.mobileSubtitle!(row),
-                                      style: TextStyle(
-                                        fontSize: 12.5,
-                                        color: c.textSecondary,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          if (widget.mobileTrailing != null)
-                            widget.mobileTrailing!(context, row),
-                        ],
-                      ),
-                      const SizedBox(height: 11),
-                      Wrap(
-                        spacing: 18,
-                        runSpacing: 9,
-                        children: [
-                          for (final col in cols.skip(1))
-                            if (col.text != null)
-                              _MobileField(
-                                label: col.label,
-                                value: col.text!(row),
-                              )
-                            else
-                              _MobileField.widget(
-                                label: col.label,
-                                child: col.cell(context, row),
-                              ),
-                        ],
-                      ),
-                      if (widget.rowActions != null) ...[
-                        const SizedBox(height: 6),
-                        Divider(color: c.border, height: 16),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: widget.rowActions!(context, row),
-                        ),
-                      ],
-                    ],
+                  padding: const EdgeInsets.fromLTRB(
+                    Space.lg,
+                    Space.md,
+                    Space.sm,
+                    Space.lg,
                   ),
+                  child: _listItem(context, rows[i], fields),
                 ),
               ),
             ),
@@ -395,49 +394,132 @@ class _ResponsiveTableState<T> extends State<ResponsiveTable<T>> {
       ],
     );
   }
+
+  Widget _listItem(BuildContext context, T row, Iterable<TableCol<T>> fields) {
+    final c = context.colors;
+    final title = widget.mobileTitle?.call(row) ??
+        widget.columns.first.text?.call(row) ??
+        '';
+    final subtitle = widget.mobileSubtitle?.call(row);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: c.textPrimary,
+                        height: 1.3,
+                      ),
+                    ),
+                    if (subtitle != null && subtitle.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 1),
+                        child: Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: c.textSecondary,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            if (widget.mobileTrailing != null) ...[
+              const SizedBox(width: 8),
+              widget.mobileTrailing!(context, row),
+            ],
+            if (widget.rowActions != null)
+              widget.rowActions!(context, row)
+            else
+              const SizedBox(width: 8),
+          ],
+        ),
+        if (fields.isNotEmpty) ...[
+          const SizedBox(height: Space.md),
+          Padding(
+            padding: const EdgeInsets.only(right: Space.sm),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                const gap = Space.lg;
+                final half = (constraints.maxWidth - gap) / 2;
+                return Wrap(
+                  spacing: gap,
+                  runSpacing: Space.md,
+                  children: [
+                    for (final col in fields)
+                      SizedBox(
+                        width: half,
+                        child: _MobileField(
+                          label: col.label,
+                          child: col.text != null
+                              ? Text(
+                                  col.text!(row).isEmpty
+                                      ? '—'
+                                      : col.text!(row),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    color: c.textPrimary,
+                                  ),
+                                )
+                              : Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: col.cell(context, row),
+                                ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ],
+    );
+  }
 }
 
 class _MobileField extends StatelessWidget {
-  const _MobileField({required this.label, required this.value})
-      : child = null;
-
-  const _MobileField.widget({required this.label, required this.child})
-      : value = null;
+  const _MobileField({required this.label, required this.child});
 
   final String label;
-  final String? value;
-  final Widget? child;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 92, maxWidth: 220),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10.5,
-              color: c.textMuted,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.3,
-            ),
-          ),
-          const SizedBox(height: 3),
-          child ??
-              Text(
-                value!.isEmpty ? '—' : value!,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: c.textPrimary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: 12.5, color: c.textMuted),
+        ),
+        const SizedBox(height: 2),
+        child,
+      ],
     );
   }
 }
@@ -463,51 +545,76 @@ class _Pager extends StatelessWidget {
     final start = page * pageSize + 1;
     final end = ((page + 1) * pageSize).clamp(0, total);
 
-    return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: Wrap(
-        alignment: WrapAlignment.spaceBetween,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        runSpacing: 8,
+    ButtonStyle square() => OutlinedButton.styleFrom(
+          minimumSize: const Size(34, 34),
+          fixedSize: const Size(34, 34),
+          padding: EdgeInsets.zero,
+        );
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(Space.lg, Space.sm, Space.md, Space.sm),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: c.border)),
+      ),
+      child: Row(
         children: [
-          Text(
-            'Showing $start–$end of $total',
-            style: TextStyle(fontSize: 12.5, color: c.textSecondary),
+          Expanded(
+            child: Text(
+              '$start–$end of $total',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                color: c.textSecondary,
+                fontFeatures: kTabular,
+              ),
+            ),
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                tooltip: 'Previous',
-                onPressed: page > 0 ? () => onChanged(page - 1) : null,
-                icon: const Icon(Icons.chevron_left, size: 20),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: c.surfaceMuted,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: c.border),
-                ),
-                child: Text(
-                  '${page + 1} / ${maxPage + 1}',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: c.textPrimary,
-                  ),
-                ),
-              ),
-              IconButton(
-                tooltip: 'Next',
-                onPressed: page < maxPage ? () => onChanged(page + 1) : null,
-                icon: const Icon(Icons.chevron_right, size: 20),
-              ),
-            ],
+          Text(
+            'Page ${page + 1} of ${maxPage + 1}',
+            style: TextStyle(
+              fontSize: 13,
+              color: c.textSecondary,
+              fontFeatures: kTabular,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Tooltip(
+            message: 'Previous',
+            child: OutlinedButton(
+              onPressed: page > 0 ? () => onChanged(page - 1) : null,
+              style: square(),
+              child: const Icon(Icons.chevron_left, size: 18),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Tooltip(
+            message: 'Next',
+            child: OutlinedButton(
+              onPressed: page < maxPage ? () => onChanged(page + 1) : null,
+              style: square(),
+              child: const Icon(Icons.chevron_right, size: 18),
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// 2px progress line; keeps its height when idle so the table never jumps.
+class _BusyBar extends StatelessWidget {
+  const _BusyBar({required this.visible});
+
+  final bool visible;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 2,
+      child: visible
+          ? const LinearProgressIndicator(minHeight: 2)
+          : const SizedBox.shrink(),
     );
   }
 }

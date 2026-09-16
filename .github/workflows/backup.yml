@@ -1,0 +1,88 @@
+# Nightly encrypted backup of the production database to Cloudflare R2.
+# 02:00 IST daily. On the 1st of each month the dump is also kept as a monthly copy.
+#
+# Retention is enforced by R2 lifecycle rules on the bucket (set once in the
+# Cloudflare dashboard): prefix `daily/` delete after 30 days,
+# prefix `monthly/` delete after 365 days.
+#
+# Secrets:
+#   SUPABASE_DB_URL_PROD  Session pooler connection string (IPv4), e.g.
+#                         postgresql://postgres.<ref>:<password>@aws-0-ap-south-1.pooler.supabase.com:5432/postgres
+#   AGE_RECIPIENT         age public key (age1...); the private key stays offline with the client
+#   R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ACCOUNT_ID, R2_BUCKET
+
+name: Nightly backup
+
+on:
+  schedule:
+    - cron: '30 20 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PG_MAJOR: 17
+    steps:
+      - name: Install pg_dump and age
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -q
+          sudo apt-get install -yq "postgresql-client-$PG_MAJOR" age
+          echo "/usr/lib/postgresql/$PG_MAJOR/bin" >> "$GITHUB_PATH"
+
+      - name: Dump
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL_PROD }}
+        run: |
+          set -euo pipefail
+          stamp=$(TZ=Asia/Kolkata date +%Y-%m-%d)
+          mkdir dump
+          # App schema with data, plus the auth users the admins table points at.
+          pg_dump "$DB_URL" --format=custom --no-owner --no-privileges \
+            --schema=public --file="dump/public.dump"
+          pg_dump "$DB_URL" --format=custom --no-owner --no-privileges --data-only \
+            --inserts --on-conflict-do-nothing \
+            --table=auth.users --table=auth.identities --file="dump/auth_users.dump"
+          tar -C dump -cf "rudransh-$stamp.tar" .
+          echo "STAMP=$stamp" >> "$GITHUB_ENV"
+
+      - name: Encrypt
+        env:
+          AGE_RECIPIENT: ${{ secrets.AGE_RECIPIENT }}
+        run: |
+          set -euo pipefail
+          age -r "$AGE_RECIPIENT" -o "rudransh-$STAMP.tar.age" "rudransh-$STAMP.tar"
+          rm -rf dump "rudransh-$STAMP.tar"
+          ls -lh "rudransh-$STAMP.tar.age"
+
+      - name: Upload to R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          file="rudransh-$STAMP.tar.age"
+          aws s3 cp "$file" "s3://$BUCKET/daily/$file" --endpoint-url "$ENDPOINT"
+          if [ "$(TZ=Asia/Kolkata date +%d)" = "01" ]; then
+            aws s3 cp "$file" "s3://$BUCKET/monthly/$file" --endpoint-url "$ENDPOINT"
+          fi
+
+      - name: Open an issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create --repo "$GITHUB_REPOSITORY" \
+            --title "Nightly backup failed ($(TZ=Asia/Kolkata date +%Y-%m-%d))" \
+            --body "See run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"

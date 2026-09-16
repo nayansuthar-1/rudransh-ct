@@ -50,9 +50,6 @@ class _AppShellState extends ConsumerState<AppShell> {
       children: [
         AppTopBar(
           currentPath: widget.location,
-          leadingIcon: useDrawer
-              ? Icons.menu_rounded
-              : (pinned ? Icons.menu_open_rounded : Icons.menu_rounded),
           onLeadingTap: () {
             if (useDrawer) {
               _scaffoldKey.currentState?.openDrawer();
@@ -61,12 +58,7 @@ class _AppShellState extends ConsumerState<AppShell> {
             }
           },
         ),
-        Expanded(
-          child: ColoredBox(
-            color: c.canvas,
-            child: widget.child,
-          ),
-        ),
+        Expanded(child: widget.child),
       ],
     );
 
@@ -103,7 +95,7 @@ class PageBody extends StatelessWidget {
   const PageBody({
     super.key,
     required this.children,
-    this.maxWidth = 1500,
+    this.maxWidth = 1320,
     this.padding,
   });
 
@@ -114,9 +106,15 @@ class PageBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final gutter = context.pageGutter;
+    final top = context.responsive<double>(mobile: 20, tablet: 24, laptop: 28);
     return SingleChildScrollView(
       padding: padding ??
-          EdgeInsets.fromLTRB(gutter, gutter, gutter, gutter + 24),
+          EdgeInsets.fromLTRB(
+            gutter,
+            top,
+            gutter,
+            top + 40 + MediaQuery.paddingOf(context).bottom,
+          ),
       child: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: maxWidth),

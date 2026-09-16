@@ -2,52 +2,50 @@ import 'package:flutter/material.dart';
 
 import '../core/responsive/breakpoints.dart';
 import '../core/theme/app_colors.dart';
+import '../core/theme/app_theme.dart';
 import '../core/utils/formatters.dart';
 
-/// Bordered white panel used for every section of the panel.
+/// Hairline-bordered panel. The only boxed container in the app: tables,
+/// lists and stat strips sit inside one, directly on the white canvas.
 class AppCard extends StatelessWidget {
   const AppCard({
     super.key,
     required this.child,
-    this.padding,
+    this.padding = EdgeInsets.zero,
     this.onTap,
     this.borderColor,
   });
 
   final Widget child;
-  final EdgeInsetsGeometry? padding;
+  final EdgeInsetsGeometry padding;
   final VoidCallback? onTap;
   final Color? borderColor;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final content = Padding(
-      padding: padding ?? EdgeInsets.all(context.responsive(mobile: 14.0, tablet: 18.0)),
-      child: child,
-    );
+    const radius = BorderRadius.all(Radius.circular(Radii.panel));
+    final content = Padding(padding: padding, child: child);
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: c.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: borderColor ?? c.border),
+    return Material(
+      color: c.surface,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: radius,
+        side: BorderSide(color: borderColor ?? c.border),
       ),
       child: onTap == null
           ? content
-          : Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(14),
-                onTap: onTap,
-                child: content,
-              ),
-            ),
+          : InkWell(onTap: onTap, hoverColor: c.hover, child: content),
     );
   }
 }
 
-/// Title + optional subtitle and trailing actions for a card or page section.
+/// Title, optional subtitle and trailing actions.
+///
+/// The default size heads a page; [dense] heads a section inside a page.
+/// Actions sit to the right while they fit and move under the title on
+/// narrow screens, so nothing is ever pushed off the edge.
 class SectionHeader extends StatelessWidget {
   const SectionHeader({
     super.key,
@@ -67,6 +65,8 @@ class SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final mobile = context.isMobile;
+
     final titleBlock = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -79,8 +79,8 @@ class SectionHeader extends StatelessWidget {
               child: Text(
                 title,
                 style: TextStyle(
-                  fontSize: dense ? 15 : 17,
-                  fontWeight: FontWeight.w700,
+                  fontSize: dense ? 16 : (mobile ? 22 : 24),
+                  fontWeight: dense ? FontWeight.w600 : FontWeight.w700,
                   color: c.textPrimary,
                   height: 1.25,
                 ),
@@ -88,11 +88,15 @@ class SectionHeader extends StatelessWidget {
             ),
           ],
         ),
-        if (subtitle != null) ...[
-          const SizedBox(height: 3),
+        if (subtitle != null && subtitle!.isNotEmpty) ...[
+          SizedBox(height: dense ? 2 : Space.xs),
           Text(
             subtitle!,
-            style: TextStyle(fontSize: 12.5, color: c.textSecondary),
+            style: TextStyle(
+              fontSize: dense ? 13 : 14,
+              color: c.textSecondary,
+              height: 1.4,
+            ),
           ),
         ],
       ],
@@ -100,35 +104,44 @@ class SectionHeader extends StatelessWidget {
 
     if (actions.isEmpty) return titleBlock;
 
-    // A Wrap keeps the actions on the same line while they fit and drops them
-    // to their own line — never overflowing — once they do not.
-    return Wrap(
-      alignment: WrapAlignment.spaceBetween,
+    final actionWrap = Wrap(
+      spacing: 8,
+      runSpacing: 8,
       crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 12,
-      runSpacing: 12,
-      children: [
-        titleBlock,
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: actions,
-        ),
-      ],
+      children: actions,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Actions are one or two short buttons, so they stay beside the title
+        // down to phone width; the title wraps first.
+        if (constraints.maxWidth < 330) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [titleBlock, const SizedBox(height: 12), actionWrap],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(child: titleBlock),
+            const SizedBox(width: 12),
+            actionWrap,
+          ],
+        );
+      },
     );
   }
 }
 
 enum PillTone { neutral, success, warning, danger, info, brand }
 
-/// Small rounded status label used across tables.
+/// Small status label used across tables.
 class StatusPill extends StatelessWidget {
-  const StatusPill(this.label, {super.key, this.tone = PillTone.neutral, this.icon});
+  const StatusPill(this.label, {super.key, this.tone = PillTone.neutral});
 
   final String label;
   final PillTone tone;
-  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -138,85 +151,57 @@ class StatusPill extends StatelessWidget {
       PillTone.warning => (c.warning, c.warningSoft),
       PillTone.danger => (c.danger, c.dangerSoft),
       PillTone.info => (c.info, c.infoSoft),
-      PillTone.brand => (c.brand, c.brandSoft),
+      PillTone.brand => (c.onBrandSoft, c.brandSoft),
       PillTone.neutral => (c.textSecondary, c.surfaceMuted),
     };
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: Space.sm, vertical: 3),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: fg.withValues(alpha: 0.22)),
+        borderRadius: BorderRadius.circular(Radii.pill),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 12, color: fg),
-            const SizedBox(width: 4),
-          ],
-          Flexible(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w600,
-                color: fg,
-                height: 1.2,
-              ),
-            ),
-          ),
-        ],
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: fg,
+          height: 1.35,
+        ),
       ),
     );
   }
 }
 
-/// Circular initials avatar.
+/// Neutral initials avatar.
 class AppAvatar extends StatelessWidget {
-  const AppAvatar({
-    super.key,
-    required this.name,
-    this.size = 36,
-    this.color,
-  });
+  const AppAvatar({super.key, required this.name, this.size = 32});
 
   final String name;
   final double size;
-  final Color? color;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    // Stable per-name hue so the same person keeps the same swatch.
-    const palette = [
-      Color(0xFF2563EB),
-      Color(0xFF7C3AED),
-      Color(0xFF0891B2),
-      Color(0xFFDB2777),
-      Color(0xFF16A34A),
-      Color(0xFFEA580C),
-    ];
-    final base = color ?? palette[name.hashCode.abs() % palette.length];
-
     return Container(
       width: size,
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: base.withValues(alpha: 0.14),
+        color: c.surfaceMuted,
         shape: BoxShape.circle,
-        border: Border.all(color: base.withValues(alpha: 0.25)),
+        border: Border.all(color: c.border),
       ),
       child: Text(
         Fmt.initials(name),
         style: TextStyle(
-          fontSize: size * 0.36,
-          fontWeight: FontWeight.w700,
-          color: c.brightnessIsDark ? base.lighten() : base,
+          fontSize: size * 0.34,
+          fontWeight: FontWeight.w600,
+          color: c.textSecondary,
+          height: 1,
         ),
       ),
     );
@@ -242,26 +227,18 @@ class EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: compact ? 26 : 48, horizontal: 16),
+      padding: EdgeInsets.symmetric(vertical: compact ? 28 : 56, horizontal: 16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: compact ? 42 : 56,
-            height: compact ? 42 : 56,
-            decoration: BoxDecoration(
-              color: c.surfaceMuted,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: compact ? 20 : 26, color: c.textMuted),
-          ),
-          const SizedBox(height: 12),
+          Icon(icon, size: compact ? 20 : 24, color: c.textMuted),
+          const SizedBox(height: 10),
           Text(
             message,
             textAlign: TextAlign.center,
             style: TextStyle(color: c.textSecondary, fontSize: 13.5),
           ),
-          if (action != null) ...[const SizedBox(height: 14), action!],
+          if (action != null) ...[const SizedBox(height: 16), action!],
         ],
       ),
     );
@@ -279,9 +256,9 @@ class LoadingState extends StatelessWidget {
       height: height,
       child: const Center(
         child: SizedBox(
-          width: 26,
-          height: 26,
-          child: CircularProgressIndicator(strokeWidth: 2.4),
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
         ),
       ),
     );
@@ -298,11 +275,11 @@ class ErrorStateView extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.error_outline, color: c.danger, size: 28),
+          Icon(Icons.error_outline, color: c.danger, size: 22),
           const SizedBox(height: 10),
           Text(
             '$error',
@@ -310,7 +287,7 @@ class ErrorStateView extends StatelessWidget {
             style: TextStyle(color: c.textSecondary, fontSize: 13),
           ),
           if (onRetry != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             OutlinedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh, size: 16),
@@ -323,7 +300,8 @@ class ErrorStateView extends StatelessWidget {
   }
 }
 
-/// Key/value row used inside detail sheets.
+/// Key/value row used inside detail sheets. Stacks label over value when the
+/// sheet is too narrow for two columns.
 class DetailRow extends StatelessWidget {
   const DetailRow({super.key, required this.label, required this.value});
 
@@ -333,45 +311,45 @@ class DetailRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 150,
-            child: Text(
-              label,
-              style: TextStyle(fontSize: 12.5, color: c.textSecondary),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              value.isEmpty ? '—' : value,
-              style: TextStyle(
-                fontSize: 13.5,
-                color: c.textPrimary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
+    final labelText = Text(
+      label,
+      style: TextStyle(fontSize: 13, color: c.textSecondary, height: 1.4),
+    );
+    final valueText = Text(
+      value.isEmpty ? '—' : value,
+      style: TextStyle(
+        fontSize: 13.5,
+        color: c.textPrimary,
+        fontWeight: FontWeight.w500,
+        height: 1.4,
       ),
     );
-  }
-}
 
-extension on AppColors {
-  bool get brightnessIsDark =>
-      ThemeData.estimateBrightnessForColor(surface) == Brightness.dark;
-}
-
-extension on Color {
-  Color lighten([double amount = 0.3]) {
-    final hsl = HSLColor.fromColor(this);
-    return hsl
-        .withLightness((hsl.lightness + amount).clamp(0.0, 1.0))
-        .toColor();
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: c.border)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 380) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [labelText, const SizedBox(height: 2), valueText],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(width: 160, child: labelText),
+                const SizedBox(width: 12),
+                Expanded(child: valueText),
+              ],
+            );
+          },
+        ),
+      ),
+    );
   }
 }

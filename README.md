@@ -9,7 +9,7 @@ Fully responsive from a 390px phone to a 1920px desktop.
 ```bash
 flutter pub get
 flutter run -d chrome          # dev
-flutter build web              # production bundle in build/web
+flutter build web              # bundle in build/web (see Backend for Supabase defines)
 flutter test                   # unit + responsive-layout tests
 ```
 
@@ -23,7 +23,7 @@ flutter test                   # unit + responsive-layout tests
 | `/yojna` | Yojna | Scheme cards; create/edit contribution, claim and registration amounts |
 | `/closing-payments` | Closing Payments | Raise claims, track collected vs pending, mark settled |
 | `/payments` | Payments | Receipt ledger with date-range, mode, type and status filters |
-| `/login` | Sign in | Email + OTP screens (transport stubbed — see below) |
+| `/login` | Sign in | Email + OTP via Supabase Auth (bypassed in demo builds) |
 
 Top bar carries the breadcrumb, the **Yojna scope selector** (every page filters
 by it), the three primary actions, the requests bell, a light/dark toggle and
@@ -47,43 +47,55 @@ horizontally before it ever overflows, and switches to a card list on phones.
 ```
 lib/
   core/        theme tokens, breakpoints, Hindi strings, router, formatters, validators
-  data/        models, repository interface, in-memory implementation, seed data
+  data/        models, repository interface, Supabase + in-memory implementations, seed data
   state/       Riverpod providers, derived selectors, auth controller
   widgets/     shell (sidebar/top bar), primitives, responsive table, form dialogs
   features/    one folder per page
+supabase/      migrations, database checks, auth email templates, local config
+scripts/       operational scripts (backup restore)
+.github/       CI/deploy, nightly backup, keep-alive workflows
 ```
 
-## Connecting a real backend
+## Backend
 
-Everything talks to `TrustRepository`
+The app talks only to `TrustRepository`
 ([`lib/data/repositories/trust_repository.dart`](lib/data/repositories/trust_repository.dart)).
-The app currently runs on `InMemoryTrustRepository`, seeded with ~150 demo
-members so every screen is populated.
+[`lib/state/providers.dart`](lib/state/providers.dart) picks the implementation:
 
-To switch to Firebase / Supabase / a REST API:
+| Build | Repository | Login |
+| --- | --- | --- |
+| No Supabase defines (demo) | `InMemoryTrustRepository`, ~150 seed members, resets on reload | Bypassed |
+| `SUPABASE_URL` + `SUPABASE_PUBLISHABLE_KEY` defined | `SupabaseTrustRepository` | Email OTP, invited admins only |
 
-1. Implement `TrustRepository` against your backend.
-2. Change one line in [`lib/state/providers.dart`](lib/state/providers.dart):
-
-```dart
-final repositoryProvider = Provider<TrustRepository>((ref) {
-  return FirebaseTrustRepository();   // was InMemoryTrustRepository()
-});
+```bash
+flutter run -d chrome \
+  --dart-define=SUPABASE_URL=https://<ref>.supabase.co \
+  --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
 
-No widget or provider above that line needs to change.
+Never commit keys. CI injects them from repository secrets.
 
-## Email + OTP login
+Database schema, numbering triggers, row-level security and dashboard SQL
+functions live in [`supabase/migrations/`](supabase/migrations/). Check them on
+plain Postgres (no Docker needed):
 
-The screens are built; the transport is stubbed in
-[`lib/state/auth_controller.dart`](lib/state/auth_controller.dart).
+```bash
+psql -v ON_ERROR_STOP=1 -f supabase/tests/auth_stub.sql      # empty database only
+for f in supabase/migrations/*.sql; do psql -v ON_ERROR_STOP=1 -f "$f"; done
+psql -v ON_ERROR_STOP=1 -f supabase/tests/database_test.sql
+```
 
-- `AuthController.bypassLogin` is `true`, so the app opens straight to the
-  dashboard. Set it to `false` to exercise the login flow.
-- `requestOtp` and `verifyOtp` carry `TODO(auth)` markers — point them at your
-  OTP provider. `verifyOtp` currently accepts any 6-digit code.
+The Supabase repository itself is tested against a real PostgREST in CI (`test/integration/`, seeded by `supabase/tests/integration_seed.sql`); those tests skip locally unless `POSTGREST_URL` and the test JWTs are set.
+
+Importing existing records from Excel: [`tool/import/README.md`](tool/import/README.md).
+
+Setup, deploys, backups and admin tasks: [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
+Delivery plan: [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md).
 
 ## Notes
 
-- Data is in memory only: a page reload resets it to the seed set.
+- Registration numbers, receipt numbers and agent codes are assigned by the
+  database; the form shows a preview only.
+- A member with receipts cannot be deleted (mark them Inactive), and a Yojna
+  with members cannot be deleted (deactivate it).
 - The requests bell is a placeholder that reports the pending-payment count.

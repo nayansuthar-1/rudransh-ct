@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/l10n/strings.dart';
 import '../../core/responsive/breakpoints.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/models.dart';
 import '../../state/providers.dart';
@@ -22,10 +23,10 @@ class PaymentsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(paymentsProvider);
-    final payments = ref.watch(filteredPaymentsProvider);
-    final totals = ref.watch(paymentTotalsProvider);
-    final members = ref.watch(memberByIdProvider);
+    final async = ref.watch(paymentsPageProvider);
+    final page = async.value ?? PaymentPage.empty;
+    final totals = ref.watch(paymentTotalsProvider).value ?? PaymentTotals.empty;
+    final members = page.members;
     final agents = ref.watch(agentByIdProvider);
     final yojna = ref.watch(selectedYojnaProvider);
 
@@ -33,7 +34,7 @@ class PaymentsPage extends ConsumerWidget {
       children: [
         SectionHeader(
           title: S.payments,
-          subtitle: yojna?.name ?? 'सभी योजनाएँ',
+          subtitle: yojna?.name ?? S.allYojnas,
           actions: [
             FilledButton.icon(
               onPressed: () => showPaymentFormDialog(context),
@@ -42,37 +43,38 @@ class PaymentsPage extends ConsumerWidget {
             ),
           ],
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: Space.xl),
         StatGrid(
           children: [
             StatCard(
               label: 'Transactions',
               value: Fmt.number(totals.count),
               icon: Icons.receipt_long_outlined,
+              accent: StatAccent.blue,
             ),
             StatCard(
               label: 'Paid',
               value: Fmt.moneyCompact(totals.paid),
               icon: Icons.check_circle_outline,
-              tone: PillTone.success,
+              accent: StatAccent.green,
             ),
             StatCard(
               label: 'Pending',
               value: Fmt.moneyCompact(totals.pending),
               icon: Icons.schedule_rounded,
-              tone: PillTone.warning,
+              accent: StatAccent.amber,
             ),
             StatCard(
               label: 'Failed',
               value: Fmt.moneyCompact(totals.failed),
-              icon: Icons.highlight_off_rounded,
-              tone: PillTone.danger,
+              icon: Icons.error_outline,
+              accent: StatAccent.red,
             ),
           ],
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: Space.xxl),
         const _PaymentFilters(),
-        const SizedBox(height: 14),
+        const SizedBox(height: Space.md),
         AppCard(
           child: Builder(
             builder: (context) {
@@ -82,14 +84,30 @@ class PaymentsPage extends ConsumerWidget {
               if (async.hasError && async.value == null) {
                 return ErrorStateView(
                   error: async.error!,
-                  onRetry: () => ref.invalidate(paymentsProvider),
+                  onRetry: () => ref.invalidate(paymentsPageProvider),
                 );
               }
               return ResponsiveTable<Payment>(
-                rows: payments,
-                pageSize: 14,
+                rows: page.items,
+                totalCount: page.total,
+                pageSize: listPageSize,
+                page: ref.watch(paymentPageProvider),
+                onPageChanged: ref.read(paymentPageProvider.notifier).set,
+                busy: async.isLoading,
                 mobileTitle: (p) => members[p.memberId]?.name ?? '—',
                 mobileSubtitle: (p) => '${p.receiptNo} · ${Fmt.date(p.date)}',
+                mobileTrailing: (context, p) => Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    Fmt.money(p.amount),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: context.colors.textPrimary,
+                      fontFeatures: kTabular,
+                    ),
+                  ),
+                ),
                 columns: [
                   TableCol<Payment>(
                     label: S.receiptNo,
@@ -97,16 +115,14 @@ class PaymentsPage extends ConsumerWidget {
                     text: (p) => p.receiptNo,
                     cell: (context, p) => Text(
                       p.receiptNo,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                   ),
                   TableCol<Payment>(
                     label: S.memberName,
                     flex: 2,
                     minWidth: 175,
+                    showOnMobile: false,
                     text: (p) => members[p.memberId]?.name ?? '—',
                     cell: (context, p) {
                       final m = members[p.memberId];
@@ -118,16 +134,12 @@ class PaymentsPage extends ConsumerWidget {
                             m?.name ?? '—',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w600,
-                            ),
                           ),
                           if (m != null)
                             Text(
                               m.regNo,
                               style: TextStyle(
-                                fontSize: 11.5,
+                                fontSize: 12.5,
                                 color: context.colors.textMuted,
                               ),
                             ),
@@ -140,23 +152,21 @@ class PaymentsPage extends ConsumerWidget {
                     minWidth: 125,
                     hideBelow: ScreenSize.desktop,
                     text: (p) => p.kind.label,
-                    cell: (context, p) =>
-                        Text(p.kind.label, style: const TextStyle(fontSize: 12.5)),
+                    cell: (context, p) => Text(p.kind.label),
                   ),
                   TableCol<Payment>(
                     label: S.date,
                     minWidth: 110,
+                    showOnMobile: false,
                     text: (p) => Fmt.date(p.date),
-                    cell: (context, p) =>
-                        Text(Fmt.date(p.date), style: const TextStyle(fontSize: 13)),
+                    cell: (context, p) => Text(Fmt.date(p.date)),
                   ),
                   TableCol<Payment>(
                     label: S.mode,
                     minWidth: 105,
                     hideBelow: ScreenSize.laptop,
                     text: (p) => p.mode.label,
-                    cell: (context, p) =>
-                        Text(p.mode.label, style: const TextStyle(fontSize: 13)),
+                    cell: (context, p) => Text(p.mode.label),
                   ),
                   TableCol<Payment>(
                     label: S.agent,
@@ -167,7 +177,6 @@ class PaymentsPage extends ConsumerWidget {
                       agents[p.agentId]?.name ?? '—',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12.5),
                     ),
                   ),
                   TableCol<Payment>(
@@ -179,17 +188,16 @@ class PaymentsPage extends ConsumerWidget {
                     label: S.amount,
                     minWidth: 110,
                     numeric: true,
+                    showOnMobile: false,
                     text: (p) => Fmt.money(p.amount),
                     cell: (context, p) => Text(
                       Fmt.money(p.amount),
-                      style: const TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
-                rowActions: (context, p) => _PaymentActions(payment: p),
+                rowActions: (context, p) =>
+                    _PaymentActions(payment: p, member: members[p.memberId]),
               );
             },
           ),
@@ -207,105 +215,69 @@ class _PaymentFilters extends ConsumerWidget {
     final filter = ref.watch(paymentFilterProvider);
     final notifier = ref.read(paymentFilterProvider.notifier);
 
-    return AppCard(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        children: [
-          FormGrid(
-            gap: 12,
-            columnsOverride:
-                context.responsive<int>(mobile: 1, tablet: 2, laptop: 4),
-            items: [
-              GridItem(
-                SearchField(
-                  hint: 'Receipt, सदस्य, Reg No…',
-                  onChanged: notifier.setQuery,
-                ),
-              ),
-              GridItem(
-                AppDropdown<PaymentStatus>(
-                  label: '',
-                  value: filter.status,
-                  items: PaymentStatus.values,
-                  itemLabel: (s) => s.label,
-                  includeAllOption: true,
-                  allLabel: 'All statuses',
-                  hint: 'All statuses',
-                  onChanged: notifier.setStatus,
-                ),
-              ),
-              GridItem(
-                AppDropdown<PaymentMode>(
-                  label: '',
-                  value: filter.mode,
-                  items: PaymentMode.values,
-                  itemLabel: (m) => m.label,
-                  includeAllOption: true,
-                  allLabel: 'All modes',
-                  hint: 'All modes',
-                  onChanged: notifier.setMode,
-                ),
-              ),
-              GridItem(
-                AppDropdown<PaymentKind>(
-                  label: '',
-                  value: filter.kind,
-                  items: PaymentKind.values,
-                  itemLabel: (k) => k.label,
-                  includeAllOption: true,
-                  allLabel: 'All types',
-                  hint: 'All types',
-                  onChanged: notifier.setKind,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    final range = await showDateRangePicker(
-                      context: context,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime(DateTime.now().year + 1),
-                      initialDateRange: filter.from != null && filter.to != null
-                          ? DateTimeRange(start: filter.from!, end: filter.to!)
-                          : null,
-                    );
-                    if (range != null) {
-                      notifier.setRange(range.start, range.end);
-                    }
-                  },
-                  icon: const Icon(Icons.date_range_outlined, size: 16),
-                  label: Text(
-                    filter.from == null
-                        ? 'Any date'
-                        : '${Fmt.dateShort(filter.from)} → ${Fmt.dateShort(filter.to)}',
-                  ),
-                ),
-              ),
-              if (!filter.isEmpty) ...[
-                const SizedBox(width: 10),
-                OutlinedButton.icon(
-                  onPressed: notifier.clear,
-                  icon: const Icon(Icons.filter_alt_off_outlined, size: 16),
-                  label: const Text(S.clearFilters),
-                ),
-              ],
-            ],
-          ),
-        ],
+    return FilterBar(
+      search: SearchField(
+        hint: 'Receipt, member, reg no…',
+        onChanged: notifier.setQuery,
       ),
+      filters: [
+        FilterMenu<PaymentStatus>(
+          label: S.status,
+          value: filter.status,
+          items: PaymentStatus.values,
+          itemLabel: (s) => s.label,
+          onChanged: notifier.setStatus,
+        ),
+        FilterMenu<PaymentMode>(
+          label: S.mode,
+          value: filter.mode,
+          items: PaymentMode.values,
+          itemLabel: (m) => m.label,
+          onChanged: notifier.setMode,
+        ),
+        FilterMenu<PaymentKind>(
+          label: 'Type',
+          value: filter.kind,
+          items: PaymentKind.values,
+          itemLabel: (k) => k.label,
+          onChanged: notifier.setKind,
+        ),
+        InkWell(
+          borderRadius: BorderRadius.circular(Radii.control),
+          onTap: () async {
+            final range = await showDateRangePicker(
+              context: context,
+              firstDate: DateTime(2020),
+              lastDate: DateTime(DateTime.now().year + 1),
+              initialDateRange: filter.from != null && filter.to != null
+                  ? DateTimeRange(start: filter.from!, end: filter.to!)
+                  : null,
+            );
+            if (range != null) notifier.setRange(range.start, range.end);
+          },
+          child: FilterButtonFrame(
+            active: filter.from != null,
+            icon: Icons.calendar_today_outlined,
+            child: Text(
+              filter.from == null
+                  ? S.date
+                  : '${Fmt.dateShort(filter.from)} – ${Fmt.dateShort(filter.to)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      ],
+      onClear: filter.isEmpty ? null : notifier.clear,
     );
   }
 }
 
 class _PaymentActions extends ConsumerWidget {
-  const _PaymentActions({required this.payment});
+  const _PaymentActions({required this.payment, this.member});
 
   final Payment payment;
+  final MemberRef? member;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -317,19 +289,25 @@ class _PaymentActions extends ConsumerWidget {
       onSelected: (value) async {
         switch (value) {
           case 0:
-            _showReceipt(context, ref, payment);
+            _showReceipt(context, ref, payment, member);
           case 1:
             showPaymentFormDialog(context, existing: payment);
           case 2:
-            await ref
-                .read(paymentsProvider.notifier)
-                .edit(payment.copyWith(status: PaymentStatus.paid));
-            if (context.mounted) showToast(context, 'Marked as paid');
+            await runWithToast(
+              context,
+              () => ref
+                  .read(paymentActionsProvider)
+                  .edit(payment.copyWith(status: PaymentStatus.paid)),
+              success: 'Marked as paid',
+            );
           case 3:
             final ok = await confirmDialog(context);
-            if (!ok) return;
-            await ref.read(paymentsProvider.notifier).remove(payment.id);
-            if (context.mounted) showToast(context, 'Payment removed');
+            if (!ok || !context.mounted) return;
+            await runWithToast(
+              context,
+              () => ref.read(paymentActionsProvider).remove(payment.id),
+              success: 'Payment removed',
+            );
         }
       },
       itemBuilder: (context) => [
@@ -346,8 +324,12 @@ class _PaymentActions extends ConsumerWidget {
   }
 }
 
-void _showReceipt(BuildContext context, WidgetRef ref, Payment p) {
-  final member = ref.read(memberByIdProvider)[p.memberId];
+void _showReceipt(
+  BuildContext context,
+  WidgetRef ref,
+  Payment p,
+  MemberRef? member,
+) {
   final yojna = ref.read(yojnaByIdProvider)[p.yojnaId];
   final agent = ref.read(agentByIdProvider)[p.agentId];
 
@@ -356,7 +338,6 @@ void _showReceipt(BuildContext context, WidgetRef ref, Payment p) {
     builder: (dialogContext) => AppDialog(
       title: p.receiptNo,
       subtitle: Fmt.dateTime(p.date),
-      icon: Icons.receipt_long_outlined,
       maxWidth: 520,
       actions: [
         OutlinedButton(
@@ -367,22 +348,23 @@ void _showReceipt(BuildContext context, WidgetRef ref, Payment p) {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: Column(
-              children: [
-                Text(
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Text(
                   Fmt.money(p.amount),
                   style: const TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: kTabular,
                   ),
                 ),
-                const SizedBox(height: 8),
-                PaymentStatusPill(status: p.status),
-              ],
-            ),
+              ),
+              PaymentStatusPill(status: p.status),
+            ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
           DetailRow(label: S.memberName, value: member?.name ?? '—'),
           DetailRow(label: S.regNo, value: member?.regNo ?? '—'),
           DetailRow(label: S.scheme, value: yojna?.name ?? '—'),

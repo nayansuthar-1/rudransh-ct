@@ -9,6 +9,7 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.canvas,
     required this.surface,
     required this.surfaceMuted,
+    required this.hover,
     required this.sidebar,
     required this.border,
     required this.borderStrong,
@@ -16,9 +17,9 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.textSecondary,
     required this.textMuted,
     required this.brand,
+    required this.onBrand,
     required this.brandSoft,
-    required this.ink,
-    required this.slate,
+    required this.onBrandSoft,
     required this.success,
     required this.successSoft,
     required this.warning,
@@ -29,9 +30,17 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.infoSoft,
   });
 
+  /// Page background.
   final Color canvas;
+
+  /// Panels, dialogs, inputs.
   final Color surface;
+
+  /// Quiet fill for table headers, selected rows and tracks.
   final Color surfaceMuted;
+
+  /// Row and menu hover.
+  final Color hover;
   final Color sidebar;
   final Color border;
   final Color borderStrong;
@@ -39,15 +48,14 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color textSecondary;
   final Color textMuted;
 
-  /// Primary action blue (the "Add Payment" button in the reference UI).
+  /// Primary action blue.
   final Color brand;
+  final Color onBrand;
+
+  /// Tonal blue for secondary emphasis: the "New" button, selected nav item,
+  /// active filters.
   final Color brandSoft;
-
-  /// Dark button ("Add Agent").
-  final Color ink;
-
-  /// Neutral dark button ("नया सदस्य जोड़ें").
-  final Color slate;
+  final Color onBrandSoft;
 
   final Color success;
   final Color successSoft;
@@ -59,51 +67,53 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color infoSoft;
 
   static const light = AppColors(
-    canvas: Color(0xFFF4F6FB),
+    canvas: Color(0xFFFFFFFF),
     surface: Color(0xFFFFFFFF),
-    surfaceMuted: Color(0xFFF8FAFC),
-    sidebar: Color(0xFFFFFFFF),
-    border: Color(0xFFE7EAF0),
-    borderStrong: Color(0xFFD3D9E3),
-    textPrimary: Color(0xFF111827),
-    textSecondary: Color(0xFF5B6472),
-    textMuted: Color(0xFF98A2B3),
-    brand: Color(0xFF2563EB),
-    brandSoft: Color(0xFFEAF1FF),
-    ink: Color(0xFF2F2A45),
-    slate: Color(0xFF4B5563),
-    success: Color(0xFF15803D),
-    successSoft: Color(0xFFE6F6EC),
-    warning: Color(0xFFB45309),
-    warningSoft: Color(0xFFFEF3C7),
-    danger: Color(0xFFB91C1C),
-    dangerSoft: Color(0xFFFDECEC),
-    info: Color(0xFF1D4ED8),
-    infoSoft: Color(0xFFE8EFFF),
+    surfaceMuted: Color(0xFFF8F9FA),
+    hover: Color(0xFFF1F3F4),
+    sidebar: Color(0xFFF8FAFD),
+    border: Color(0xFFE3E5E8),
+    borderStrong: Color(0xFFC7CACF),
+    textPrimary: Color(0xFF1F1F1F),
+    textSecondary: Color(0xFF444746),
+    textMuted: Color(0xFF6F7378),
+    brand: Color(0xFF0B57D0),
+    onBrand: Color(0xFFFFFFFF),
+    brandSoft: Color(0xFFD3E3FD),
+    onBrandSoft: Color(0xFF041E49),
+    success: Color(0xFF146C2E),
+    successSoft: Color(0xFFE6F4EA),
+    warning: Color(0xFF9A5B00),
+    warningSoft: Color(0xFFFEF3D9),
+    danger: Color(0xFFB3261E),
+    dangerSoft: Color(0xFFFCE8E6),
+    info: Color(0xFF0B57D0),
+    infoSoft: Color(0xFFE8F0FE),
   );
 
   static const dark = AppColors(
-    canvas: Color(0xFF0F1420),
-    surface: Color(0xFF161C2A),
-    surfaceMuted: Color(0xFF1C2334),
-    sidebar: Color(0xFF131926),
-    border: Color(0xFF27303F),
-    borderStrong: Color(0xFF394356),
-    textPrimary: Color(0xFFE8ECF3),
-    textSecondary: Color(0xFF9AA5B6),
-    textMuted: Color(0xFF6B7688),
-    brand: Color(0xFF60A5FA),
-    brandSoft: Color(0xFF1B2740),
-    ink: Color(0xFF3B3560),
-    slate: Color(0xFF394253),
-    success: Color(0xFF4ADE80),
-    successSoft: Color(0xFF14301F),
-    warning: Color(0xFFFBBF24),
-    warningSoft: Color(0xFF37280A),
-    danger: Color(0xFFF87171),
-    dangerSoft: Color(0xFF3A1A1A),
-    info: Color(0xFF93B4FF),
-    infoSoft: Color(0xFF1A2540),
+    canvas: Color(0xFF131314),
+    surface: Color(0xFF1B1B1D),
+    surfaceMuted: Color(0xFF232326),
+    hover: Color(0xFF2A2A2D),
+    sidebar: Color(0xFF131314),
+    border: Color(0xFF303134),
+    borderStrong: Color(0xFF45474A),
+    textPrimary: Color(0xFFE3E3E3),
+    textSecondary: Color(0xFFC4C7C5),
+    textMuted: Color(0xFF8E918F),
+    brand: Color(0xFFA8C7FA),
+    onBrand: Color(0xFF062E6F),
+    brandSoft: Color(0xFF0842A0),
+    onBrandSoft: Color(0xFFD3E3FD),
+    success: Color(0xFF6DD58C),
+    successSoft: Color(0xFF0F3A1D),
+    warning: Color(0xFFF6C35B),
+    warningSoft: Color(0xFF3B2B06),
+    danger: Color(0xFFF2B8B5),
+    dangerSoft: Color(0xFF4F1612),
+    info: Color(0xFFA8C7FA),
+    infoSoft: Color(0xFF0B2A5C),
   );
 
   @override
@@ -111,6 +121,7 @@ class AppColors extends ThemeExtension<AppColors> {
     Color? canvas,
     Color? surface,
     Color? surfaceMuted,
+    Color? hover,
     Color? sidebar,
     Color? border,
     Color? borderStrong,
@@ -118,9 +129,9 @@ class AppColors extends ThemeExtension<AppColors> {
     Color? textSecondary,
     Color? textMuted,
     Color? brand,
+    Color? onBrand,
     Color? brandSoft,
-    Color? ink,
-    Color? slate,
+    Color? onBrandSoft,
     Color? success,
     Color? successSoft,
     Color? warning,
@@ -134,6 +145,7 @@ class AppColors extends ThemeExtension<AppColors> {
       canvas: canvas ?? this.canvas,
       surface: surface ?? this.surface,
       surfaceMuted: surfaceMuted ?? this.surfaceMuted,
+      hover: hover ?? this.hover,
       sidebar: sidebar ?? this.sidebar,
       border: border ?? this.border,
       borderStrong: borderStrong ?? this.borderStrong,
@@ -141,9 +153,9 @@ class AppColors extends ThemeExtension<AppColors> {
       textSecondary: textSecondary ?? this.textSecondary,
       textMuted: textMuted ?? this.textMuted,
       brand: brand ?? this.brand,
+      onBrand: onBrand ?? this.onBrand,
       brandSoft: brandSoft ?? this.brandSoft,
-      ink: ink ?? this.ink,
-      slate: slate ?? this.slate,
+      onBrandSoft: onBrandSoft ?? this.onBrandSoft,
       success: success ?? this.success,
       successSoft: successSoft ?? this.successSoft,
       warning: warning ?? this.warning,
@@ -163,6 +175,7 @@ class AppColors extends ThemeExtension<AppColors> {
       canvas: c(canvas, other.canvas),
       surface: c(surface, other.surface),
       surfaceMuted: c(surfaceMuted, other.surfaceMuted),
+      hover: c(hover, other.hover),
       sidebar: c(sidebar, other.sidebar),
       border: c(border, other.border),
       borderStrong: c(borderStrong, other.borderStrong),
@@ -170,9 +183,9 @@ class AppColors extends ThemeExtension<AppColors> {
       textSecondary: c(textSecondary, other.textSecondary),
       textMuted: c(textMuted, other.textMuted),
       brand: c(brand, other.brand),
+      onBrand: c(onBrand, other.onBrand),
       brandSoft: c(brandSoft, other.brandSoft),
-      ink: c(ink, other.ink),
-      slate: c(slate, other.slate),
+      onBrandSoft: c(onBrandSoft, other.onBrandSoft),
       success: c(success, other.success),
       successSoft: c(successSoft, other.successSoft),
       warning: c(warning, other.warning),

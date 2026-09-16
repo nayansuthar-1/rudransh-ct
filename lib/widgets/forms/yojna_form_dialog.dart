@@ -110,7 +110,7 @@ class _YojnaFormDialogState extends ConsumerState<YojnaFormDialog> {
       }
 
       if (!mounted) return;
-      showToast(context, _isEdit ? 'योजना अपडेट की गई' : 'नई योजना बनाई गई');
+      showToast(context, _isEdit ? 'Yojna updated' : 'Yojna created');
       Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
@@ -122,26 +122,18 @@ class _YojnaFormDialogState extends ConsumerState<YojnaFormDialog> {
   @override
   Widget build(BuildContext context) {
     return AppDialog(
-      title: _isEdit ? 'योजना संपादित करें' : 'नई योजना बनाएँ',
+      title: _isEdit ? 'Edit Yojna' : 'New Yojna',
       subtitle: _isEdit ? widget.existing!.code : 'Create a new scheme',
-      icon: Icons.workspaces_outline,
       maxWidth: 680,
       actions: [
         OutlinedButton(
           onPressed: _saving ? null : () => Navigator.of(context).pop(),
-          child: const Text(S.cancelHi),
+          child: const Text(S.cancel),
         ),
         FilledButton(
           onPressed: _saving ? null : _submit,
           child: _saving
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
+              ? const ButtonSpinner()
               : const Text(S.save),
         ),
       ],
@@ -155,16 +147,16 @@ class _YojnaFormDialogState extends ConsumerState<YojnaFormDialog> {
               items: [
                 GridItem(
                   AppTextField(
-                    label: 'योजना का नाम',
+                    label: 'Yojna name',
                     required: true,
                     controller: _name,
-                    hint: 'सुरक्षा सहयोग योजना',
+                    hint: 'e.g. Suraksha Sahyog Yojna',
                     validator: V.required,
                   ),
                 ),
                 GridItem(
                   AppTextField(
-                    label: 'कोड (Code)',
+                    label: 'Code',
                     required: true,
                     controller: _code,
                     hint: 'SSY',
@@ -173,15 +165,15 @@ class _YojnaFormDialogState extends ConsumerState<YojnaFormDialog> {
                 ),
                 GridItem.full(
                   AppTextField(
-                    label: 'विवरण (Description)',
+                    label: 'Description',
                     controller: _description,
                     maxLines: 3,
-                    hint: 'योजना का संक्षिप्त विवरण',
+                    hint: 'Short description of the Yojna',
                   ),
                 ),
                 GridItem(
                   AppTextField(
-                    label: 'पंजीकरण शुल्क (₹)',
+                    label: 'Registration fee (₹)',
                     controller: _registration,
                     keyboardType: TextInputType.number,
                     inputFormatters: Fmts.amount(),
@@ -190,7 +182,7 @@ class _YojnaFormDialogState extends ConsumerState<YojnaFormDialog> {
                 ),
                 GridItem(
                   AppTextField(
-                    label: 'प्रति सहयोग राशि (₹)',
+                    label: 'Contribution per closing (₹)',
                     required: true,
                     controller: _contribution,
                     keyboardType: TextInputType.number,
@@ -200,7 +192,7 @@ class _YojnaFormDialogState extends ConsumerState<YojnaFormDialog> {
                 ),
                 GridItem(
                   AppTextField(
-                    label: 'क्लेम राशि (₹)',
+                    label: 'Claim amount (₹)',
                     required: true,
                     controller: _claim,
                     keyboardType: TextInputType.number,

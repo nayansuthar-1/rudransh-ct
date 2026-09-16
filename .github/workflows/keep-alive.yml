@@ -1,0 +1,50 @@
+# Every 2 days: a small query so the free Supabase projects never hit the
+# 7-day idle pause, and a database size check that opens an issue above 350 MB
+# (free limit is 500 MB).
+#
+# Secrets: SUPABASE_DB_URL_PROD, SUPABASE_DB_URL_STAGING (Session pooler URLs)
+
+name: Keep-alive & size check
+
+on:
+  schedule:
+    - cron: '0 4 */2 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [prod, staging]
+    steps:
+      - name: Query and check size
+        env:
+          DB_URL: ${{ matrix.target == 'prod' && secrets.SUPABASE_DB_URL_PROD || secrets.SUPABASE_DB_URL_STAGING }}
+          TARGET: ${{ matrix.target }}
+          LIMIT_MB: 350
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ -z "$DB_URL" ]; then echo "No URL for $TARGET; skipping."; exit 0; fi
+          size_mb=$(psql "$DB_URL" -Atc "select pg_database_size(current_database()) / 1024 / 1024")
+          members=$(psql "$DB_URL" -Atc "select count(*) from public.members")
+          echo "$TARGET: ${size_mb} MB, ${members} members"
+          echo "### $TARGET: ${size_mb} MB used, ${members} members" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$size_mb" -ge "$LIMIT_MB" ]; then
+            title="Database size alert: $TARGET"
+            existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+            body="The $TARGET database is at ${size_mb} MB (alert at ${LIMIT_MB} MB, free limit 500 MB). Archive past financial years to R2 or upgrade to Supabase Pro. See IMPLEMENTATION_PLAN.md section 2."
+            if [ -n "$existing" ]; then
+              gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
+            else
+              gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+            fi
+          fi

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/extensions.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/validators.dart';
@@ -65,6 +66,18 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
     _date = p?.date ?? DateTime.now();
     _agentId = p?.agentId ?? widget.presetMember?.agentId;
     _member = widget.presetMember;
+    if (p != null && _member == null) _loadMember(p.memberId);
+  }
+
+  Future<void> _loadMember(String id) async {
+    try {
+      final found = await ref.read(repositoryProvider).fetchMembersByIds([id]);
+      if (mounted && found.isNotEmpty && _member == null) {
+        setState(() => _member = found.first);
+      }
+    } catch (_) {
+      // The picker stays empty; the admin can search for the member.
+    }
   }
 
   @override
@@ -94,12 +107,12 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final member = _member;
     if (member == null) {
-      showToast(context, 'सदस्य चुनें', error: true);
+      showToast(context, 'Select a member', error: true);
       return;
     }
 
     setState(() => _saving = true);
-    final notifier = ref.read(paymentsProvider.notifier);
+    final notifier = ref.read(paymentActionsProvider);
     final amount = double.tryParse(_amount.text.replaceAll(',', '').trim()) ?? 0;
 
     try {
@@ -140,7 +153,7 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
       }
 
       if (!mounted) return;
-      showToast(context, _isEdit ? 'Payment updated' : 'भुगतान दर्ज किया गया');
+      showToast(context, _isEdit ? 'Payment updated' : 'Payment recorded');
       Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
@@ -152,32 +165,23 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final members = ref.watch(membersProvider).value ?? const <Member>[];
     final agents = ref.watch(agentsProvider).value ?? const <Agent>[];
     final yojna =
         _member == null ? null : ref.watch(yojnaByIdProvider)[_member!.yojnaId];
 
     return AppDialog(
       title: _isEdit ? 'Edit Payment' : S.addPayment,
-      subtitle: _isEdit ? widget.existing!.receiptNo : 'भुगतान दर्ज करें',
-      icon: Icons.receipt_long_outlined,
+      subtitle: _isEdit ? widget.existing!.receiptNo : 'Record a receipt',
       maxWidth: 720,
       actions: [
         OutlinedButton(
           onPressed: _saving ? null : () => Navigator.of(context).pop(),
-          child: const Text(S.cancelHi),
+          child: const Text(S.cancel),
         ),
         FilledButton(
           onPressed: _saving ? null : _submit,
           child: _saving
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
+              ? const ButtonSpinner()
               : const Text(S.save),
         ),
       ],
@@ -187,32 +191,16 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             MemberPickerField(
-              members: members,
+              search: (text) => ref.read(memberActionsProvider).search(text),
               selected: _member,
               onSelected: _onMemberPicked,
               onCleared: () => setState(() => _member = null),
             ),
             if (yojna != null) ...[
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: c.brandSoft,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: c.brand.withValues(alpha: 0.2)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.workspaces_outline, size: 16, color: c.brand),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '${yojna.name}  ·  सहयोग ${Fmt.money(yojna.contributionAmount)}',
-                        style: TextStyle(fontSize: 12.5, color: c.brand),
-                      ),
-                    ),
-                  ],
-                ),
+              const SizedBox(height: 8),
+              Text(
+                '${yojna.name}  ·  Contribution ${Fmt.money(yojna.contributionAmount)}',
+                style: TextStyle(fontSize: 13, color: c.textSecondary),
               ),
             ],
             const SizedBox(height: 20),
@@ -252,7 +240,7 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
                     label: S.mode,
                     value: _mode,
                     items: PaymentMode.values,
-                    itemLabel: (m) => '${m.label} (${m.hi})',
+                    itemLabel: (m) => m.label,
                     onChanged: (v) => setState(() => _mode = v ?? _mode),
                   ),
                 ),
@@ -272,7 +260,7 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
                     items: agents,
                     itemLabel: (a) => '${a.code} · ${a.name}',
                     includeAllOption: true,
-                    allLabel: '— कोई नहीं —',
+                    allLabel: '— None —',
                     onChanged: (v) => setState(() => _agentId = v?.id),
                   ),
                 ),
@@ -303,14 +291,15 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
 class MemberPickerField extends StatelessWidget {
   const MemberPickerField({
     super.key,
-    required this.members,
+    required this.search,
     required this.selected,
     required this.onSelected,
     this.onCleared,
-    this.label = 'सदस्य (Member)',
+    this.label = 'Member',
   });
 
-  final List<Member> members;
+  /// Server-side lookup by name, reg no or phone.
+  final Future<List<Member>> Function(String text) search;
   final Member? selected;
   final ValueChanged<Member> onSelected;
   final VoidCallback? onCleared;
@@ -326,16 +315,14 @@ class MemberPickerField extends StatelessWidget {
         children: [
           FieldLabel(label, required: true),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
             decoration: BoxDecoration(
               color: c.surfaceMuted,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(Radii.control),
               border: Border.all(color: c.borderStrong),
             ),
             child: Row(
               children: [
-                Icon(Icons.person_outline, size: 18, color: c.textSecondary),
-                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -374,10 +361,14 @@ class MemberPickerField extends StatelessWidget {
         FieldLabel(label, required: true),
         Autocomplete<Member>(
           displayStringForOption: (m) => '${m.name} (${m.regNo})',
-          optionsBuilder: (value) {
-            final q = value.text.trim().toLowerCase();
+          optionsBuilder: (value) async {
+            final q = value.text.trim();
             if (q.length < 2) return const Iterable<Member>.empty();
-            return members.where((m) => m.searchIndex.contains(q)).take(30);
+            try {
+              return await search(q);
+            } catch (_) {
+              return const Iterable<Member>.empty();
+            }
           },
           onSelected: onSelected,
           fieldViewBuilder: (context, controller, focusNode, onSubmit) {
@@ -386,10 +377,10 @@ class MemberPickerField extends StatelessWidget {
               focusNode: focusNode,
               style: const TextStyle(fontSize: 14),
               decoration: const InputDecoration(
-                hintText: 'नाम / Reg No / फ़ोन से खोजें',
-                prefixIcon: Icon(Icons.search, size: 18),
+                hintText: 'Search by name, reg no or phone',
+                prefixIcon: Icon(Icons.search, size: 17),
                 prefixIconConstraints:
-                    BoxConstraints(minWidth: 42, minHeight: 40),
+                    BoxConstraints(minWidth: 38, minHeight: 38),
               ),
             );
           },
@@ -397,8 +388,13 @@ class MemberPickerField extends StatelessWidget {
             return Align(
               alignment: Alignment.topLeft,
               child: Material(
-                elevation: 8,
-                borderRadius: BorderRadius.circular(12),
+                elevation: 6,
+                color: c.surface,
+                shadowColor: Colors.black.withValues(alpha: 0.18),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(Radii.panel),
+                  side: BorderSide(color: c.border),
+                ),
                 clipBehavior: Clip.antiAlias,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 300, maxWidth: 520),

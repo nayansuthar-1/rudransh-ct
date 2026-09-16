@@ -1,0 +1,27 @@
+/// Build-time configuration, passed with `--dart-define`:
+///
+/// ```sh
+/// flutter run -d chrome \
+///   --dart-define=SUPABASE_URL=https://xyz.supabase.co \
+///   --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+/// ```
+///
+/// A legacy `SUPABASE_ANON_KEY` is also accepted. Never commit real values.
+/// Without them the app runs in demo mode on in-memory seed data with login
+/// bypassed.
+abstract final class Env {
+  static const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+
+  static const _publishableKey =
+      String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
+  static const _anonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+
+  /// Public client key. Safe in the browser; row-level security guards data.
+  static String get supabaseKey =>
+      _publishableKey.isNotEmpty ? _publishableKey : _anonKey;
+
+  static bool get hasSupabase =>
+      supabaseUrl.isNotEmpty && supabaseKey.isNotEmpty;
+
+  static bool get demoMode => !hasSupabase;
+}

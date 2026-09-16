@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/l10n/strings.dart';
 import '../core/responsive/breakpoints.dart';
 import '../core/theme/app_colors.dart';
+import '../core/theme/app_theme.dart';
 
 /// Dialog shell that becomes a full-screen sheet on phones and a centred
 /// panel on larger screens. Header and footer stay pinned while the body
@@ -15,7 +16,6 @@ class AppDialog extends StatelessWidget {
     this.subtitle,
     this.actions = const [],
     this.maxWidth = 900,
-    this.icon,
   });
 
   final String title;
@@ -23,7 +23,6 @@ class AppDialog extends StatelessWidget {
   final Widget child;
   final List<Widget> actions;
   final double maxWidth;
-  final IconData? icon;
 
   /// Convenience wrapper around [showDialog] with the right insets per size.
   static Future<T?> show<T>({
@@ -34,15 +33,18 @@ class AppDialog extends StatelessWidget {
     return showDialog<T>(
       context: context,
       barrierDismissible: !fullScreen,
-      barrierColor: Colors.black.withValues(alpha: 0.42),
+      barrierColor: Colors.black.withValues(alpha: 0.32),
       builder: (context) => Dialog(
         insetPadding: fullScreen
             ? EdgeInsets.zero
             : const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
         clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(fullScreen ? 0 : 18),
-        ),
+        shape: fullScreen
+            ? const RoundedRectangleBorder()
+            : RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(Radii.dialog),
+                side: BorderSide(color: context.colors.border),
+              ),
         child: builder(context),
       ),
     );
@@ -52,13 +54,15 @@ class AppDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final fullScreen = context.isMobile;
-    final media = MediaQuery.sizeOf(context);
+    final media = MediaQuery.of(context);
+    final gutter = fullScreen ? 16.0 : 24.0;
 
     return ConstrainedBox(
       constraints: BoxConstraints(
-        maxWidth: fullScreen ? media.width : maxWidth,
-        maxHeight: fullScreen ? media.height : media.height * 0.9,
-        minWidth: fullScreen ? media.width : 0,
+        maxWidth: fullScreen ? media.size.width : maxWidth,
+        maxHeight: fullScreen ? media.size.height : media.size.height * 0.9,
+        minWidth: fullScreen ? media.size.width : 0,
+        minHeight: fullScreen ? media.size.height : 0,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -66,10 +70,10 @@ class AppDialog extends StatelessWidget {
           // Header
           Container(
             padding: EdgeInsets.fromLTRB(
-              fullScreen ? 14 : 22,
-              fullScreen ? 12 : 18,
+              gutter,
+              (fullScreen ? media.padding.top : 0) + (fullScreen ? 12 : 20),
               fullScreen ? 8 : 14,
-              fullScreen ? 12 : 18,
+              fullScreen ? 12 : 16,
             ),
             decoration: BoxDecoration(
               color: c.surface,
@@ -77,17 +81,6 @@ class AppDialog extends StatelessWidget {
             ),
             child: Row(
               children: [
-                IconButton(
-                  onPressed: () => Navigator.of(context).maybePop(),
-                  icon: const Icon(Icons.close, size: 20),
-                  tooltip: 'Close',
-                  style: IconButton.styleFrom(foregroundColor: c.textSecondary),
-                ),
-                const SizedBox(width: 4),
-                if (icon != null) ...[
-                  Icon(icon, size: 20, color: c.brand),
-                  const SizedBox(width: 8),
-                ],
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -95,19 +88,24 @@ class AppDialog extends StatelessWidget {
                     children: [
                       Text(
                         title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: fullScreen ? 16 : 18,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w400,
                           color: c.textPrimary,
+                          height: 1.3,
                         ),
                       ),
-                      if (subtitle != null)
+                      if (subtitle != null && subtitle!.isNotEmpty)
                         Padding(
-                          padding: const EdgeInsets.only(top: 2),
+                          padding: const EdgeInsets.only(top: 1),
                           child: Text(
                             subtitle!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 12.5,
+                              fontSize: 13,
                               color: c.textSecondary,
                             ),
                           ),
@@ -115,21 +113,28 @@ class AppDialog extends StatelessWidget {
                     ],
                   ),
                 ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(Icons.close, size: 19),
+                  tooltip: 'Close',
+                ),
               ],
             ),
           ),
 
-          // Body
+          // Body. Material, not a coloured box, so list tiles in forms can
+          // paint their ink on it.
           Flexible(
-            child: Container(
-              width: double.infinity,
+            fit: fullScreen ? FlexFit.tight : FlexFit.loose,
+            child: Material(
               color: c.surface,
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                  horizontal: fullScreen ? 14 : 22,
-                  vertical: fullScreen ? 16 : 20,
+              child: SizedBox(
+                width: double.infinity,
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(gutter, Space.xl, gutter, Space.xxl),
+                  child: child,
                 ),
-                child: child,
               ),
             ),
           ),
@@ -138,19 +143,21 @@ class AppDialog extends StatelessWidget {
           if (actions.isNotEmpty)
             Container(
               width: double.infinity,
-              padding: EdgeInsets.symmetric(
-                horizontal: fullScreen ? 14 : 22,
-                vertical: 14,
+              padding: EdgeInsets.fromLTRB(
+                gutter,
+                Space.md,
+                gutter,
+                Space.md + (fullScreen ? media.padding.bottom : 0),
               ),
               decoration: BoxDecoration(
-                color: c.surfaceMuted,
+                color: c.surface,
                 border: Border(top: BorderSide(color: c.border)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   for (var i = 0; i < actions.length; i++) ...[
-                    if (i > 0) const SizedBox(width: 10),
+                    if (i > 0) const SizedBox(width: Space.sm),
                     if (fullScreen)
                       Expanded(child: actions[i])
                     else
@@ -160,6 +167,23 @@ class AppDialog extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Spinner sized for a filled button while it saves.
+class ButtonSpinner extends StatelessWidget {
+  const ButtonSpinner({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 16,
+      height: 16,
+      child: CircularProgressIndicator(
+        strokeWidth: 2,
+        color: context.colors.onBrand,
       ),
     );
   }
@@ -176,13 +200,17 @@ Future<bool> confirmDialog(
   final c = context.colors;
   final result = await showDialog<bool>(
     context: context,
+    barrierColor: Colors.black.withValues(alpha: 0.32),
     builder: (context) => AlertDialog(
-      title: Text(title, style: const TextStyle(fontSize: 17)),
+      constraints: const BoxConstraints(maxWidth: 420),
+      titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+      actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      title: Text(title),
       content: Text(
         message,
-        style: TextStyle(fontSize: 13.5, color: c.textSecondary),
+        style: TextStyle(fontSize: 13.5, color: c.textSecondary, height: 1.5),
       ),
-      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
       actions: [
         OutlinedButton(
           onPressed: () => Navigator.of(context).pop(false),
@@ -191,7 +219,10 @@ Future<bool> confirmDialog(
         FilledButton(
           onPressed: () => Navigator.of(context).pop(true),
           style: destructive
-              ? FilledButton.styleFrom(backgroundColor: c.danger)
+              ? FilledButton.styleFrom(
+                  backgroundColor: c.danger,
+                  foregroundColor: Colors.white,
+                )
               : null,
           child: Text(confirmLabel),
         ),
@@ -212,8 +243,8 @@ void showToast(BuildContext context, String message, {bool error = false}) {
           children: [
             Icon(
               error ? Icons.error_outline : Icons.check_circle_outline,
-              size: 18,
-              color: error ? c.danger : c.success,
+              size: 17,
+              color: error ? c.dangerSoft : c.successSoft,
             ),
             const SizedBox(width: 10),
             Expanded(child: Text(message)),
@@ -224,4 +255,19 @@ void showToast(BuildContext context, String message, {bool error = false}) {
         margin: context.isMobile ? const EdgeInsets.all(12) : null,
       ),
     );
+}
+
+/// Runs a delete (or other one-shot action) and reports the outcome as a
+/// toast, including database refusals such as "member has receipts".
+Future<void> runWithToast(
+  BuildContext context,
+  Future<void> Function() action, {
+  required String success,
+}) async {
+  try {
+    await action();
+    if (context.mounted) showToast(context, success);
+  } catch (e) {
+    if (context.mounted) showToast(context, '$e', error: true);
+  }
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/extensions.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/models.dart';
@@ -34,9 +35,8 @@ class ClosingPaymentsPage extends ConsumerWidget {
       children: [
         SectionHeader(
           title: S.closingPayments,
-          subtitle: yojna?.name ?? 'सभी योजनाएँ',
+          subtitle: yojna?.name ?? S.allYojnas,
           actions: [
-            const PayStatusFilterButton(),
             FilledButton.icon(
               onPressed: () => showClosingCaseDialog(context),
               icon: const Icon(Icons.add, size: 17),
@@ -44,41 +44,42 @@ class ClosingPaymentsPage extends ConsumerWidget {
             ),
           ],
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: Space.xl),
         StatGrid(
           children: [
             StatCard(
-              label: 'Total Claims',
+              label: 'Total claims',
               value: Fmt.moneyCompact(totalClaim),
               icon: Icons.assignment_outlined,
+              accent: StatAccent.blue,
               caption: '${cases.length} cases',
             ),
             StatCard(
               label: 'Collected',
               value: Fmt.moneyCompact(collected),
               icon: Icons.savings_outlined,
-              tone: PillTone.success,
+              accent: StatAccent.green,
+              caption: totalClaim == 0
+                  ? null
+                  : '${(collected / totalClaim * 100).toStringAsFixed(0)}% of claims',
             ),
             StatCard(
               label: 'Pending',
               value: Fmt.moneyCompact(pending),
               icon: Icons.hourglass_bottom_rounded,
-              tone: PillTone.warning,
+              accent: StatAccent.amber,
               caption: '$unpaid unsettled',
             ),
           ],
         ),
-        const SizedBox(height: 18),
-        AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SectionHeader(title: S.closedCases, dense: true),
-              const SizedBox(height: 14),
-              const ClosingCasesTable(),
-            ],
-          ),
+        const SizedBox(height: Space.xxl),
+        const SectionHeader(
+          title: S.closedCases,
+          dense: true,
+          actions: [PayStatusFilterButton()],
         ),
+        const SizedBox(height: Space.md),
+        const AppCard(child: ClosingCasesTable()),
       ],
     );
   }
@@ -132,7 +133,7 @@ class _ClosingCaseDialogState extends ConsumerState<_ClosingCaseDialog> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final member = _member;
     if (member == null) {
-      showToast(context, 'सदस्य चुनें', error: true);
+      showToast(context, 'Select a member', error: true);
       return;
     }
 
@@ -165,32 +166,19 @@ class _ClosingCaseDialogState extends ConsumerState<_ClosingCaseDialog> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final members = (ref.watch(membersProvider).value ?? const <Member>[])
-        .where((m) => !m.isClosed)
-        .toList();
 
     return AppDialog(
-      title: 'नया क्लोजिंग केस',
+      title: 'New Closing Case',
       subtitle: 'Raise a claim for a member',
-      icon: Icons.assignment_turned_in_outlined,
       maxWidth: 640,
       actions: [
         OutlinedButton(
           onPressed: _saving ? null : () => Navigator.of(context).pop(),
-          child: const Text(S.cancelHi),
+          child: const Text(S.cancel),
         ),
         FilledButton(
           onPressed: _saving ? null : _submit,
-          child: _saving
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : const Text(S.save),
+          child: _saving ? const ButtonSpinner() : const Text(S.save),
         ),
       ],
       child: Form(
@@ -199,25 +187,18 @@ class _ClosingCaseDialogState extends ConsumerState<_ClosingCaseDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             MemberPickerField(
-              members: members,
+              search: (text) => ref
+                  .read(memberActionsProvider)
+                  .search(text, excludeClosed: true),
               selected: _member,
               onSelected: _pickMember,
               onCleared: () => setState(() => _member = null),
             ),
             if (_member != null) ...[
-              const SizedBox(height: 10),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: c.surfaceMuted,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: c.border),
-                ),
-                child: Text(
-                  'वारिसदार: ${_member!.warisName} (${_member!.warisRelation})',
-                  style: TextStyle(fontSize: 12.5, color: c.textSecondary),
-                ),
+              const SizedBox(height: 8),
+              Text(
+                'Nominee: ${_member!.warisName} (${_member!.warisRelation})',
+                style: TextStyle(fontSize: 13, color: c.textSecondary),
               ),
             ],
             const SizedBox(height: 18),

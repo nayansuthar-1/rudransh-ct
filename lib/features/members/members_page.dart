@@ -5,6 +5,7 @@ import '../../core/l10n/strings.dart';
 import '../../core/utils/extensions.dart';
 import '../../core/responsive/breakpoints.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/models.dart';
 import '../../state/providers.dart';
@@ -22,9 +23,9 @@ class MembersPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(membersProvider);
-    final members = ref.watch(filteredMembersProvider);
-    final scoped = ref.watch(scopedMembersProvider);
+    final async = ref.watch(membersPageProvider);
+    final page = async.value ?? PageResult.empty<Member>();
+    final scopeTotal = ref.watch(dashboardStatsProvider).value?.totalMembers;
     final agents = ref.watch(agentByIdProvider);
     final yojnas = ref.watch(yojnaByIdProvider);
     final yojnaId = ref.watch(selectedYojnaIdProvider);
@@ -34,20 +35,23 @@ class MembersPage extends ConsumerWidget {
       children: [
         SectionHeader(
           title: S.members,
-          subtitle:
-              '${Fmt.number(scoped.length)} ${S.membersCount.toLowerCase()} · ${selectedYojna?.name ?? 'सभी योजनाएँ'}',
+          subtitle: [
+            if (scopeTotal != null)
+              '${Fmt.number(scopeTotal)} ${S.membersCount.toLowerCase()}',
+            selectedYojna?.name ?? S.allYojnas,
+          ].join(' · '),
           actions: [
             FilledButton.icon(
               onPressed: () =>
                   showMemberFormDialog(context, presetYojnaId: yojnaId),
               icon: const Icon(Icons.add, size: 17),
-              label: const Text(S.addMemberHi),
+              label: const Text(S.addMember),
             ),
           ],
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: Space.xl),
         const _MemberFilters(),
-        const SizedBox(height: 14),
+        const SizedBox(height: Space.md),
         AppCard(
           child: Builder(
             builder: (context) {
@@ -57,52 +61,46 @@ class MembersPage extends ConsumerWidget {
               if (async.hasError && async.value == null) {
                 return ErrorStateView(
                   error: async.error!,
-                  onRetry: () => ref.invalidate(membersProvider),
+                  onRetry: () => ref.invalidate(membersPageProvider),
                 );
               }
               return ResponsiveTable<Member>(
-                rows: members,
-                pageSize: 14,
+                rows: page.items,
+                totalCount: page.total,
+                pageSize: listPageSize,
+                page: ref.watch(memberPageProvider),
+                onPageChanged: ref.read(memberPageProvider.notifier).set,
+                busy: async.isLoading,
                 onRowTap: (m) => showMemberDetails(context, ref, m),
                 mobileTitle: (m) => m.name,
                 mobileSubtitle: (m) => m.regNo,
-                mobileLeading: (context, m) => AppAvatar(name: m.name),
+                mobileTrailing: (context, m) => Padding(
+                  padding: const EdgeInsets.only(top: 3),
+                  child: MemberStatusPill(status: m.status),
+                ),
                 columns: [
                   TableCol<Member>(
                     label: S.memberName,
                     flex: 2,
                     minWidth: 190,
                     text: (m) => m.name,
-                    cell: (context, m) => Row(
+                    cell: (context, m) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (!context.isMobile) ...[
-                          AppAvatar(name: m.name, size: 32),
-                          const SizedBox(width: 10),
-                        ],
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                m.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              Text(
-                                m.fatherOrHusbandName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  color: context.colors.textMuted,
-                                ),
-                              ),
-                            ],
+                        Text(
+                          m.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        Text(
+                          m.fatherOrHusbandName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: context.colors.textMuted,
                           ),
                         ),
                       ],
@@ -111,23 +109,18 @@ class MembersPage extends ConsumerWidget {
                   TableCol<Member>(
                     label: S.regNo,
                     minWidth: 130,
+                    showOnMobile: false,
                     text: (m) => m.regNo,
                     cell: (context, m) => Text(
                       m.regNo,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        color: context.colors.textSecondary,
-                      ),
+                      style: TextStyle(color: context.colors.textSecondary),
                     ),
                   ),
                   TableCol<Member>(
                     label: S.phone,
                     minWidth: 125,
                     text: (m) => Fmt.phone(m.primaryPhone),
-                    cell: (context, m) => Text(
-                      Fmt.phone(m.primaryPhone),
-                      style: const TextStyle(fontSize: 13),
-                    ),
+                    cell: (context, m) => Text(Fmt.phone(m.primaryPhone)),
                   ),
                   TableCol<Member>(
                     label: S.scheme,
@@ -138,7 +131,6 @@ class MembersPage extends ConsumerWidget {
                       yojnas[m.yojnaId]?.name ?? '—',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12.5),
                     ),
                   ),
                   TableCol<Member>(
@@ -150,7 +142,6 @@ class MembersPage extends ConsumerWidget {
                       agents[m.agentId]?.name ?? '—',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12.5),
                     ),
                   ),
                   TableCol<Member>(
@@ -158,14 +149,12 @@ class MembersPage extends ConsumerWidget {
                     minWidth: 110,
                     hideBelow: ScreenSize.laptop,
                     text: (m) => Fmt.date(m.joinDate),
-                    cell: (context, m) => Text(
-                      Fmt.date(m.joinDate),
-                      style: const TextStyle(fontSize: 12.5),
-                    ),
+                    cell: (context, m) => Text(Fmt.date(m.joinDate)),
                   ),
                   TableCol<Member>(
                     label: S.status,
                     minWidth: 100,
+                    showOnMobile: false,
                     cell: (context, m) => MemberStatusPill(status: m.status),
                   ),
                 ],
@@ -203,76 +192,39 @@ class _MemberFilters extends ConsumerWidget {
     final filter = ref.watch(memberFilterProvider);
     final notifier = ref.read(memberFilterProvider.notifier);
     final agents = ref.watch(agentsProvider).value ?? const <Agent>[];
-    final districts = ref.watch(memberDistrictsProvider);
+    final districts =
+        ref.watch(memberDistrictsProvider).value ?? const <String>[];
 
-    return AppCard(
-      padding: const EdgeInsets.all(14),
-      child: FormGrid(
-        gap: 12,
-        columnsOverride:
-            context.responsive<int>(mobile: 1, tablet: 2, laptop: 4),
-        items: [
-          GridItem(
-            SearchField(
-              hint: 'नाम, Reg No, फ़ोन, आधार…',
-              onChanged: notifier.setQuery,
-            ),
-          ),
-          GridItem(
-            AppDropdown<MemberStatus>(
-              label: '',
-              value: filter.status,
-              items: MemberStatus.values,
-              itemLabel: (s) => s.label,
-              includeAllOption: true,
-              allLabel: 'All statuses',
-              hint: 'All statuses',
-              onChanged: notifier.setStatus,
-            ),
-          ),
-          GridItem(
-            AppDropdown<Agent>(
-              label: '',
-              value: agents.where((a) => a.id == filter.agentId).firstOrNull,
-              items: agents,
-              itemLabel: (a) => a.name,
-              includeAllOption: true,
-              allLabel: 'All agents',
-              hint: 'All agents',
-              onChanged: (a) => notifier.setAgent(a?.id),
-            ),
-          ),
-          GridItem(
-            Row(
-              children: [
-                Expanded(
-                  child: AppDropdown<String>(
-                    label: '',
-                    value: filter.district,
-                    items: districts,
-                    itemLabel: (d) => d,
-                    includeAllOption: true,
-                    allLabel: 'All districts',
-                    hint: 'All districts',
-                    onChanged: notifier.setDistrict,
-                  ),
-                ),
-                if (!filter.isEmpty) ...[
-                  const SizedBox(width: 8),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 18),
-                    child: IconButton(
-                      tooltip: S.clearFilters,
-                      onPressed: notifier.clear,
-                      icon: const Icon(Icons.filter_alt_off_outlined, size: 19),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
+    return FilterBar(
+      search: SearchField(
+        hint: 'Name, reg no, phone, village…',
+        value: filter.query,
+        onChanged: notifier.setQuery,
       ),
+      filters: [
+        FilterMenu<MemberStatus>(
+          label: S.status,
+          value: filter.status,
+          items: MemberStatus.values,
+          itemLabel: (s) => s.label,
+          onChanged: notifier.setStatus,
+        ),
+        FilterMenu<Agent>(
+          label: S.agent,
+          value: agents.where((a) => a.id == filter.agentId).firstOrNull,
+          items: agents,
+          itemLabel: (a) => a.name,
+          onChanged: (a) => notifier.setAgent(a?.id),
+        ),
+        FilterMenu<String>(
+          label: 'District',
+          value: filter.district,
+          items: districts,
+          itemLabel: (d) => d,
+          onChanged: notifier.setDistrict,
+        ),
+      ],
+      onClear: filter.isEmpty ? null : notifier.clear,
     );
   }
 }
@@ -298,10 +250,18 @@ class _MemberActions extends ConsumerWidget {
           case 2:
             showPaymentFormDialog(context, presetMember: member);
           case 3:
-            final ok = await confirmDialog(context);
-            if (!ok) return;
-            await ref.read(membersProvider.notifier).remove(member.id);
-            if (context.mounted) showToast(context, 'सदस्य हटाया गया');
+            final ok = await confirmDialog(
+              context,
+              message:
+                  'A member with receipts cannot be deleted; mark them Inactive '
+                  'instead. A member without receipts will be removed permanently.',
+            );
+            if (!ok || !context.mounted) return;
+            await runWithToast(
+              context,
+              () => ref.read(memberActionsProvider).remove(member.id),
+              success: 'Member deleted',
+            );
         }
       },
       itemBuilder: (context) => [
@@ -320,17 +280,12 @@ class _MemberActions extends ConsumerWidget {
 void showMemberDetails(BuildContext context, WidgetRef ref, Member m) {
   final yojna = ref.read(yojnaByIdProvider)[m.yojnaId];
   final agent = ref.read(agentByIdProvider)[m.agentId];
-  final payments = (ref.read(paymentsProvider).value ?? const <Payment>[])
-      .where((p) => p.memberId == m.id)
-      .take(6)
-      .toList();
 
   AppDialog.show<void>(
     context: context,
     builder: (dialogContext) => AppDialog(
       title: m.name,
       subtitle: '${m.regNo} · ${yojna?.name ?? ''}',
-      icon: Icons.person_outline,
       maxWidth: 640,
       actions: [
         OutlinedButton(
@@ -349,39 +304,17 @@ void showMemberDetails(BuildContext context, WidgetRef ref, Member m) {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
             children: [
-              AppAvatar(name: m.name, size: 52),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      m.name,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: [
-                        MemberStatusPill(status: m.status),
-                        StatusPill(m.gender.hi, tone: PillTone.neutral),
-                        if (m.closingGroup != null)
-                          StatusPill(m.closingGroup!, tone: PillTone.info),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+              MemberStatusPill(status: m.status),
+              StatusPill(m.gender.label),
+              if (m.closingGroup != null)
+                StatusPill(m.closingGroup!, tone: PillTone.info),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 8),
           DetailRow(label: S.fldFather, value: m.fatherOrHusbandName),
           DetailRow(label: S.fldJati, value: m.jati),
           DetailRow(label: S.fldGotra, value: m.gotra),
@@ -398,34 +331,37 @@ void showMemberDetails(BuildContext context, WidgetRef ref, Member m) {
           DetailRow(label: S.joinedOn, value: Fmt.date(m.joinDate)),
           if (m.closingDate != null)
             DetailRow(label: S.closingDate, value: Fmt.date(m.closingDate)),
-          if (payments.isNotEmpty) ...[
-            const SizedBox(height: 18),
-            const SectionHeader(title: S.recentPayments, dense: true),
-            const SizedBox(height: 8),
-            for (final p in payments)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        '${p.receiptNo} · ${Fmt.date(p.date)}',
-                        style: const TextStyle(fontSize: 12.5),
-                      ),
-                    ),
-                    Text(
-                      Fmt.money(p.amount),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
+          _MemberRecentPayments(memberId: m.id),
         ],
       ),
     ),
   );
+}
+
+class _MemberRecentPayments extends ConsumerWidget {
+  const _MemberRecentPayments({required this.memberId});
+
+  final String memberId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final payments =
+        ref.watch(memberRecentPaymentsProvider(memberId)).value?.items ??
+        const <Payment>[];
+    if (payments.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        const SectionHeader(title: S.recentPayments, dense: true),
+        const SizedBox(height: 4),
+        for (final p in payments)
+          DetailRow(
+            label: '${p.receiptNo} · ${Fmt.date(p.date)}',
+            value: Fmt.money(p.amount),
+          ),
+      ],
+    );
+  }
 }

@@ -28,8 +28,10 @@ class Fmt {
   static String month(DateTime d) => _month.format(d);
 
   static String money(num? v) => v == null ? '—' : _inr.format(v);
-  static String moneyCompact(num? v) =>
-      v == null ? '—' : _compact.format(v);
+  /// `₹1.2L`, `₹85K`, `₹0` — a trailing ".0" is dropped.
+  static String moneyCompact(num? v) => v == null
+      ? '—'
+      : _compact.format(v).replaceFirst(RegExp(r'\.0(?=\D*$)'), '');
   static String number(num? v) => v == null ? '—' : _plain.format(v);
 
   /// `9876543210` -> `98765 43210`

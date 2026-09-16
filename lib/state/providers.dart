@@ -1,17 +1,48 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 
+import '../core/config/env.dart';
 import '../data/models/models.dart';
 import '../data/repositories/in_memory_trust_repository.dart';
+import '../data/repositories/supabase_trust_repository.dart';
 import '../data/repositories/trust_repository.dart';
+import 'auth_controller.dart';
 
 /// Single swap point for the backend.
 ///
-/// Replace [InMemoryTrustRepository] with a Firebase/Supabase/REST
-/// implementation of [TrustRepository] and the rest of the app is unchanged.
+/// Uses Supabase when `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY` are defined
+/// at build time, otherwise the in-memory demo data. Widget tests override it.
 final repositoryProvider = Provider<TrustRepository>((ref) {
+  if (Env.hasSupabase) {
+    return SupabaseTrustRepository(Supabase.instance.client);
+  }
   return InMemoryTrustRepository();
 });
+
+// ---------------------------------------------------------------------------
+// Data revision
+// ---------------------------------------------------------------------------
+
+/// Bumped after every create/update/delete.
+///
+/// Server-backed views (paged lists, totals, dashboard) watch it, so one save
+/// refreshes every screen that could show the changed record.
+class DataRevisionNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void bump() => state++;
+}
+
+final dataRevisionProvider =
+    NotifierProvider<DataRevisionNotifier, int>(DataRevisionNotifier.new);
+
+/// Call at the top of a provider that reads records from the backend.
+void watchBackendData(Ref ref) {
+  ref.watch(sessionUserIdProvider);
+  ref.watch(dataRevisionProvider);
+}
 
 // ---------------------------------------------------------------------------
 // Yojna
@@ -21,22 +52,28 @@ class YojnaListNotifier extends AsyncNotifier<List<Yojna>> {
   TrustRepository get _repo => ref.read(repositoryProvider);
 
   @override
-  Future<List<Yojna>> build() => _repo.fetchYojnas();
+  Future<List<Yojna>> build() {
+    ref.watch(sessionUserIdProvider);
+    return _repo.fetchYojnas();
+  }
 
   Future<void> add(Yojna yojna) async {
     await _repo.createYojna(yojna);
-    ref.invalidateSelf();
-    await future;
+    await _refresh();
   }
 
   Future<void> edit(Yojna yojna) async {
     await _repo.updateYojna(yojna);
-    ref.invalidateSelf();
-    await future;
+    await _refresh();
   }
 
   Future<void> remove(String id) async {
     await _repo.deleteYojna(id);
+    await _refresh();
+  }
+
+  Future<void> _refresh() async {
+    ref.read(dataRevisionProvider.notifier).bump();
     ref.invalidateSelf();
     await future;
   }
@@ -100,43 +137,41 @@ final yojnaByIdProvider = Provider<Map<String, Yojna>>((ref) {
 // Members
 // ---------------------------------------------------------------------------
 
-class MembersNotifier extends AsyncNotifier<List<Member>> {
-  TrustRepository get _repo => ref.read(repositoryProvider);
+/// Member writes. Lists are read page by page, see `membersPageProvider`.
+class MemberActions {
+  MemberActions(this._ref);
 
-  @override
-  Future<List<Member>> build() => _repo.fetchMembers();
+  final Ref _ref;
+
+  TrustRepository get _repo => _ref.read(repositoryProvider);
 
   Future<Member> add(Member member) async {
     final created = await _repo.createMember(member);
-    ref.invalidateSelf();
-    await future;
+    _changed();
     return created;
   }
 
   Future<void> edit(Member member) async {
     await _repo.updateMember(member);
-    ref.invalidateSelf();
-    await future;
+    _changed();
   }
 
   Future<void> remove(String id) async {
     await _repo.deleteMember(id);
-    ref.invalidateSelf();
-    await future;
+    _changed();
   }
 
   Future<Member?> findByPhone(String phone) => _repo.findMemberByPhone(phone);
 
+  Future<List<Member>> search(String text, {bool excludeClosed = false}) =>
+      _repo.searchMembers(text, excludeClosed: excludeClosed);
+
   Future<String> nextRegNo(String yojnaId) => _repo.nextRegNo(yojnaId);
+
+  void _changed() => _ref.read(dataRevisionProvider.notifier).bump();
 }
 
-final membersProvider =
-    AsyncNotifierProvider<MembersNotifier, List<Member>>(MembersNotifier.new);
-
-final memberByIdProvider = Provider<Map<String, Member>>((ref) {
-  final members = ref.watch(membersProvider).value ?? const <Member>[];
-  return {for (final m in members) m.id: m};
-});
+final memberActionsProvider = Provider<MemberActions>(MemberActions.new);
 
 // ---------------------------------------------------------------------------
 // Agents
@@ -146,28 +181,34 @@ class AgentsNotifier extends AsyncNotifier<List<Agent>> {
   TrustRepository get _repo => ref.read(repositoryProvider);
 
   @override
-  Future<List<Agent>> build() => _repo.fetchAgents();
+  Future<List<Agent>> build() {
+    ref.watch(sessionUserIdProvider);
+    return _repo.fetchAgents();
+  }
 
   Future<void> add(Agent agent) async {
     await _repo.createAgent(agent);
-    ref.invalidateSelf();
-    await future;
+    await _refresh();
   }
 
   Future<void> edit(Agent agent) async {
     await _repo.updateAgent(agent);
-    ref.invalidateSelf();
-    await future;
+    await _refresh();
   }
 
+  /// Also unassigns the agent's members (database `on delete set null`).
   Future<void> remove(String id) async {
     await _repo.deleteAgent(id);
-    ref.invalidateSelf();
-    ref.invalidate(membersProvider);
-    await future;
+    await _refresh();
   }
 
   Future<String> nextCode() => _repo.nextAgentCode();
+
+  Future<void> _refresh() async {
+    ref.read(dataRevisionProvider.notifier).bump();
+    ref.invalidateSelf();
+    await future;
+  }
 }
 
 final agentsProvider =
@@ -182,37 +223,35 @@ final agentByIdProvider = Provider<Map<String, Agent>>((ref) {
 // Payments
 // ---------------------------------------------------------------------------
 
-class PaymentsNotifier extends AsyncNotifier<List<Payment>> {
-  TrustRepository get _repo => ref.read(repositoryProvider);
+/// Payment writes. Lists are read page by page, see `paymentsPageProvider`.
+class PaymentActions {
+  PaymentActions(this._ref);
 
-  @override
-  Future<List<Payment>> build() => _repo.fetchPayments();
+  final Ref _ref;
+
+  TrustRepository get _repo => _ref.read(repositoryProvider);
 
   Future<void> add(Payment payment) async {
     await _repo.createPayment(payment);
-    ref.invalidateSelf();
-    await future;
+    _changed();
   }
 
   Future<void> edit(Payment payment) async {
     await _repo.updatePayment(payment);
-    ref.invalidateSelf();
-    await future;
+    _changed();
   }
 
   Future<void> remove(String id) async {
     await _repo.deletePayment(id);
-    ref.invalidateSelf();
-    await future;
+    _changed();
   }
 
   Future<String> nextReceiptNo() => _repo.nextReceiptNo();
+
+  void _changed() => _ref.read(dataRevisionProvider.notifier).bump();
 }
 
-final paymentsProvider =
-    AsyncNotifierProvider<PaymentsNotifier, List<Payment>>(
-  PaymentsNotifier.new,
-);
+final paymentActionsProvider = Provider<PaymentActions>(PaymentActions.new);
 
 // ---------------------------------------------------------------------------
 // Closing cases
@@ -222,26 +261,26 @@ class ClosingCasesNotifier extends AsyncNotifier<List<ClosingCase>> {
   TrustRepository get _repo => ref.read(repositoryProvider);
 
   @override
-  Future<List<ClosingCase>> build() => _repo.fetchClosingCases();
+  Future<List<ClosingCase>> build() {
+    ref.watch(sessionUserIdProvider);
+    return _repo.fetchClosingCases();
+  }
 
+  /// Also marks the member closed (database trigger).
   Future<void> add(ClosingCase value) async {
     await _repo.createClosingCase(value);
-    ref.invalidateSelf();
-    ref.invalidate(membersProvider);
-    await future;
+    await _refresh();
   }
 
   Future<void> edit(ClosingCase value) async {
     await _repo.updateClosingCase(value);
-    ref.invalidateSelf();
-    await future;
+    await _refresh();
   }
 
+  /// Also returns the member to active (database trigger).
   Future<void> remove(String id) async {
     await _repo.deleteClosingCase(id);
-    ref.invalidateSelf();
-    ref.invalidate(membersProvider);
-    await future;
+    await _refresh();
   }
 
   Future<void> setPayStatus(ClosingCase value, ClosingPayStatus status) async {
@@ -253,6 +292,12 @@ class ClosingCasesNotifier extends AsyncNotifier<List<ClosingCase>> {
             : value.collectedAmount,
       ),
     );
+  }
+
+  Future<void> _refresh() async {
+    ref.read(dataRevisionProvider.notifier).bump();
+    ref.invalidateSelf();
+    await future;
   }
 }
 

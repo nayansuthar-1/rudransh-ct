@@ -1,14 +1,13 @@
 import 'package:flutter/foundation.dart';
 
 enum PaymentMode {
-  cash('Cash', 'नकद'),
-  upi('UPI', 'यूपीआई'),
-  bank('Bank Transfer', 'बैंक ट्रांसफ़र'),
-  cheque('Cheque', 'चेक');
+  cash('Cash'),
+  upi('UPI'),
+  bank('Bank Transfer'),
+  cheque('Cheque');
 
-  const PaymentMode(this.label, this.hi);
+  const PaymentMode(this.label);
   final String label;
-  final String hi;
 
   static PaymentMode fromName(String? value) => PaymentMode.values
       .firstWhere((m) => m.name == value, orElse: () => PaymentMode.cash);

@@ -10,7 +10,7 @@ import '../../state/providers.dart';
 import '../app_dialog.dart';
 import '../inputs.dart';
 
-/// Opens the "नया सदस्य जोड़ें" dialog. Pass [existing] to edit instead.
+/// Opens the "Add Member" dialog. Pass [existing] to edit instead.
 Future<void> showMemberFormDialog(
   BuildContext context, {
   Member? existing,
@@ -55,14 +55,23 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   String? _yojnaId;
   String? _agentId;
   Gender _gender = Gender.male;
-  String _relation = 'पुत्र';
+  String _relation = 'Son';
   MemberStatus _status = MemberStatus.active;
   DateTime _joinDate = DateTime.now();
 
   bool _saving = false;
   bool _looking = false;
 
-  static const _relations = ['पुत्र', 'पुत्री', 'पत्नी', 'पति', 'भाई', 'माता', 'अन्य'];
+  static const _relations = [
+    'Son',
+    'Daughter',
+    'Wife',
+    'Husband',
+    'Brother',
+    'Mother',
+    'Father',
+    'Other',
+  ];
 
   bool get _isEdit => widget.existing != null;
 
@@ -86,7 +95,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     _yojnaId = m?.yojnaId ?? widget.presetYojnaId;
     _agentId = m?.agentId;
     _gender = m?.gender ?? Gender.male;
-    _relation = m?.warisRelation.isNotEmpty == true ? m!.warisRelation : 'पुत्र';
+    _relation = m?.warisRelation.isNotEmpty == true ? m!.warisRelation : 'Son';
     _status = m?.status ?? MemberStatus.active;
     _joinDate = m?.joinDate ?? DateTime.now();
   }
@@ -121,7 +130,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     }
     setState(() => _looking = true);
     final found =
-        await ref.read(membersProvider.notifier).findByPhone(phone);
+        await ref.read(memberActionsProvider).findByPhone(phone);
     if (!mounted) return;
     setState(() => _looking = false);
 
@@ -153,7 +162,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     }
 
     setState(() => _saving = true);
-    final notifier = ref.read(membersProvider.notifier);
+    final notifier = ref.read(memberActionsProvider);
 
     try {
       if (_isEdit) {
@@ -211,7 +220,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       if (!mounted) return;
       showToast(
         context,
-        _isEdit ? 'सदस्य अपडेट किया गया' : 'सदस्य सफलतापूर्वक जोड़ा गया',
+        _isEdit ? 'Member updated' : 'Member added',
       );
       Navigator.of(context).pop();
     } catch (e) {
@@ -230,24 +239,16 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     return AppDialog(
       title: _isEdit ? S.editMemberTitle : S.addMemberTitle,
       subtitle: _isEdit ? widget.existing!.regNo : null,
-      icon: Icons.person_add_alt_1_rounded,
       actions: [
         OutlinedButton(
           onPressed: _saving ? null : () => Navigator.of(context).pop(),
-          child: const Text(S.cancelHi),
+          child: const Text(S.cancel),
         ),
         FilledButton(
           onPressed: _saving ? null : _submit,
           child: _saving
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : const Text(S.submitHi),
+              ? const ButtonSpinner()
+              : const Text(S.submit),
         ),
       ],
       child: Form(
@@ -276,7 +277,6 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
 
             FormSection(
               title: S.personalInfo,
-              icon: Icons.badge_outlined,
               child: FormGrid(
                 items: [
                   GridItem(
@@ -302,7 +302,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                       label: S.fldJati,
                       required: true,
                       controller: _jati,
-                      hint: 'जाति',
+                      hint: 'Jati',
                       validator: V.required,
                     ),
                   ),
@@ -310,7 +310,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                     AppTextField(
                       label: S.fldGotra,
                       controller: _gotra,
-                      hint: 'गोत्र',
+                      hint: 'Gotra',
                     ),
                   ),
                   GridItem(
@@ -318,7 +318,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                       label: S.fldWaris,
                       required: true,
                       controller: _waris,
-                      hint: 'वारिसदार का नाम',
+                      hint: 'Nominee name',
                       validator: V.required,
                     ),
                   ),
@@ -327,7 +327,11 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                       label: S.fldWarisRelation,
                       required: true,
                       value: _relation,
-                      items: _relations,
+                      // Keep a value saved before the list changed (older
+                      // records store Hindi relations) selectable.
+                      items: _relations.contains(_relation)
+                          ? _relations
+                          : [_relation, ..._relations],
                       itemLabel: (r) => r,
                       onChanged: (v) =>
                           setState(() => _relation = v ?? _relation),
@@ -339,7 +343,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                       required: true,
                       value: _gender,
                       items: Gender.values,
-                      itemLabel: (g) => g.hi,
+                      itemLabel: (g) => g.label,
                       onChanged: (v) => setState(() => _gender = v ?? _gender),
                     ),
                   ),
@@ -350,7 +354,6 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
 
             FormSection(
               title: S.contactInfo,
-              icon: Icons.call_outlined,
               child: FormGrid(
                 items: [
                   GridItem(
@@ -395,7 +398,6 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
 
             FormSection(
               title: S.addressInfo,
-              icon: Icons.location_on_outlined,
               child: FormGrid(
                 items: [
                   GridItem(AppTextField(label: S.fldVillage, controller: _village)),
@@ -417,7 +419,6 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
 
             FormSection(
               title: S.membershipInfo,
-              icon: Icons.assignment_ind_outlined,
               child: FormGrid(
                 items: [
                   GridItem(
@@ -427,7 +428,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                       items: agents.where((a) => a.isActive).toList(),
                       itemLabel: (a) => '${a.code} · ${a.name}',
                       includeAllOption: true,
-                      allLabel: '— कोई नहीं —',
+                      allLabel: '— None —',
                       onChanged: (v) => setState(() => _agentId = v?.id),
                     ),
                   ),
@@ -472,9 +473,9 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
               onSubmitted: (_) => _copyFromExisting(),
               decoration: const InputDecoration(
                 hintText: S.copyFromExistingHint,
-                prefixIcon: Icon(Icons.call_outlined, size: 18),
+                prefixIcon: Icon(Icons.call_outlined, size: 17),
                 prefixIconConstraints:
-                    BoxConstraints(minWidth: 42, minHeight: 40),
+                    BoxConstraints(minWidth: 38, minHeight: 38),
               ),
             );
             final button = OutlinedButton.icon(
@@ -486,7 +487,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.search, size: 16),
-              label: const Text(S.searchHi),
+              label: const Text(S.search),
             );
 
             if (stacked) {
@@ -499,7 +500,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
               children: [
                 Expanded(child: field),
                 const SizedBox(width: 12),
-                SizedBox(width: 150, height: 48, child: button),
+                SizedBox(width: 140, child: button),
               ],
             );
           },

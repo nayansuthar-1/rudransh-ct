@@ -1,13 +1,12 @@
 import 'package:flutter/foundation.dart';
 
 enum Gender {
-  male('पुरुष', 'Male'),
-  female('महिला', 'Female'),
-  other('अन्य', 'Other');
+  male('Male'),
+  female('Female'),
+  other('Other');
 
-  const Gender(this.hi, this.en);
-  final String hi;
-  final String en;
+  const Gender(this.label);
+  final String label;
 
   static Gender fromName(String? value) =>
       Gender.values.firstWhere((g) => g.name == value, orElse: () => Gender.male);
@@ -63,7 +62,7 @@ class Member {
   final String jati;
   final String gotra;
 
-  /// Nominee (वारिसदार).
+  /// Nominee (waris).
   final String warisName;
   final String warisRelation;
   final Gender gender;

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/l10n/strings.dart';
 import '../../core/responsive/breakpoints.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/models.dart';
 import '../../state/providers.dart';
@@ -24,8 +25,10 @@ class AgentsPage extends ConsumerWidget {
     final async = ref.watch(agentsProvider);
     final agents = ref.watch(filteredAgentsProvider);
     final all = ref.watch(agentsProvider).value ?? const <Agent>[];
-    final counts = ref.watch(memberCountByAgentProvider);
-    final collections = ref.watch(collectionByAgentProvider);
+    final counts =
+        ref.watch(memberCountByAgentProvider).value ?? const <String, int>{};
+    final collections =
+        ref.watch(collectionByAgentProvider).value ?? const <String, double>{};
 
     return PageBody(
       children: [
@@ -40,39 +43,39 @@ class AgentsPage extends ConsumerWidget {
             ),
           ],
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: Space.xl),
         StatGrid(
           children: [
             StatCard(
               label: S.totalAgents,
               value: Fmt.number(all.length),
               icon: Icons.badge_outlined,
+              accent: StatAccent.blue,
             ),
             StatCard(
               label: 'Active agents',
               value: Fmt.number(all.where((a) => a.isActive).length),
-              icon: Icons.verified_user_outlined,
-              tone: PillTone.success,
+              icon: Icons.verified_outlined,
+              accent: StatAccent.green,
             ),
             StatCard(
               label: 'Total collected',
+              icon: Icons.currency_rupee_rounded,
+              accent: StatAccent.purple,
               value: Fmt.moneyCompact(
                 collections.values.fold<double>(0, (a, b) => a + b),
               ),
-              icon: Icons.savings_outlined,
-              tone: PillTone.warning,
             ),
           ],
         ),
-        const SizedBox(height: 18),
-        AppCard(
-          padding: const EdgeInsets.all(14),
-          child: SearchField(
-            hint: 'नाम, कोड, फ़ोन, क्षेत्र…',
+        const SizedBox(height: Space.xxl),
+        FilterBar(
+          search: SearchField(
+            hint: 'Name, code, phone, area…',
             onChanged: ref.read(agentQueryProvider.notifier).set,
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: Space.md),
         AppCard(
           child: Builder(
             builder: (context) {
@@ -91,7 +94,13 @@ class AgentsPage extends ConsumerWidget {
                 onRowTap: (a) => _showAgentDetails(context, ref, a),
                 mobileTitle: (a) => a.name,
                 mobileSubtitle: (a) => a.code,
-                mobileLeading: (context, a) => AppAvatar(name: a.name),
+                mobileTrailing: (context, a) => Padding(
+                  padding: const EdgeInsets.only(top: 3),
+                  child: StatusPill(
+                    a.isActive ? S.active : S.inactive,
+                    tone: a.isActive ? PillTone.success : PillTone.neutral,
+                  ),
+                ),
                 columns: [
                   TableCol<Agent>(
                     label: S.code,
@@ -99,10 +108,7 @@ class AgentsPage extends ConsumerWidget {
                     text: (a) => a.code,
                     cell: (context, a) => Text(
                       a.code,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: TextStyle(color: context.colors.textSecondary),
                     ),
                   ),
                   TableCol<Agent>(
@@ -110,34 +116,19 @@ class AgentsPage extends ConsumerWidget {
                     flex: 2,
                     minWidth: 180,
                     text: (a) => a.name,
-                    cell: (context, a) => Row(
-                      children: [
-                        if (!context.isMobile) ...[
-                          AppAvatar(name: a.name, size: 32),
-                          const SizedBox(width: 10),
-                        ],
-                        Expanded(
-                          child: Text(
-                            a.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
+                    showOnMobile: false,
+                    cell: (context, a) => Text(
+                      a.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                   ),
                   TableCol<Agent>(
                     label: S.phone,
                     minWidth: 125,
                     text: (a) => Fmt.phone(a.phone),
-                    cell: (context, a) => Text(
-                      Fmt.phone(a.phone),
-                      style: const TextStyle(fontSize: 13),
-                    ),
+                    cell: (context, a) => Text(Fmt.phone(a.phone)),
                   ),
                   TableCol<Agent>(
                     label: S.area,
@@ -150,7 +141,6 @@ class AgentsPage extends ConsumerWidget {
                       [a.area, a.district].where((s) => s.isNotEmpty).join(', '),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12.5),
                     ),
                   ),
                   TableCol<Agent>(
@@ -158,13 +148,7 @@ class AgentsPage extends ConsumerWidget {
                     minWidth: 100,
                     numeric: true,
                     text: (a) => '${counts[a.id] ?? 0}',
-                    cell: (context, a) => Text(
-                      '${counts[a.id] ?? 0}',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    cell: (context, a) => Text('${counts[a.id] ?? 0}'),
                   ),
                   TableCol<Agent>(
                     label: 'Collected',
@@ -172,10 +156,7 @@ class AgentsPage extends ConsumerWidget {
                     numeric: true,
                     hideBelow: ScreenSize.desktop,
                     text: (a) => Fmt.money(collections[a.id] ?? 0),
-                    cell: (context, a) => Text(
-                      Fmt.moneyCompact(collections[a.id] ?? 0),
-                      style: const TextStyle(fontSize: 13),
-                    ),
+                    cell: (context, a) => Text(Fmt.moneyCompact(collections[a.id] ?? 0)),
                   ),
                   TableCol<Agent>(
                     label: S.commission,
@@ -183,14 +164,12 @@ class AgentsPage extends ConsumerWidget {
                     numeric: true,
                     hideBelow: ScreenSize.desktop,
                     text: (a) => '${a.commissionPercent}%',
-                    cell: (context, a) => Text(
-                      '${a.commissionPercent}%',
-                      style: const TextStyle(fontSize: 13),
-                    ),
+                    cell: (context, a) => Text('${a.commissionPercent}%'),
                   ),
                   TableCol<Agent>(
                     label: S.status,
                     minWidth: 95,
+                    showOnMobile: false,
                     cell: (context, a) => StatusPill(
                       a.isActive ? S.active : S.inactive,
                       tone: a.isActive ? PillTone.success : PillTone.neutral,
@@ -235,9 +214,12 @@ class _AgentActions extends ConsumerWidget {
               message:
                   'Members assigned to this agent will be left unassigned.',
             );
-            if (!ok) return;
-            await ref.read(agentsProvider.notifier).remove(agent.id);
-            if (context.mounted) showToast(context, 'Agent removed');
+            if (!ok || !context.mounted) return;
+            await runWithToast(
+              context,
+              () => ref.read(agentsProvider.notifier).remove(agent.id),
+              success: 'Agent removed',
+            );
         }
       },
       itemBuilder: (context) => [
@@ -257,8 +239,10 @@ class _AgentActions extends ConsumerWidget {
 }
 
 void _showAgentDetails(BuildContext context, WidgetRef ref, Agent a) {
-  final counts = ref.read(memberCountByAgentProvider);
-  final collections = ref.read(collectionByAgentProvider);
+  final counts =
+      ref.read(memberCountByAgentProvider).value ?? const <String, int>{};
+  final collections =
+      ref.read(collectionByAgentProvider).value ?? const <String, double>{};
   final yojnas = ref.read(yojnaByIdProvider);
 
   AppDialog.show<void>(
@@ -266,7 +250,6 @@ void _showAgentDetails(BuildContext context, WidgetRef ref, Agent a) {
     builder: (dialogContext) => AppDialog(
       title: a.name,
       subtitle: a.code,
-      icon: Icons.badge_outlined,
       maxWidth: 560,
       actions: [
         OutlinedButton(
@@ -285,33 +268,14 @@ void _showAgentDetails(BuildContext context, WidgetRef ref, Agent a) {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              AppAvatar(name: a.name, size: 52),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      a.name,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    StatusPill(
-                      a.isActive ? S.active : S.inactive,
-                      tone: a.isActive ? PillTone.success : PillTone.neutral,
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          Align(
+            alignment: Alignment.centerLeft,
+            child: StatusPill(
+              a.isActive ? S.active : S.inactive,
+              tone: a.isActive ? PillTone.success : PillTone.neutral,
+            ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 8),
           DetailRow(label: S.phone, value: Fmt.phone(a.phone)),
           DetailRow(label: 'Email', value: a.email),
           DetailRow(
@@ -325,16 +289,16 @@ void _showAgentDetails(BuildContext context, WidgetRef ref, Agent a) {
             value: Fmt.money(collections[a.id] ?? 0),
           ),
           DetailRow(label: S.joinedOn, value: Fmt.date(a.joinDate)),
-          const SizedBox(height: 10),
+          const SizedBox(height: 16),
           const FieldLabel('Assigned Yojna'),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             children: a.yojnaIds.isEmpty
                 ? const [StatusPill('All schemes', tone: PillTone.neutral)]
                 : [
                     for (final id in a.yojnaIds)
-                      StatusPill(yojnas[id]?.name ?? id, tone: PillTone.brand),
+                      StatusPill(yojnas[id]?.name ?? id),
                   ],
           ),
         ],

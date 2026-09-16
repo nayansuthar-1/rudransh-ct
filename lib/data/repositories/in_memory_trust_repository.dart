@@ -57,14 +57,20 @@ class InMemoryTrustRepository implements TrustRepository {
   }
 
   @override
-  Future<void> deleteYojna(String id) {
+  Future<void> deleteYojna(String id) async {
+    // Same rule as the database foreign key.
+    if (_members.any((m) => m.yojnaId == id)) {
+      throw const RepositoryException(
+        'This Yojna has members or payments, so it cannot be deleted.',
+      );
+    }
     _yojnas.removeWhere((y) => y.id == id);
     return _delayed(null);
   }
 
   // ---- Members -----------------------------------------------------------
 
-  @override
+  /// Every member. Test helper only; the app pages through [fetchMembersPage].
   Future<List<Member>> fetchMembers() =>
       _delayed(List<Member>.unmodifiable(_members));
 
@@ -84,7 +90,14 @@ class InMemoryTrustRepository implements TrustRepository {
   }
 
   @override
-  Future<void> deleteMember(String id) {
+  Future<void> deleteMember(String id) async {
+    // Same rule as the database foreign key: receipts must not be orphaned.
+    if (_payments.any((p) => p.memberId == id)) {
+      throw const RepositoryException(
+        'This member has receipts, so they cannot be deleted. '
+        'Mark the member Inactive instead.',
+      );
+    }
     _members.removeWhere((m) => m.id == id);
     _closingCases.removeWhere((c) => c.memberId == id);
     return _delayed(null);
@@ -159,7 +172,7 @@ class InMemoryTrustRepository implements TrustRepository {
 
   // ---- Payments ----------------------------------------------------------
 
-  @override
+  /// Every payment. Test helper only; the app pages through [fetchPaymentsPage].
   Future<List<Payment>> fetchPayments() =>
       _delayed(List<Payment>.unmodifiable(_payments));
 
@@ -234,5 +247,204 @@ class InMemoryTrustRepository implements TrustRepository {
       }
     }
     return _delayed(null);
+  }
+
+  // ---- Paged lists and search ----------------------------------------------
+
+  static PageResult<T> _slice<T>(List<T> all, int offset, int limit) {
+    final start = offset.clamp(0, all.length);
+    final end = (offset + limit).clamp(0, all.length);
+    return PageResult(items: all.sublist(start, end), total: all.length);
+  }
+
+  List<Member> _queryMembers(MemberQuery q) {
+    final text = q.text.trim().toLowerCase();
+    final result = _members.where((m) {
+      if (q.yojnaId != null && m.yojnaId != q.yojnaId) return false;
+      if (text.isNotEmpty && !m.searchIndex.contains(text)) return false;
+      if (q.status != null && m.status != q.status) return false;
+      if (q.agentId != null && m.agentId != q.agentId) return false;
+      if (q.district != null && m.district != q.district) return false;
+      return true;
+    }).toList()
+      ..sort((a, b) {
+        final byDate = b.joinDate.compareTo(a.joinDate);
+        return byDate != 0 ? byDate : b.regNo.compareTo(a.regNo);
+      });
+    return result;
+  }
+
+  @override
+  Future<PageResult<Member>> fetchMembersPage(
+    MemberQuery query, {
+    required int offset,
+    required int limit,
+  }) =>
+      _delayed(_slice(_queryMembers(query), offset, limit));
+
+  @override
+  Future<List<Member>> fetchMembersByIds(Iterable<String> ids) {
+    final wanted = ids.toSet();
+    return _delayed(_members.where((m) => wanted.contains(m.id)).toList());
+  }
+
+  @override
+  Future<List<Member>> searchMembers(
+    String text, {
+    int limit = 20,
+    bool excludeClosed = false,
+  }) {
+    final matches = _queryMembers(MemberQuery(text: text))
+        .where((m) => !excludeClosed || !m.isClosed)
+        .take(limit)
+        .toList();
+    return _delayed(matches);
+  }
+
+  @override
+  Future<List<String>> fetchMemberDistricts() {
+    final districts = _members
+        .map((m) => m.district)
+        .where((d) => d.trim().isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    return _delayed(districts);
+  }
+
+  List<Payment> _queryPayments(PaymentQuery q) {
+    final text = q.text.trim().toLowerCase();
+    final members = {for (final m in _members) m.id: m};
+    DateTime day(DateTime d) => DateTime(d.year, d.month, d.day);
+
+    final result = _payments.where((p) {
+      if (q.yojnaId != null && p.yojnaId != q.yojnaId) return false;
+      if (q.memberId != null && p.memberId != q.memberId) return false;
+      if (q.mode != null && p.mode != q.mode) return false;
+      if (q.status != null && p.status != q.status) return false;
+      if (q.kind != null && p.kind != q.kind) return false;
+      if (q.from != null && day(p.date).isBefore(day(q.from!))) return false;
+      if (q.to != null && day(p.date).isAfter(day(q.to!))) return false;
+      if (text.isNotEmpty) {
+        final member = members[p.memberId];
+        final haystack =
+            '${p.receiptNo} ${p.reference} ${member?.searchIndex ?? ''}'
+                .toLowerCase();
+        if (!haystack.contains(text)) return false;
+      }
+      return true;
+    }).toList()
+      ..sort((a, b) {
+        final byDate = b.date.compareTo(a.date);
+        return byDate != 0 ? byDate : b.receiptNo.compareTo(a.receiptNo);
+      });
+    return result;
+  }
+
+  @override
+  Future<PaymentPage> fetchPaymentsPage(
+    PaymentQuery query, {
+    required int offset,
+    required int limit,
+  }) {
+    final page = _slice(_queryPayments(query), offset, limit);
+    final ids = page.items.map((p) => p.memberId).toSet();
+    return _delayed(
+      PaymentPage(
+        items: page.items,
+        total: page.total,
+        members: {
+          for (final m in _members)
+            if (ids.contains(m.id)) m.id: MemberRef.of(m),
+        },
+      ),
+    );
+  }
+
+  @override
+  Future<PaymentTotals> fetchPaymentTotals(PaymentQuery query) {
+    final payments = _queryPayments(query);
+    double sum(PaymentStatus s) => payments
+        .where((p) => p.status == s)
+        .fold<double>(0, (total, p) => total + p.amount);
+    return _delayed(
+      PaymentTotals(
+        count: payments.length,
+        paid: sum(PaymentStatus.paid),
+        pending: sum(PaymentStatus.pending),
+        failed: sum(PaymentStatus.failed),
+      ),
+    );
+  }
+
+  // ---- Aggregates ----------------------------------------------------------
+
+  @override
+  Future<DashboardStats> fetchDashboardStats(String? yojnaId) {
+    bool inScope(String id) => yojnaId == null || id == yojnaId;
+    final members = _members.where((m) => inScope(m.yojnaId)).toList();
+
+    final now = DateTime.now();
+    final monthStart = DateTime(now.year, now.month);
+    final prevStart = DateTime(now.year, now.month - 1);
+    var monthTotal = 0.0;
+    var prevTotal = 0.0;
+    for (final p in _payments) {
+      if (p.status != PaymentStatus.paid || !inScope(p.yojnaId)) continue;
+      if (!p.date.isBefore(monthStart)) {
+        monthTotal += p.amount;
+      } else if (!p.date.isBefore(prevStart)) {
+        prevTotal += p.amount;
+      }
+    }
+
+    int countStatus(MemberStatus s) => members.where((m) => m.status == s).length;
+
+    return _delayed(
+      DashboardStats(
+        totalMembers: members.length,
+        activeMembers: countStatus(MemberStatus.active),
+        inactiveMembers: countStatus(MemberStatus.inactive),
+        closedMembers: countStatus(MemberStatus.closed),
+        totalAgents: _agents.length,
+        activeAgents: _agents.where((a) => a.isActive).length,
+        monthCollection: monthTotal,
+        previousMonthCollection: prevTotal,
+        pendingClaims: _closingCases
+            .where((c) =>
+                inScope(c.yojnaId) && c.payStatus != ClosingPayStatus.paid)
+            .fold<double>(0, (sum, c) => sum + c.pendingAmount),
+      ),
+    );
+  }
+
+  @override
+  Future<Map<String, int>> fetchMembersPerYojna() {
+    final counts = <String, int>{};
+    for (final m in _members) {
+      counts[m.yojnaId] = (counts[m.yojnaId] ?? 0) + 1;
+    }
+    return _delayed(counts);
+  }
+
+  @override
+  Future<Map<String, int>> fetchMemberCountByAgent() {
+    final counts = <String, int>{};
+    for (final m in _members) {
+      final id = m.agentId;
+      if (id != null) counts[id] = (counts[id] ?? 0) + 1;
+    }
+    return _delayed(counts);
+  }
+
+  @override
+  Future<Map<String, double>> fetchCollectionByAgent() {
+    final totals = <String, double>{};
+    for (final p in _payments) {
+      final id = p.agentId;
+      if (id == null || p.status != PaymentStatus.paid) continue;
+      totals[id] = (totals[id] ?? 0) + p.amount;
+    }
+    return _delayed(totals);
   }
 }

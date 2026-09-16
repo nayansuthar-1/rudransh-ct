@@ -121,25 +121,17 @@ class _AgentFormDialogState extends ConsumerState<AgentFormDialog> {
 
     return AppDialog(
       title: _isEdit ? 'Edit Agent' : S.addAgent,
-      subtitle: _isEdit ? widget.existing!.code : 'एजेंट की जानकारी दर्ज करें',
-      icon: Icons.person_add_alt_rounded,
+      subtitle: _isEdit ? widget.existing!.code : 'Enter the agent\'s details',
       maxWidth: 720,
       actions: [
         OutlinedButton(
           onPressed: _saving ? null : () => Navigator.of(context).pop(),
-          child: const Text(S.cancelHi),
+          child: const Text(S.cancel),
         ),
         FilledButton(
           onPressed: _saving ? null : _submit,
           child: _saving
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
+              ? const ButtonSpinner()
               : const Text(S.save),
         ),
       ],
@@ -150,7 +142,6 @@ class _AgentFormDialogState extends ConsumerState<AgentFormDialog> {
           children: [
             FormSection(
               title: 'Agent details',
-              icon: Icons.badge_outlined,
               child: FormGrid(
                 columnsOverride: MediaQuery.sizeOf(context).width < 680 ? 1 : 2,
                 items: [
@@ -159,7 +150,7 @@ class _AgentFormDialogState extends ConsumerState<AgentFormDialog> {
                       label: S.name,
                       required: true,
                       controller: _name,
-                      hint: 'पूरा नाम',
+                      hint: 'e.g. Ramesh Kumar',
                       validator: V.required,
                     ),
                   ),
@@ -212,7 +203,6 @@ class _AgentFormDialogState extends ConsumerState<AgentFormDialog> {
             const SizedBox(height: 22),
             FormSection(
               title: 'Assigned Yojna',
-              icon: Icons.workspaces_outline,
               child: Wrap(
                 spacing: 8,
                 runSpacing: 8,

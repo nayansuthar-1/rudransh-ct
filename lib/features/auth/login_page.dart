@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/config/env.dart';
 import '../../core/l10n/strings.dart';
-import '../../core/responsive/breakpoints.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/validators.dart';
 import '../../state/auth_controller.dart';
 import '../../widgets/inputs.dart';
-import '../../widgets/primitives.dart';
+import '../../widgets/app_dialog.dart';
+import '../../widgets/app_sidebar.dart';
 
-/// Email + OTP sign-in. The transport is stubbed in [AuthController] — see the
-/// TODOs there when wiring a real backend.
+/// Email + OTP sign-in. See [AuthController] for the Supabase flow.
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
@@ -36,161 +36,126 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final c = context.colors;
     final auth = ref.watch(authControllerProvider);
     final controller = ref.read(authControllerProvider.notifier);
-    final wide = context.screenWidth >= Breakpoints.tablet;
 
-    final card = ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 420),
-      child: AppCard(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF2563EB), Color(0xFF7C3AED)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
+    final awaitingOtp = auth.stage == AuthStage.awaitingOtp;
+
+    final form = ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 360),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: BrandMark(size: 36),
+          ),
+          const SizedBox(height: 28),
+          Text(
+            awaitingOtp ? 'Check your email' : S.signIn,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+              color: c.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            awaitingOtp
+                ? '${S.otpSentTo} ${auth.email}'
+                : '${S.trustName} · ${S.signInSubtitle}',
+            style: TextStyle(fontSize: 14, color: c.textSecondary, height: 1.45),
+          ),
+          const SizedBox(height: 28),
+
+          if (awaitingOtp)
+            Form(
+              key: _otpKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AppTextField(
+                    label: S.otpLabel,
+                    controller: _otp,
+                    autofocus: true,
+                    hint: '6-digit code',
+                    keyboardType: TextInputType.number,
+                    inputFormatters: Fmts.otp(),
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _verify(controller),
+                    validator: (v) =>
+                        RegExp(r'^\d{6}$').hasMatch(v?.trim() ?? '')
+                            ? null
+                            : 'Enter the 6-digit code',
                   ),
-                  child: const Icon(Icons.spa_rounded,
-                      color: Colors.white, size: 23),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      S.appName,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: c.textPrimary,
+                  if (auth.error != null) _ErrorText(auth.error!),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: auth.busy ? null : () => _verify(controller),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(42),
+                    ),
+                    child: auth.busy
+                        ? const ButtonSpinner()
+                        : const Text(S.verify),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton(
+                        onPressed: auth.busy ? null : controller.backToEmail,
+                        child: const Text(S.changeEmail),
                       ),
-                    ),
-                    Text(
-                      S.appSubtitle,
-                      style: TextStyle(fontSize: 12.5, color: c.textSecondary),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 26),
-            Text(
-              auth.stage == AuthStage.awaitingOtp ? S.otpLabel : S.signIn,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: c.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              auth.stage == AuthStage.awaitingOtp
-                  ? '${S.otpSentTo} ${auth.email}'
-                  : S.signInSubtitle,
-              style: TextStyle(fontSize: 13, color: c.textSecondary),
-            ),
-            const SizedBox(height: 22),
-
-            if (auth.stage == AuthStage.awaitingOtp)
-              Form(
-                key: _otpKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    AppTextField(
-                      label: S.otpLabel,
-                      controller: _otp,
-                      autofocus: true,
-                      hint: '••••••',
-                      keyboardType: TextInputType.number,
-                      inputFormatters: Fmts.otp(),
-                      textInputAction: TextInputAction.done,
-                      onSubmitted: (_) => _verify(controller),
-                      validator: (v) =>
-                          RegExp(r'^\d{6}$').hasMatch(v?.trim() ?? '')
-                              ? null
-                              : 'Enter the 6-digit code',
-                    ),
-                    if (auth.error != null) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        auth.error!,
-                        style: TextStyle(fontSize: 12.5, color: c.danger),
+                      TextButton(
+                        onPressed: auth.busy
+                            ? null
+                            : () => controller.requestOtp(auth.email),
+                        child: const Text(S.resendOtp),
                       ),
                     ],
-                    const SizedBox(height: 18),
-                    FilledButton(
-                      onPressed: auth.busy ? null : () => _verify(controller),
-                      child: auth.busy
-                          ? const _ButtonSpinner()
-                          : const Text(S.verify),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        TextButton(
-                          onPressed:
-                              auth.busy ? null : controller.backToEmail,
-                          child: const Text(S.changeEmail),
-                        ),
-                        TextButton(
-                          onPressed: auth.busy
-                              ? null
-                              : () => controller.requestOtp(auth.email),
-                          child: const Text(S.resendOtp),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              )
-            else
-              Form(
-                key: _emailKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    AppTextField(
-                      label: S.emailLabel,
-                      controller: _email,
-                      autofocus: true,
-                      hint: S.emailHint,
-                      prefixIcon: Icons.mail_outline,
-                      keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.done,
-                      onSubmitted: (_) => _sendOtp(controller),
-                      validator: V.email,
-                    ),
-                    const SizedBox(height: 18),
-                    FilledButton(
-                      onPressed: auth.busy ? null : () => _sendOtp(controller),
-                      child: auth.busy
-                          ? const _ButtonSpinner()
-                          : const Text(S.sendOtp),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
+            )
+          else
+            Form(
+              key: _emailKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AppTextField(
+                    label: S.emailLabel,
+                    controller: _email,
+                    autofocus: true,
+                    hint: S.emailHint,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _sendOtp(controller),
+                    validator: V.email,
+                  ),
+                  if (auth.error != null) _ErrorText(auth.error!),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: auth.busy ? null : () => _sendOtp(controller),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(42),
+                    ),
+                    child: auth.busy
+                        ? const ButtonSpinner()
+                        : const Text(S.sendOtp),
+                  ),
+                ],
+              ),
+            ),
 
-            const SizedBox(height: 20),
+          if (Env.demoMode) ...[
+            const SizedBox(height: 24),
             Text(
               'Demo build — any 6-digit code signs you in.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11.5, color: c.textMuted),
+              style: TextStyle(fontSize: 12.5, color: c.textMuted),
             ),
           ],
-        ),
+        ],
       ),
     );
 
@@ -199,26 +164,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-              horizontal: wide ? 32 : 16,
-              vertical: 32,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  S.trustName,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: wide ? 24 : 19,
-                    fontWeight: FontWeight.w800,
-                    color: c.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                card,
-              ],
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+            child: form,
           ),
         ),
       ),
@@ -236,15 +183,19 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 }
 
-class _ButtonSpinner extends StatelessWidget {
-  const _ButtonSpinner();
+class _ErrorText extends StatelessWidget {
+  const _ErrorText(this.message);
+
+  final String message;
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
-      width: 17,
-      height: 17,
-      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Text(
+        message,
+        style: TextStyle(fontSize: 13, color: context.colors.danger),
+      ),
     );
   }
 }
