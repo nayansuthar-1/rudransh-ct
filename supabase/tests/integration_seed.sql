@@ -14,8 +14,8 @@ grant anon, authenticated to authenticator;
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000a001', 'admin@test.local'),
   ('00000000-0000-0000-0000-00000000a002', 'stranger@test.local');
-insert into public.admins (user_id, name, email)
-values ('00000000-0000-0000-0000-00000000a001', 'Integration Admin', 'admin@test.local');
+insert into public.profiles (user_id, role, name, email)
+values ('00000000-0000-0000-0000-00000000a001', 'owner', 'Integration Admin', 'admin@test.local');
 
 insert into public.yojnas (name, code, contribution_amount, claim_amount) values
   ('सुरक्षा सहयोग योजना', 'SSY', 100, 100000),

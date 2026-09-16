@@ -12,8 +12,8 @@ with u as (
     ('00000000-0000-0000-0000-00000000a002', 'stranger@test.local')
   returning id
 ) select count(*) from u;
-insert into public.admins (user_id, name, email)
-values ('00000000-0000-0000-0000-00000000a001', 'Test Admin', 'admin@test.local');
+insert into public.profiles (user_id, role, name, email)
+values ('00000000-0000-0000-0000-00000000a001', 'owner', 'Test Admin', 'admin@test.local');
 
 -- ---------------------------------------------------------------------------
 -- As admin
@@ -142,7 +142,7 @@ begin
   exception when insufficient_privilege then null;
   end;
   begin
-    insert into public.admins (user_id) values ('00000000-0000-0000-0000-00000000a002');
+    insert into public.profiles (user_id, role) values ('00000000-0000-0000-0000-00000000a002', 'owner');
     raise exception 'authenticated can add admins';
   exception when insufficient_privilege then null;
   end;

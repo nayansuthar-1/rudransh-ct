@@ -108,7 +108,7 @@ Settings → Secrets and variables → Actions.
 Optional variable `CLOUDFLARE_PAGES_PROJECT` if the Pages project has another name.
 
 The publishable key is safe in the browser: row-level security allows nothing
-unless the signed-in user is in `public.admins`. Never put the secret or
+unless the signed-in user has an active profile in `public.profiles`. Never put the secret or
 service-role key in the app or in `--dart-define`.
 
 ---
@@ -128,13 +128,24 @@ one), merge, then `supabase db push` to staging, test, and push to prod.
 
 ## 3. Admins
 
+Access comes from `public.profiles` (one row per user). Roles:
+
+| Role | Can do |
+| --- | --- |
+| `owner` | Everything: schemes, agents, commission, deletes, audit log |
+| `staff` | Daily work: members, payments, closing cases, announcements. No deletes, no scheme or agent changes |
+| `agent`, `member` | Nothing in the admin panel. Their own screens arrive in Release 2 (IMPLEMENTATION_PLAN section 11) |
+
+Admins who existed before the roles migration became `owner`. `public.admins`
+is now a read-only view of active owner and staff profiles.
+
 **Add an admin**
 
 1. Dashboard → Authentication → Users → **Invite user** → their email.
-2. SQL Editor:
+2. SQL Editor (use `'staff'` for office staff, `'owner'` for trustees):
    ```sql
-   insert into public.admins (user_id, name, email)
-   select id, 'Full Name', email from auth.users where email = 'person@example.com';
+   insert into public.profiles (user_id, role, name, email)
+   select id, 'staff', 'Full Name', email from auth.users where email = 'person@example.com';
    ```
 3. They click **Activate account** in the invite email once. Until then Supabase
    treats them as a new sign-up and refuses to send a code (the app says the email
@@ -145,22 +156,33 @@ one), merge, then `supabase db push` to staging, test, and push to prod.
    ```
 4. They open the site, enter their email and type the 6-digit code from the email.
 
-An invited user who is not in `admins` is signed straight back out, and an email
-that was never invited cannot request a code.
+An invited user without an active owner or staff profile is signed straight back
+out, and an email that was never invited cannot request a code.
+
+**Change a role**
+
+```sql
+update public.profiles set role = 'owner' where email = 'person@example.com';
+```
+
+Keep at least one active `owner`.
 
 **Remove an admin**
 
 ```sql
-delete from public.admins where email = 'person@example.com';
+update public.profiles set is_active = false where email = 'person@example.com';
 ```
 
-Then Authentication → Users → delete the user, which also ends their sessions.
+Deactivating keeps their name on past records. To remove them completely, also go
+to Authentication → Users → delete the user, which ends their sessions and
+deletes the profile.
 
 **List admins**
 
 ```sql
-select a.name, a.email, u.last_sign_in_at
-  from public.admins a join auth.users u on u.id = a.user_id order by a.name;
+select p.name, p.email, p.role, p.is_active, u.last_sign_in_at
+  from public.profiles p join auth.users u on u.id = p.user_id
+ where p.role in ('owner', 'staff') order by p.role, p.name;
 ```
 
 ---

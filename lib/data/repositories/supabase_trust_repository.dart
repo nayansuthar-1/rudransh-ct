@@ -589,7 +589,7 @@ class SupabaseTrustRepository implements TrustRepository {
   static Member _memberFromRow(Map<String, dynamic> r) => Member(
         id: r['id'] as String,
         yojnaId: r['yojna_id'] as String,
-        regNo: r['reg_no'] as String,
+        regNo: r['reg_no'] as String? ?? '',
         name: r['name'] as String,
         fatherOrHusbandName: r['father_or_husband_name'] as String? ?? '',
         jati: r['jati'] as String? ?? '',

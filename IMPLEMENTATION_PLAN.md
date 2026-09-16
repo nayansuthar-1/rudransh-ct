@@ -421,13 +421,14 @@ Added 17 Sep 2026. Right now only invited admins can use the app. Release 2 give
 Release 1 support window (5–19 Oct) overlaps with this. Support fixes come first.
 
 #### Phase 10 — Decisions, roles schema, access rules (6–8 Oct, Tue–Thu, 3 days)
-- [ ] Client answers the Release 2 questions (section 9); update section 11.2
+- [ ] Client answers the Release 2 questions (section 9); update section 11.2 (building on the 11.2 defaults meanwhile)
 - [ ] Aadhaar approach from section 7 decided
-- [ ] `profiles`, helper functions, migrate `admins`
-- [ ] New columns and enum values on `members` and `payments`
-- [ ] New tables from section 11.4
-- [ ] pgTAP tests: for each role, what it can and can't read or write
-- [ ] **Done when:** an agent test user can't select any table directly and a member can't see another member
+- [x] `profiles`, helper functions (`my_role`, `is_owner`, `my_agent_id`, `my_member_id`, `my_profile`), `admins` kept as a view; existing admins became `owner` (`supabase/migrations/20260917000200_roles.sql`, 17 Sep 2026)
+- [x] New columns and enum values on `members` and `payments`: member `pending` with the reg number issued on approval; payment source, approval, cancel, closing and handover links
+- [x] New tables from section 11.4, with audit triggers and access rules: staff can't delete or change schemes, agents or commission
+- [x] Role tests: `supabase/tests/roles_test.sql` (owner, staff, agent, inactive agent, member, pending member, no profile, anon), run in CI
+- [ ] **Done when:** an agent test user can't select any table directly and a member can't see another member. Checked by `roles_test.sql`; passes once CI runs it green
+- [ ] Apply to staging with `supabase db push`, then production (only after CI is green)
 
 #### Phase 11 — Role login and app shells (9, 12 Oct, Fri–Mon, 2 days)
 - [ ] `invite_user` Edge Function and invite email template (agent and member versions)
@@ -440,6 +441,8 @@ Release 1 support window (5–19 Oct) overlaps with this. Support fixes come fir
 - [ ] Agent: record payment (Pending), view own receipts, request a cancel
 - [ ] Admin: approval queue for members and payments, approve or reject with a reason
 - [ ] Dashboard totals count Paid only; Pending shown separately
+- [ ] Add `pending` to the Dart `MemberStatus` enum (today it falls back to Active) and leave pending members out of member counts in `dashboard_stats`, `members_per_yojna`, `member_count_by_agent`
+- [ ] Payment totals leave out cancelled payments (`cancelled_at`)
 - [ ] Admin: reassign members between agents
 - [ ] **Done when:** an agent's payment appears in the admin queue, and after approval shows in totals with a receipt number
 
