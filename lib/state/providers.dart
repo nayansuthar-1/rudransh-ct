@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 
 import '../core/config/env.dart';
 import '../data/models/models.dart';
+import '../data/repositories/access_repository.dart';
 import '../data/repositories/in_memory_trust_repository.dart';
 import '../data/repositories/supabase_trust_repository.dart';
 import '../data/repositories/trust_repository.dart';
@@ -217,6 +218,21 @@ final agentsProvider =
 final agentByIdProvider = Provider<Map<String, Agent>>((ref) {
   final agents = ref.watch(agentsProvider).value ?? const <Agent>[];
   return {for (final a in agents) a.id: a};
+});
+
+/// Invites and login status for agents (owner tools on the Agents page).
+final accessRepositoryProvider = Provider<AccessRepository>((ref) {
+  if (Env.hasSupabase) {
+    return SupabaseAccessRepository(Supabase.instance.client);
+  }
+  return InMemoryAccessRepository();
+});
+
+/// Agent id → login switched on. Agents never invited are absent.
+final agentAccessProvider = FutureProvider<Map<String, bool>>((ref) {
+  watchBackendData(ref);
+  if (!ref.watch(currentUserProvider).isAdmin) return const {};
+  return ref.read(accessRepositoryProvider).fetchAgentAccess();
 });
 
 // ---------------------------------------------------------------------------

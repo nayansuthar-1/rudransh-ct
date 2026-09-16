@@ -1,4 +1,4 @@
-export 'admin_user.dart';
+export 'app_user.dart';
 export 'agent.dart';
 export 'closing_case.dart';
 export 'member.dart';

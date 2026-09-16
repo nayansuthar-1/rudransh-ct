@@ -261,7 +261,7 @@ subject = "Your sign-in code – Rudransh CT"
 content_path = "./supabase/templates/otp.html"
 
 [auth.email.template.invite]
-subject = "Rudransh CT admin invite"
+subject = "Your Rudransh CT app invite"
 content_path = "./supabase/templates/invite.html"
 
 # Uncomment to customize notification email template

@@ -7,6 +7,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/models.dart';
+import '../../state/auth_controller.dart';
 import '../../state/providers.dart';
 import '../../state/selectors.dart';
 import '../../widgets/app_dialog.dart';
@@ -194,6 +195,9 @@ class _AgentActions extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
+    final isOwner = ref.watch(currentUserProvider).isOwner;
+    final hasAccess =
+        ref.watch(agentAccessProvider).value?.containsKey(agent.id) ?? false;
     return PopupMenuButton<int>(
       tooltip: S.actions,
       position: PopupMenuPosition.under,
@@ -220,6 +224,8 @@ class _AgentActions extends ConsumerWidget {
               () => ref.read(agentsProvider.notifier).remove(agent.id),
               success: 'Agent removed',
             );
+          case 4:
+            await _inviteAgent(context, ref, agent);
         }
       },
       itemBuilder: (context) => [
@@ -229,6 +235,8 @@ class _AgentActions extends ConsumerWidget {
           value: 2,
           child: Text(agent.isActive ? 'Deactivate' : 'Activate'),
         ),
+        if (isOwner && !hasAccess)
+          const PopupMenuItem(value: 4, child: Text(S.inviteToApp)),
         PopupMenuItem(
           value: 3,
           child: Text(S.delete, style: TextStyle(color: c.danger)),
@@ -238,7 +246,40 @@ class _AgentActions extends ConsumerWidget {
   }
 }
 
+/// Emails the agent an invite; after accepting it they sign in to the agent
+/// screens with an email code.
+Future<void> _inviteAgent(BuildContext context, WidgetRef ref, Agent agent) async {
+  if (agent.email.trim().isEmpty) {
+    showToast(context, S.inviteNeedsEmail, error: true);
+    return;
+  }
+  final ok = await confirmDialog(
+    context,
+    title: S.inviteToApp,
+    message: 'Send an invite to ${agent.email}? ${agent.name} will be able to '
+        'sign in to the agent app with this email.',
+    confirmLabel: 'Send invite',
+    destructive: false,
+  );
+  if (!ok || !context.mounted) return;
+  await runWithToast(
+    context,
+    () async {
+      await ref.read(accessRepositoryProvider).inviteAgent(agent);
+      ref.invalidate(agentAccessProvider);
+    },
+    success: S.inviteSent,
+  );
+}
+
+String _accessLabel(Agent agent, Map<String, bool> access) {
+  final on = access[agent.id];
+  if (on == null) return S.accessNone;
+  return on && agent.isActive ? S.accessActive : S.accessOff;
+}
+
 void _showAgentDetails(BuildContext context, WidgetRef ref, Agent a) {
+  final access = ref.read(agentAccessProvider).value ?? const <String, bool>{};
   final counts =
       ref.read(memberCountByAgentProvider).value ?? const <String, int>{};
   final collections =
@@ -283,6 +324,7 @@ void _showAgentDetails(BuildContext context, WidgetRef ref, Agent a) {
             value: [a.area, a.district].where((s) => s.isNotEmpty).join(', '),
           ),
           DetailRow(label: S.commission, value: '${a.commissionPercent}%'),
+          DetailRow(label: S.appAccess, value: _accessLabel(a, access)),
           DetailRow(label: S.membersCount, value: '${counts[a.id] ?? 0}'),
           DetailRow(
             label: 'Total collected',

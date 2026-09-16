@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/models/app_user.dart';
 import '../l10n/strings.dart';
 
 /// One entry in the sidebar.
@@ -29,6 +30,15 @@ class AppRoutes {
   static const yojna = '/yojna';
   static const closing = '/closing-payments';
   static const payments = '/payments';
+
+  // Agent screens (IMPLEMENTATION_PLAN Phases 12–16).
+  static const agentHome = '/agent';
+  static const agentMembers = '/agent/members';
+  static const agentCollections = '/agent/collections';
+
+  // Member screens (Phase 15).
+  static const memberHome = '/me';
+  static const memberPayments = '/me/payments';
 
   static const nav = <NavItem>[
     NavItem(
@@ -81,4 +91,82 @@ class AppRoutes {
       orElse: () => nav.first,
     );
   }
+}
+
+/// Where each role lands, and which paths it may open.
+extension RoleRoutes on UserRole {
+  String get home => switch (this) {
+        UserRole.owner || UserRole.staff => AppRoutes.dashboard,
+        UserRole.agent => AppRoutes.agentHome,
+        UserRole.member => AppRoutes.memberHome,
+      };
+
+  List<NavItem> get nav => switch (this) {
+        UserRole.owner || UserRole.staff => AppRoutes.nav,
+        UserRole.agent => AgentRoutes.nav,
+        UserRole.member => MemberRoutes.nav,
+      };
+
+  bool canOpen(String location) {
+    final agentArea = _within(location, AppRoutes.agentHome);
+    final memberArea = _within(location, AppRoutes.memberHome);
+    return switch (this) {
+      UserRole.owner || UserRole.staff => !agentArea && !memberArea,
+      UserRole.agent => agentArea,
+      UserRole.member => memberArea,
+    };
+  }
+}
+
+/// `/me` and `/me/payments` are within `/me`; `/members` is not.
+bool _within(String location, String base) =>
+    location == base || location.startsWith('$base/');
+
+class AgentRoutes {
+  const AgentRoutes._();
+
+  static const nav = <NavItem>[
+    NavItem(
+      path: AppRoutes.agentHome,
+      label: S.home,
+      sublabel: S.agentHomeSub,
+      icon: Icons.home_outlined,
+      activeIcon: Icons.home,
+    ),
+    NavItem(
+      path: AppRoutes.agentMembers,
+      label: S.myMembers,
+      sublabel: S.myMembersSub,
+      icon: Icons.people_outline,
+      activeIcon: Icons.people,
+    ),
+    NavItem(
+      path: AppRoutes.agentCollections,
+      label: S.collections,
+      sublabel: S.collectionsSub,
+      icon: Icons.currency_rupee_outlined,
+      activeIcon: Icons.currency_rupee,
+    ),
+  ];
+}
+
+class MemberRoutes {
+  const MemberRoutes._();
+
+  static const nav = <NavItem>[
+    NavItem(
+      path: AppRoutes.memberHome,
+      label: S.home,
+      sublabel: S.memberHomeSub,
+      icon: Icons.home_outlined,
+      activeIcon: Icons.home,
+    ),
+    NavItem(
+      path: AppRoutes.memberPayments,
+      label: S.myPayments,
+      sublabel: S.myPaymentsSub,
+      icon: Icons.receipt_long_outlined,
+      activeIcon: Icons.receipt_long,
+    ),
+  ];
 }

@@ -2,38 +2,37 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../data/models/models.dart';
+
 import '../../features/agents/agents_page.dart';
 import '../../features/auth/login_page.dart';
 import '../../features/closing/closing_payments_page.dart';
 import '../../features/dashboard/dashboard_page.dart';
 import '../../features/members/members_page.dart';
 import '../../features/payments/payments_page.dart';
+import '../../features/portal/portal_pages.dart';
 import '../../features/yojna/yojna_page.dart';
 import '../../state/auth_controller.dart';
 import '../../widgets/app_shell.dart';
+import '../../widgets/role_shell.dart';
 import 'routes.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   // Bridges auth state changes into go_router's refresh mechanism.
-  final refresh = ValueNotifier<bool>(
-    ref.read(authControllerProvider).isSignedIn,
+  final refresh = ValueNotifier<String>(
+    _routingKey(ref.read(authControllerProvider)),
   );
   ref.listen<AuthState>(
     authControllerProvider,
-    (_, next) => refresh.value = next.isSignedIn,
+    (_, next) => refresh.value = _routingKey(next),
   );
   ref.onDispose(refresh.dispose);
 
   return GoRouter(
     initialLocation: AppRoutes.dashboard,
     refreshListenable: refresh,
-    redirect: (context, state) {
-      final signedIn = ref.read(authControllerProvider).isSignedIn;
-      final atLogin = state.matchedLocation == AppRoutes.login;
-      if (!signedIn && !atLogin) return AppRoutes.login;
-      if (signedIn && atLogin) return AppRoutes.dashboard;
-      return null;
-    },
+    redirect: (context, state) =>
+        redirectFor(ref.read(authControllerProvider), state.matchedLocation),
     routes: [
       GoRoute(
         path: AppRoutes.login,
@@ -54,10 +53,49 @@ final routerProvider = Provider<GoRouter>((ref) {
           _shellRoute(AppRoutes.payments, const PaymentsPage()),
         ],
       ),
+      ShellRoute(
+        builder: (context, state, child) => RoleShell(
+          location: state.matchedLocation,
+          child: child,
+        ),
+        routes: [
+          _shellRoute(AppRoutes.agentHome, const AgentHomePage()),
+          _shellRoute(
+            AppRoutes.agentMembers,
+            const ComingSoonPage(item: AppRoutes.agentMembers),
+          ),
+          _shellRoute(
+            AppRoutes.agentCollections,
+            const ComingSoonPage(item: AppRoutes.agentCollections),
+          ),
+          _shellRoute(AppRoutes.memberHome, const MemberHomePage()),
+          _shellRoute(
+            AppRoutes.memberPayments,
+            const ComingSoonPage(item: AppRoutes.memberPayments),
+          ),
+        ],
+      ),
     ],
     errorBuilder: (context, state) => _RouteError(message: '${state.error}'),
   );
 });
+
+/// Signed out → login. Signed in → the role's own screens only; anything
+/// else sends them to their home. While a restored session's access is being
+/// checked nothing moves, so a reload stays on the same page.
+@visibleForTesting
+String? redirectFor(AuthState auth, String location) {
+  final atLogin = location == AppRoutes.login;
+  if (!auth.isSignedIn) return atLogin ? null : AppRoutes.login;
+  if (auth.checkingAccess) return null;
+
+  final role = auth.user?.role ?? UserRole.member;
+  if (atLogin || !role.canOpen(location)) return role.home;
+  return null;
+}
+
+String _routingKey(AuthState auth) =>
+    '${auth.isSignedIn}|${auth.checkingAccess}|${auth.user?.role.name}';
 
 GoRoute _shellRoute(String path, Widget child) {
   return GoRoute(
@@ -85,8 +123,8 @@ class _RouteError extends StatelessWidget {
               Text(message, textAlign: TextAlign.center),
               const SizedBox(height: 16),
               FilledButton(
-                onPressed: () => GoRouter.of(context).go(AppRoutes.dashboard),
-                child: const Text('Back to dashboard'),
+                onPressed: () => GoRouter.of(context).go(AppRoutes.login),
+                child: const Text('Back to home'),
               ),
             ],
           ),

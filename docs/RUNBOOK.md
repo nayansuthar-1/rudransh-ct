@@ -134,7 +134,7 @@ Access comes from `public.profiles` (one row per user). Roles:
 | --- | --- |
 | `owner` | Everything: schemes, agents, commission, deletes, audit log |
 | `staff` | Daily work: members, payments, closing cases, announcements. No deletes, no scheme or agent changes |
-| `agent`, `member` | Nothing in the admin panel. Their own screens arrive in Release 2 (IMPLEMENTATION_PLAN section 11) |
+| `agent`, `member` | Nothing in the admin panel. They sign in to their own screens (`/agent`, `/me`) |
 
 Admins who existed before the roles migration became `owner`. `public.admins`
 is now a read-only view of active owner and staff profiles.
@@ -176,6 +176,40 @@ update public.profiles set is_active = false where email = 'person@example.com';
 Deactivating keeps their name on past records. To remove them completely, also go
 to Authentication → Users → delete the user, which ends their sessions and
 deletes the profile.
+
+**Give an agent app access** (needs the roles migration and the `invite_user`
+function on the project, see below)
+
+1. Agents page → the agent's **⋯** menu → **Invite to app**. Only owners see it,
+   and the agent needs an email address and must be active.
+2. The agent clicks **Activate account** in the email once, then signs in with
+   the 6-digit code like admins do. They see only the agent screens.
+
+The agent's details show **App access**: *Not invited*, *Invited*, or
+*Turned off*.
+
+**Turn off an agent's access**
+
+Agents page → **Deactivate**. The database refuses their data straight away and
+the app signs them out within an hour (at the next token refresh) or on reload.
+To keep the agent record active but remove only the login:
+
+```sql
+update public.profiles set is_active = false
+ where agent_id = (select id from public.agents where code = 'AG-007');
+```
+
+**Deploy the invite function** (once per project, and after changing
+`supabase/functions/invite_user`)
+
+```powershell
+supabase link --project-ref <staging-ref>
+supabase functions deploy invite_user
+# then the same for production
+```
+
+Supabase provides `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to the
+function. Only if the site moves: `supabase secrets set SITE_URL=https://…`.
 
 **List admins**
 

@@ -431,10 +431,13 @@ Release 1 support window (5–19 Oct) overlaps with this. Support fixes come fir
 - [ ] Apply to staging with `supabase db push`, then production (only after CI is green)
 
 #### Phase 11 — Role login and app shells (9, 12 Oct, Fri–Mon, 2 days)
-- [ ] `invite_user` Edge Function and invite email template (agent and member versions)
-- [ ] Profile loading, role-based routing, three shells
-- [ ] Deactivating an agent signs them out and blocks their login
-- [ ] **Done when:** owner invites an agent from the Agents page, the agent logs in and lands on `/agent`
+- [x] `invite_user` Edge Function (owner only; agents, members, staff, owners) and a Hindi/English invite email shared by all roles (17 Sep 2026)
+- [x] Owner action on the Agents page: **Invite to app**, plus an **App access** status in agent details
+- [x] Profile loading (`my_profile`, falls back to `admins` before the migration), role-based routing (`redirectFor`), admin shell plus the agent and member shell (`RoleShell`) with placeholder sections; admin paths stay at `/dashboard` etc., agents use `/agent`, members `/me`; reload waits on an access check
+- [x] Deactivating an agent blocks their login and data at once; an open session is signed out at the next hourly token refresh or on reload
+- [x] Tests: `test/role_access_test.dart` (routing per role, shells, access check, invite shown only to owners); `deno check` of the function in CI
+- [ ] Deploy to staging: `supabase db push`, `supabase functions deploy invite_user`, `supabase config push` (invite subject)
+- [ ] **Done when:** owner invites an agent from the Agents page, the agent logs in and lands on `/agent` (manual check on staging)
 
 #### Phase 12 — Agent members, collections, admin approval (13–15 Oct, Tue–Thu, 3 days)
 - [ ] Agent: my members list and search, add member (Pending), edit contact fields

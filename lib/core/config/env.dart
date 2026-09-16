@@ -24,4 +24,9 @@ abstract final class Env {
       supabaseUrl.isNotEmpty && supabaseKey.isNotEmpty;
 
   static bool get demoMode => !hasSupabase;
+
+  /// Demo mode only: which screens to open without a login, to preview them.
+  /// `owner` (default), `staff`, `agent` or `member`:
+  /// `flutter run -d chrome --dart-define=DEMO_ROLE=agent`
+  static const demoRole = String.fromEnvironment('DEMO_ROLE');
 }

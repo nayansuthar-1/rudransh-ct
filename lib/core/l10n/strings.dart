@@ -138,7 +138,7 @@ class S {
 
   // Auth
   static const signIn = 'Sign in';
-  static const signInSubtitle = 'Admin access only';
+  static const signInSubtitle = 'Invited users only';
   static const allYojnas = 'All Yojnas';
   static const searchMembers = 'Search members by name, reg no or phone';
   static const emailLabel = 'Email address';
@@ -149,4 +149,27 @@ class S {
   static const verify = 'Verify & continue';
   static const changeEmail = 'Change email';
   static const resendOtp = 'Resend code';
+  static const checkingAccess = 'Checking your access…';
+  static const retry = 'Retry';
+
+  // Agent and member screens
+  static const agentHomeSub = 'Your work at a glance';
+  static const myMembers = 'My Members';
+  static const myMembersSub = 'Members you enrolled';
+  static const collections = 'Collections';
+  static const collectionsSub = 'Dues and receipts';
+  static const memberHomeSub = 'Your membership';
+  static const myPayments = 'My Payments';
+  static const myPaymentsSub = 'Receipts and dues';
+  static const comingSoon =
+      'This section is being prepared and will be available soon.';
+
+  // App access (invites)
+  static const inviteToApp = 'Invite to app';
+  static const appAccess = 'App access';
+  static const accessNone = 'Not invited';
+  static const accessActive = 'Invited';
+  static const accessOff = 'Turned off';
+  static const inviteNeedsEmail = "Add the agent's email address first.";
+  static const inviteSent = 'Invite email sent';
 }

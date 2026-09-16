@@ -14,13 +14,18 @@ class AuthState {
     this.email = '',
     this.user,
     this.busy = false,
+    this.checkingAccess = false,
     this.error,
   });
 
   final AuthStage stage;
   final String email;
-  final AdminUser? user;
+  final AppUser? user;
   final bool busy;
+
+  /// A restored session whose profile has not loaded yet. The app shows a
+  /// splash instead of routing, so a reload keeps the page the user was on.
+  final bool checkingAccess;
   final String? error;
 
   bool get isSignedIn => stage == AuthStage.signedIn;
@@ -28,8 +33,9 @@ class AuthState {
   AuthState copyWith({
     AuthStage? stage,
     String? email,
-    AdminUser? user,
+    AppUser? user,
     bool? busy,
+    bool? checkingAccess,
     String? error,
     bool clearError = false,
   }) {
@@ -38,6 +44,7 @@ class AuthState {
       email: email ?? this.email,
       user: user ?? this.user,
       busy: busy ?? this.busy,
+      checkingAccess: checkingAccess ?? this.checkingAccess,
       error: clearError ? null : (error ?? this.error),
     );
   }
@@ -45,9 +52,10 @@ class AuthState {
 
 /// Email + OTP flow on Supabase Auth.
 ///
-/// Only users invited from the Supabase dashboard *and* listed in the
-/// `admins` table can sign in. Without Supabase configuration (demo mode)
-/// the panel opens straight to the dashboard on seed data.
+/// Only users invited by an owner *and* with an active profile can sign in;
+/// the profile's role decides which screens open (see `app_router.dart`).
+/// Without Supabase configuration (demo mode) the app opens straight in, as
+/// an owner unless `DEMO_ROLE` says otherwise.
 class AuthController extends Notifier<AuthState> {
   static bool get bypassLogin => Env.demoMode;
 
@@ -56,10 +64,10 @@ class AuthController extends Notifier<AuthState> {
   @override
   AuthState build() {
     if (bypassLogin) {
-      return const AuthState(
+      return AuthState(
         stage: AuthStage.signedIn,
-        email: 'rudranshct@gmail.com',
-        user: AdminUser.guest,
+        email: AppUser.guest.email,
+        user: _demoUser(AppUser.guest.email),
       );
     }
 
@@ -70,12 +78,12 @@ class AuthController extends Notifier<AuthState> {
     final session = _auth.currentSession;
     if (session == null) return const AuthState();
 
-    // Re-check admin access in the background; RLS protects the data meanwhile.
-    Future.microtask(() => _confirmAdmin(session.user));
+    Future.microtask(() => _confirmAccess(session.user, initial: true));
     return AuthState(
       stage: AuthStage.signedIn,
       email: session.user.email ?? '',
       user: _userFrom(session.user),
+      checkingAccess: true,
     );
   }
 
@@ -122,11 +130,7 @@ class AuthController extends Notifier<AuthState> {
       state = state.copyWith(
         stage: AuthStage.signedIn,
         busy: false,
-        user: AdminUser(
-          id: 'local-admin',
-          name: state.email.split('@').first.toUpperCase(),
-          email: state.email,
-        ),
+        user: _demoUser(state.email),
       );
       return true;
     }
@@ -140,17 +144,17 @@ class AuthController extends Notifier<AuthState> {
       final user = response.user;
       if (user == null) throw const sb.AuthException('No user in response');
 
-      final admin = await _loadAdmin(user);
-      if (admin == null) {
+      final appUser = await _loadProfile(user);
+      if (appUser == null) {
         await _auth.signOut();
-        state = const AuthState(error: _notAdmin);
+        state = const AuthState(error: _noAccess);
         return false;
       }
 
       state = AuthState(
         stage: AuthStage.signedIn,
         email: user.email ?? state.email,
-        user: admin,
+        user: appUser,
       );
       return true;
     } on sb.AuthException catch (e) {
@@ -165,6 +169,14 @@ class AuthController extends Notifier<AuthState> {
       state = state.copyWith(busy: false, error: _networkError);
       return false;
     }
+  }
+
+  /// Retry after [AuthState.checkingAccess] failed (usually offline).
+  Future<void> retryAccessCheck() async {
+    final user = bypassLogin ? null : _auth.currentUser;
+    if (user == null) return signOut();
+    state = state.copyWith(clearError: true);
+    await _confirmAccess(user, initial: true);
   }
 
   void backToEmail() =>
@@ -184,51 +196,97 @@ class AuthController extends Notifier<AuthState> {
   // ---- Internals ----------------------------------------------------------
 
   void _onAuthChange(sb.AuthState event) {
-    // Refresh token expired, or signed out in another tab.
-    if (event.event == sb.AuthChangeEvent.signedOut && state.isSignedIn) {
-      state = const AuthState();
+    switch (event.event) {
+      // Refresh token expired, or signed out in another tab.
+      case sb.AuthChangeEvent.signedOut when state.isSignedIn:
+        state = const AuthState();
+      // Hourly: an owner may have deactivated this user or their agent record
+      // since they signed in. The database already refuses their data.
+      case sb.AuthChangeEvent.tokenRefreshed when state.isSignedIn:
+        final user = event.session?.user;
+        if (user != null) _confirmAccess(user, initial: false);
+      default:
+        break;
     }
   }
 
-  Future<void> _confirmAdmin(sb.User user) async {
+  Future<void> _confirmAccess(sb.User user, {required bool initial}) async {
     try {
-      final admin = await _loadAdmin(user);
+      final appUser = await _loadProfile(user);
       if (!ref.mounted || !state.isSignedIn) return;
-      if (admin == null) {
+      if (appUser == null) {
         await _auth.signOut();
-        if (ref.mounted) state = const AuthState(error: _notAdmin);
+        if (ref.mounted) state = const AuthState(error: _noAccess);
       } else {
-        state = state.copyWith(user: admin);
+        state = state.copyWith(
+          user: appUser,
+          checkingAccess: false,
+          clearError: true,
+        );
       }
     } catch (_) {
-      // Offline: keep the restored session; data calls will surface errors.
+      // Offline. On a reload the splash offers a retry; later re-checks keep
+      // the session, and the database still refuses data it should not see.
+      if (initial && ref.mounted) state = state.copyWith(error: _networkError);
     }
   }
 
-  /// The `admins` row for [user], or null when they are not an admin.
-  Future<AdminUser?> _loadAdmin(sb.User user) async {
-    final row = await sb.Supabase.instance.client
-        .from('admins')
-        .select('name, email, role')
-        .eq('user_id', user.id)
-        .maybeSingle();
-    if (row == null) return null;
+  /// The active profile for [user], or null when they have no access.
+  Future<AppUser?> _loadProfile(sb.User user) async {
+    final client = sb.Supabase.instance.client;
     final fallback = _userFrom(user);
+
+    List<dynamic> rows;
+    try {
+      rows = await client.rpc('my_profile') as List<dynamic>;
+    } on sb.PostgrestException catch (e) {
+      // Database without the roles migration yet: admins only.
+      if (e.code != 'PGRST202' && e.code != '42883') rethrow;
+      rows = await client
+          .from('admins')
+          .select('name, email, role')
+          .eq('user_id', user.id)
+          .limit(1);
+    }
+    if (rows.isEmpty) return null;
+
+    final row = rows.first as Map<String, dynamic>;
+    final role = UserRole.fromName(row['role'] as String?) ??
+        // Legacy `admins.role` is 'ADMIN'.
+        UserRole.owner;
     final name = (row['name'] as String?)?.trim() ?? '';
-    return AdminUser(
+    return AppUser(
       id: user.id,
       name: name.isEmpty ? fallback.name : name,
       email: user.email ?? fallback.email,
-      role: row['role'] as String? ?? 'ADMIN',
+      role: role,
+      agentId: row['agent_id'] as String?,
+      memberId: row['member_id'] as String?,
     );
   }
 
-  static AdminUser _userFrom(sb.User user) {
+  /// Placeholder while [AuthState.checkingAccess]: the role with least access.
+  static AppUser _userFrom(sb.User user) {
     final email = user.email ?? '';
-    return AdminUser(
+    return AppUser(
       id: user.id,
       name: email.split('@').first.toUpperCase(),
       email: email,
+      role: UserRole.member,
+    );
+  }
+
+  static AppUser _demoUser(String email) {
+    final role = UserRole.fromName(Env.demoRole) ?? UserRole.owner;
+    return AppUser(
+      id: 'local-${role.name}',
+      name: role == UserRole.owner
+          ? AppUser.guest.name
+          : '${email.split('@').first.toUpperCase()} (${role.label})',
+      email: email,
+      role: role,
+      agentId: role == UserRole.agent ? 'demo-agent' : null,
+      memberId: role == UserRole.member ? 'demo-member' : null,
     );
   }
 
@@ -238,13 +296,13 @@ class AuthController extends Notifier<AuthState> {
     if (e.code == 'otp_disabled' ||
         e.code == 'user_not_found' ||
         message.contains('signups not allowed')) {
-      return _notAdmin;
+      return _noAccess;
     }
     return 'Could not send the code: ${e.message}';
   }
 
-  static const _notAdmin =
-      'This email is not registered as an admin. Contact the trust office.';
+  static const _noAccess =
+      'This email does not have access. Contact the trust office.';
   static const _tooManyAttempts =
       'Too many attempts. Please try again in a few minutes.';
   static const _networkError =
@@ -254,8 +312,8 @@ class AuthController extends Notifier<AuthState> {
 final authControllerProvider =
     NotifierProvider<AuthController, AuthState>(AuthController.new);
 
-final currentUserProvider = Provider<AdminUser>((ref) {
-  return ref.watch(authControllerProvider).user ?? AdminUser.guest;
+final currentUserProvider = Provider<AppUser>((ref) {
+  return ref.watch(authControllerProvider).user ?? AppUser.guest;
 });
 
 /// Signed-in user id. Data providers watch it so they reload after sign-in
