@@ -1,8 +1,8 @@
-// Runs SupabaseTrustRepository against a real PostgREST + Postgres with the
+﻿// Runs SupabaseTrustRepository against a real PostgREST + Postgres with the
 // migrations applied and seeded. Skipped unless these are set:
 //
 //   POSTGREST_URL            e.g. http://localhost:3900 (bare PostgREST, no /rest/v1)
-//   POSTGREST_ADMIN_JWT      JWT whose `sub` is in public.admins
+//   POSTGREST_ADMIN_JWT      JWT whose `sub` has an active owner profile
 //   POSTGREST_STRANGER_JWT   JWT for a signed-in user who is not an admin
 //
 // Expects the seed from supabase/tests/integration_seed.sql on a disposable
@@ -121,20 +121,20 @@ void main() {
       expect(closed.total, 5);
 
       final district = await repo.fetchMembersPage(
-        const MemberQuery(district: 'बाड़मेर'),
+        const MemberQuery(district: 'à¤¬à¤¾à¤¡à¤¼à¤®à¥‡à¤°'),
         offset: 0,
         limit: 5,
       );
       expect(district.total, 833);
 
       final text = await repo.fetchMembersPage(
-        const MemberQuery(text: 'सदस्य 25'),
+        const MemberQuery(text: 'à¤¸à¤¦à¤¸à¥à¤¯ 25'),
         offset: 0,
         limit: 50,
       );
-      // 25, 250–259 and 2500.
+      // 25, 250â€“259 and 2500.
       expect(text.total, 12);
-      expect(text.items.every((m) => m.name.startsWith('सदस्य 25')), isTrue);
+      expect(text.items.every((m) => m.name.startsWith('à¤¸à¤¦à¤¸à¥à¤¯ 25')), isTrue);
     });
 
     test('member search and lookup by ids', () async {
@@ -159,7 +159,7 @@ void main() {
       final byIds = await repo.fetchMembersByIds(page.items.map((m) => m.id));
       expect(byIds, hasLength(250));
 
-      expect(await repo.fetchMemberDistricts(), ['जोधपुर', 'बाड़मेर']..sort());
+      expect(await repo.fetchMemberDistricts(), ['à¤œà¥‹à¤§à¤ªà¥à¤°', 'à¤¬à¤¾à¤¡à¤¼à¤®à¥‡à¤°']..sort());
     });
 
     test('payment pages embed members and totals cover every row', () async {
@@ -171,7 +171,7 @@ void main() {
       expect(page.total, greaterThanOrEqualTo(2500));
       expect(page.items, hasLength(20));
       for (final p in page.items) {
-        expect(page.members[p.memberId]?.name, startsWith('सदस्य'));
+        expect(page.members[p.memberId]?.name, startsWith('à¤¸à¤¦à¤¸à¥à¤¯'));
       }
 
       final totals = await repo.fetchPaymentTotals(const PaymentQuery());
@@ -227,11 +227,11 @@ void main() {
           id: '',
           yojnaId: ssy.id,
           regNo: 'IGNORED',
-          name: 'एकीकरण परीक्षण',
-          fatherOrHusbandName: 'पिता',
-          jati: 'सुथार',
-          warisName: 'वारिस',
-          warisRelation: 'पुत्र',
+          name: 'à¤à¤•à¥€à¤•à¤°à¤£ à¤ªà¤°à¥€à¤•à¥à¤·à¤£',
+          fatherOrHusbandName: 'à¤ªà¤¿à¤¤à¤¾',
+          jati: 'à¤¸à¥à¤¥à¤¾à¤°',
+          warisName: 'à¤µà¤¾à¤°à¤¿à¤¸',
+          warisRelation: 'à¤ªà¥à¤¤à¥à¤°',
           primaryPhone: '9111111111',
           aadhaar: '',
           joinDate: DateTime(2026, 9, 14),
@@ -266,7 +266,7 @@ void main() {
         Agent(
           id: '',
           code: 'IGNORED',
-          name: 'नया एजेंट',
+          name: 'à¤¨à¤¯à¤¾ à¤à¤œà¥‡à¤‚à¤Ÿ',
           phone: '9222222222',
           yojnaIds: [ssy.id],
           joinDate: DateTime(2026, 9, 14),
@@ -276,9 +276,9 @@ void main() {
       expect(agent.yojnaIds, [ssy.id]);
 
       final edited = await repo.updateMember(
-        member.copyWith(village: 'बालोतरा', agentId: agent.id),
+        member.copyWith(village: 'à¤¬à¤¾à¤²à¥‹à¤¤à¤°à¤¾', agentId: agent.id),
       );
-      expect(edited.village, 'बालोतरा');
+      expect(edited.village, 'à¤¬à¤¾à¤²à¥‹à¤¤à¤°à¤¾');
       expect(edited.regNo, member.regNo);
 
       // Receipts block the delete, with a message the admin can act on.
@@ -286,7 +286,7 @@ void main() {
         repo.deleteMember(member.id),
         throwsA(
           isA<RepositoryException>()
-              .having((e) => e.message, 'message', contains('निष्क्रिय')),
+              .having((e) => e.message, 'message', contains('Inactive')),
         ),
       );
 
@@ -336,7 +336,7 @@ void main() {
         ),
         throwsA(
           isA<RepositoryException>()
-              .having((e) => e.message, 'message', contains('योजना कोड')),
+              .having((e) => e.message, 'message', contains('Yojna code')),
         ),
       );
     });
