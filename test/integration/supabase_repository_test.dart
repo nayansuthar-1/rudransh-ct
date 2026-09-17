@@ -1,4 +1,4 @@
-﻿// Runs SupabaseTrustRepository against a real PostgREST + Postgres with the
+// Runs SupabaseTrustRepository against a real PostgREST + Postgres with the
 // migrations applied and seeded. Skipped unless these are set:
 //
 //   POSTGREST_URL            e.g. http://localhost:3900 (bare PostgREST, no /rest/v1)
