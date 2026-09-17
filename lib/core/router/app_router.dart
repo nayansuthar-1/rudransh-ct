@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/models/models.dart';
 
+import '../../features/agent/agent_pages.dart';
 import '../../features/agents/agents_page.dart';
 import '../../features/approvals/approvals_page.dart';
 import '../../features/auth/login_page.dart';
@@ -62,14 +63,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
         routes: [
           _shellRoute(AppRoutes.agentHome, const AgentHomePage()),
-          _shellRoute(
-            AppRoutes.agentMembers,
-            const ComingSoonPage(item: AppRoutes.agentMembers),
-          ),
-          _shellRoute(
-            AppRoutes.agentCollections,
-            const ComingSoonPage(item: AppRoutes.agentCollections),
-          ),
+          _shellRoute(AppRoutes.agentMembers, const AgentMembersPage()),
+          _shellRoute(AppRoutes.agentCollections, const AgentCollectionsPage()),
           _shellRoute(AppRoutes.memberHome, const MemberHomePage()),
           _shellRoute(
             AppRoutes.memberPayments,

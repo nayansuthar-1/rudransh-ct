@@ -10,14 +10,6 @@ import '../../state/auth_controller.dart';
 import '../../widgets/app_shell.dart';
 import '../../widgets/primitives.dart';
 
-/// Agent landing page. Members, dues and collections arrive in Phases 12–16.
-class AgentHomePage extends StatelessWidget {
-  const AgentHomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) => const _PortalHome();
-}
-
 /// Member landing page. Dues, receipts and announcements arrive in Phase 15.
 class MemberHomePage extends StatelessWidget {
   const MemberHomePage({super.key});

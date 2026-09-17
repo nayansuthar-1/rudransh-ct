@@ -129,7 +129,7 @@ void main() {
 
     await tester.tap(find.text(S.collections).last);
     await tester.pumpAndSettle();
-    expect(find.text(S.comingSoon), findsOneWidget);
+    expect(find.text(S.recordPayment), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 

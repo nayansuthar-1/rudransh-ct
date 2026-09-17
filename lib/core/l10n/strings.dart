@@ -187,4 +187,12 @@ class S {
   static const reason = 'Reason';
   static const nothingToApprove = 'Nothing is waiting for approval.';
   static const moveMembers = 'Move members';
+
+  // Agent screens
+  static const recordPayment = 'Record Payment';
+  static const editContact = 'Edit contact';
+  static const requestCancel = 'Request cancel';
+  static const waitingApproval = 'Waiting for approval';
+  static const approvedThisMonth = 'Approved this month';
+  static const cancelRequested = 'Cancel requested';
 }

@@ -440,14 +440,21 @@ Release 1 support window (5–19 Oct) overlaps with this. Support fixes come fir
 - [ ] **Done when:** owner invites an agent from the Agents page, the agent logs in and lands on `/agent` (manual check on staging)
 
 #### Phase 12 — Agent members, collections, admin approval (13–15 Oct, Tue–Thu, 3 days)
-- [ ] Agent: my members list and search, add member (Pending), edit contact fields
-- [ ] Agent: record payment (Pending), view own receipts, request a cancel
-- [ ] Admin: approval queue for members and payments, approve or reject with a reason
-- [ ] Dashboard totals count Paid only; Pending shown separately
-- [ ] Add `pending` to the Dart `MemberStatus` enum (today it falls back to Active) and leave pending members out of member counts in `dashboard_stats`, `members_per_yojna`, `member_count_by_agent`
-- [ ] Payment totals leave out cancelled payments (`cancelled_at`)
-- [ ] Admin: reassign members between agents
-- [ ] **Done when:** an agent's payment appears in the admin queue, and after approval shows in totals with a receipt number
+> Built 18 Sep 2026: `supabase/migrations/20260918000100_agent_work.sql`, Approvals page, agent screens in `lib/features/agent/`.
+> Decisions: agent receipts get their receipt number when recorded (the agent hands it to the member) and count in totals only after approval; a rejected sign-up stays as an Inactive member without a reg number, so money recorded for it keeps its member; office-entered Pending payments are unpaid dues and stay out of the approval queue.
+
+- [x] Agent: my members list and search, add member (Pending), edit contact fields (phones and address only; Aadhaar never sent to agents)
+- [x] Agent: record payment (Pending; only the registration fee before approval), view own receipts, request a cancel
+- [x] Agent home: members, amount waiting for approval, approved this month
+- [x] Admin: Approvals page (the top-bar bell opens it) for new members, agent payments and cancel requests; approve, or reject with a reason
+- [x] Owners cancel receipts (Approvals or Payments page); cancelled receipts stay listed but leave every total
+- [x] Dashboard totals count Paid only; pending payments are in the approval queue and the Payments page
+- [x] `pending` in the Dart `MemberStatus` enum; pending members left out of `dashboard_stats`, `members_per_yojna`, `member_count_by_agent`
+- [x] Payment totals leave out cancelled payments (`cancelled_at`)
+- [x] Admin: move all of an agent's members to another agent (Agents page → Move members)
+- [x] Tests: `supabase/tests/agent_work_test.sql` (CI), `test/approvals_test.dart`, `test/agent_screens_test.dart`
+- [ ] Deploy to staging: `supabase db push`
+- [ ] **Done when:** an agent's payment appears in the admin queue, and after approval shows in totals with a receipt number (covered by the SQL and app tests; check once on staging)
 
 #### Phase 13 — Dues and WhatsApp (16, 19 Oct, Fri–Mon, 2 days)
 - [ ] Link contributions to a closing case in the payment forms (admin and agent)
