@@ -365,7 +365,7 @@ class InMemoryTrustRepository implements TrustRepository {
   Future<PaymentTotals> fetchPaymentTotals(PaymentQuery query) {
     final payments = _queryPayments(query);
     double sum(PaymentStatus s) => payments
-        .where((p) => p.status == s)
+        .where((p) => p.status == s && !p.isCancelled)
         .fold<double>(0, (total, p) => total + p.amount);
     return _delayed(
       PaymentTotals(
@@ -382,7 +382,9 @@ class InMemoryTrustRepository implements TrustRepository {
   @override
   Future<DashboardStats> fetchDashboardStats(String? yojnaId) {
     bool inScope(String id) => yojnaId == null || id == yojnaId;
-    final members = _members.where((m) => inScope(m.yojnaId)).toList();
+    final members = _members
+        .where((m) => inScope(m.yojnaId) && !m.isPending)
+        .toList();
 
     final now = DateTime.now();
     final monthStart = DateTime(now.year, now.month);
@@ -390,7 +392,7 @@ class InMemoryTrustRepository implements TrustRepository {
     var monthTotal = 0.0;
     var prevTotal = 0.0;
     for (final p in _payments) {
-      if (p.status != PaymentStatus.paid || !inScope(p.yojnaId)) continue;
+      if (!_countsAsPaid(p) || !inScope(p.yojnaId)) continue;
       if (!p.date.isBefore(monthStart)) {
         monthTotal += p.amount;
       } else if (!p.date.isBefore(prevStart)) {
@@ -421,7 +423,7 @@ class InMemoryTrustRepository implements TrustRepository {
   @override
   Future<Map<String, int>> fetchMembersPerYojna() {
     final counts = <String, int>{};
-    for (final m in _members) {
+    for (final m in _members.where((m) => !m.isPending)) {
       counts[m.yojnaId] = (counts[m.yojnaId] ?? 0) + 1;
     }
     return _delayed(counts);
@@ -430,7 +432,7 @@ class InMemoryTrustRepository implements TrustRepository {
   @override
   Future<Map<String, int>> fetchMemberCountByAgent() {
     final counts = <String, int>{};
-    for (final m in _members) {
+    for (final m in _members.where((m) => !m.isPending)) {
       final id = m.agentId;
       if (id != null) counts[id] = (counts[id] ?? 0) + 1;
     }
@@ -442,9 +444,163 @@ class InMemoryTrustRepository implements TrustRepository {
     final totals = <String, double>{};
     for (final p in _payments) {
       final id = p.agentId;
-      if (id == null || p.status != PaymentStatus.paid) continue;
+      if (id == null || !_countsAsPaid(p)) continue;
       totals[id] = (totals[id] ?? 0) + p.amount;
     }
     return _delayed(totals);
+  }
+
+  bool _countsAsPaid(Payment p) =>
+      p.status == PaymentStatus.paid && !p.isCancelled;
+
+  // ---- Approvals -----------------------------------------------------------
+
+  PaymentPage _pageOf(List<Payment> payments) {
+    final ids = payments.map((p) => p.memberId).toSet();
+    return PaymentPage(
+      items: payments,
+      total: payments.length,
+      members: {
+        for (final m in _members)
+          if (ids.contains(m.id)) m.id: MemberRef.of(m),
+      },
+    );
+  }
+
+  static String _requireReason(String reason) {
+    final r = reason.trim();
+    if (r.isEmpty) throw const RepositoryException('Give a reason.');
+    return r;
+  }
+
+  int _pendingMemberIndex(String id) {
+    final i = _members.indexWhere((m) => m.id == id && m.isPending);
+    if (i == -1) {
+      throw const RepositoryException(
+        'This member is no longer waiting for approval.',
+      );
+    }
+    return i;
+  }
+
+  int _pendingPaymentIndex(String id) {
+    final i = _payments.indexWhere(
+      (p) => p.id == id && p.status == PaymentStatus.pending && !p.isCancelled,
+    );
+    if (i == -1) {
+      throw const RepositoryException(
+        'This payment is no longer waiting for approval.',
+      );
+    }
+    return i;
+  }
+
+  @override
+  Future<List<Member>> fetchPendingMembers() =>
+      _delayed(_members.where((m) => m.isPending).toList());
+
+  @override
+  Future<PaymentPage> fetchPendingPayments() => _delayed(_pageOf(_payments
+      .where((p) =>
+          p.status == PaymentStatus.pending &&
+          p.source != PaymentSource.admin &&
+          !p.isCancelled)
+      .toList()));
+
+  @override
+  Future<PaymentPage> fetchCancelRequests() => _delayed(
+        _pageOf(_payments.where((p) => p.hasOpenCancelRequest).toList()),
+      );
+
+  @override
+  Future<String> approveMember(String memberId) async {
+    final i = _pendingMemberIndex(memberId);
+    final regNo = await nextRegNo(_members[i].yojnaId);
+    _members[i] = _members[i]
+        .copyWith(status: MemberStatus.active, regNo: regNo, reviewNote: '');
+    return _delayed(regNo);
+  }
+
+  @override
+  Future<void> rejectMember(String memberId, String reason) async {
+    final r = _requireReason(reason);
+    final i = _pendingMemberIndex(memberId);
+    _members[i] =
+        _members[i].copyWith(status: MemberStatus.inactive, reviewNote: r);
+    for (var j = 0; j < _payments.length; j++) {
+      final p = _payments[j];
+      if (p.memberId == memberId && p.status == PaymentStatus.pending) {
+        _payments[j] = p.copyWith(
+          status: PaymentStatus.failed,
+          rejectReason: 'Member rejected: $r',
+        );
+      }
+    }
+    await _delayed(null);
+  }
+
+  @override
+  Future<void> approvePayment(String paymentId) async {
+    final i = _pendingPaymentIndex(paymentId);
+    if (_members.any((m) => m.id == _payments[i].memberId && m.isPending)) {
+      throw const RepositoryException('Approve the member first.');
+    }
+    _payments[i] =
+        _payments[i].copyWith(status: PaymentStatus.paid, rejectReason: '');
+    await _delayed(null);
+  }
+
+  @override
+  Future<void> rejectPayment(String paymentId, String reason) async {
+    final r = _requireReason(reason);
+    final i = _pendingPaymentIndex(paymentId);
+    _payments[i] =
+        _payments[i].copyWith(status: PaymentStatus.failed, rejectReason: r);
+    await _delayed(null);
+  }
+
+  @override
+  Future<void> cancelPayment(String paymentId, String reason) async {
+    final r = _requireReason(reason);
+    final i = _payments.indexWhere((p) => p.id == paymentId && !p.isCancelled);
+    if (i == -1) {
+      throw const RepositoryException('This receipt is already cancelled.');
+    }
+    _payments[i] =
+        _payments[i].copyWith(cancelledAt: DateTime.now(), cancelReason: r);
+    await _delayed(null);
+  }
+
+  @override
+  Future<void> declineCancelRequest(String paymentId) async {
+    final i =
+        _payments.indexWhere((p) => p.id == paymentId && p.hasOpenCancelRequest);
+    if (i == -1) {
+      throw const RepositoryException(
+        'There is no open cancel request for this receipt.',
+      );
+    }
+    _payments[i] = _payments[i].copyWith(clearCancelRequest: true);
+    await _delayed(null);
+  }
+
+  @override
+  Future<int> reassignMembers(String fromAgentId, String toAgentId) async {
+    if (fromAgentId == toAgentId) {
+      throw const RepositoryException('Choose a different agent.');
+    }
+    if (!_agents.any((a) => a.id == toAgentId && a.isActive)) {
+      throw const RepositoryException(
+        'Choose an active agent to move the members to.',
+      );
+    }
+    var moved = 0;
+    for (var i = 0; i < _members.length; i++) {
+      if (_members[i].agentId == fromAgentId) {
+        _members[i] = _members[i].copyWith(agentId: toAgentId);
+        moved++;
+      }
+    }
+    return _delayed(moved);
   }
 }

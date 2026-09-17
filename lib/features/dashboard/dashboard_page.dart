@@ -484,12 +484,20 @@ class _RecentPaymentsSection extends ConsumerWidget {
 
 /// Shared status pill for payments, reused by the payments page.
 class PaymentStatusPill extends StatelessWidget {
-  const PaymentStatusPill({super.key, required this.status});
+  const PaymentStatusPill({
+    super.key,
+    required this.status,
+    this.cancelled = false,
+  });
 
   final PaymentStatus status;
 
+  /// Cancelled receipts show that instead of their status.
+  final bool cancelled;
+
   @override
   Widget build(BuildContext context) {
+    if (cancelled) return const StatusPill(S.cancelled);
     final tone = switch (status) {
       PaymentStatus.paid => PillTone.success,
       PaymentStatus.pending => PillTone.warning,

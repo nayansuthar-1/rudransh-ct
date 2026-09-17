@@ -443,7 +443,12 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                     AppDropdown<MemberStatus>(
                       label: S.status,
                       value: _status,
-                      items: MemberStatus.values,
+                      // Pending is set by agents and cleared by approval.
+                      items: MemberStatus.values
+                          .where((s) =>
+                              s != MemberStatus.pending ||
+                              widget.existing?.status == MemberStatus.pending)
+                          .toList(),
                       itemLabel: (s) => s.label,
                       onChanged: (v) => setState(() => _status = v ?? _status),
                     ),

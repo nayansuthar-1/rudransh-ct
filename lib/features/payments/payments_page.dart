@@ -7,6 +7,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/models.dart';
+import '../../state/auth_controller.dart';
 import '../../state/providers.dart';
 import '../../state/selectors.dart';
 import '../../widgets/app_dialog.dart';
@@ -182,7 +183,7 @@ class PaymentsPage extends ConsumerWidget {
                   TableCol<Payment>(
                     label: S.status,
                     minWidth: 100,
-                    cell: (context, p) => PaymentStatusPill(status: p.status),
+                    cell: (context, p) => PaymentStatusPill(status: p.status, cancelled: p.isCancelled),
                   ),
                   TableCol<Payment>(
                     label: S.amount,
@@ -282,6 +283,7 @@ class _PaymentActions extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
+    final isOwner = ref.watch(currentUserProvider).isOwner;
     return PopupMenuButton<int>(
       tooltip: S.actions,
       position: PopupMenuPosition.under,
@@ -293,12 +295,31 @@ class _PaymentActions extends ConsumerWidget {
           case 1:
             showPaymentFormDialog(context, existing: payment);
           case 2:
+            // Pending payments go through approval, which records who
+            // approved them.
+            await runWithToast(
+              context,
+              () => payment.status == PaymentStatus.pending
+                  ? ref.read(approvalActionsProvider).approvePayment(payment.id)
+                  : ref
+                      .read(paymentActionsProvider)
+                      .edit(payment.copyWith(status: PaymentStatus.paid)),
+              success: 'Marked as paid',
+            );
+          case 4:
+            final reason = await reasonDialog(
+              context,
+              title: '${S.cancelReceipt} ${payment.receiptNo}?',
+              message: 'The receipt stays on record but leaves every total.',
+              confirmLabel: S.cancelReceipt,
+            );
+            if (reason == null || !context.mounted) return;
             await runWithToast(
               context,
               () => ref
-                  .read(paymentActionsProvider)
-                  .edit(payment.copyWith(status: PaymentStatus.paid)),
-              success: 'Marked as paid',
+                  .read(approvalActionsProvider)
+                  .cancelPayment(payment.id, reason),
+              success: 'Receipt cancelled',
             );
           case 3:
             final ok = await confirmDialog(context);
@@ -313,8 +334,10 @@ class _PaymentActions extends ConsumerWidget {
       itemBuilder: (context) => [
         const PopupMenuItem(value: 0, child: Text('View receipt')),
         const PopupMenuItem(value: 1, child: Text(S.edit)),
-        if (payment.status != PaymentStatus.paid)
+        if (payment.status != PaymentStatus.paid && !payment.isCancelled)
           const PopupMenuItem(value: 2, child: Text(S.markPaid)),
+        if (isOwner && !payment.isCancelled)
+          const PopupMenuItem(value: 4, child: Text(S.cancelReceipt)),
         PopupMenuItem(
           value: 3,
           child: Text(S.delete, style: TextStyle(color: c.danger)),
@@ -361,7 +384,7 @@ void _showReceipt(
                   ),
                 ),
               ),
-              PaymentStatusPill(status: p.status),
+              PaymentStatusPill(status: p.status, cancelled: p.isCancelled),
             ],
           ),
           const SizedBox(height: 12),

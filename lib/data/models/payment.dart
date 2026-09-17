@@ -40,6 +40,19 @@ enum PaymentKind {
       );
 }
 
+/// Who recorded a payment (IMPLEMENTATION_PLAN §11).
+enum PaymentSource {
+  admin('Office'),
+  agent('Agent'),
+  member('Member');
+
+  const PaymentSource(this.label);
+  final String label;
+
+  static PaymentSource fromName(String? value) => PaymentSource.values
+      .firstWhere((s) => s.name == value, orElse: () => PaymentSource.admin);
+}
+
 @immutable
 class Payment {
   const Payment({
@@ -55,6 +68,12 @@ class Payment {
     this.agentId,
     this.reference = '',
     this.note = '',
+    this.source = PaymentSource.admin,
+    this.rejectReason = '',
+    this.cancelledAt,
+    this.cancelReason = '',
+    this.cancelRequestedAt,
+    this.cancelRequestReason = '',
   });
 
   final String id;
@@ -74,6 +93,23 @@ class Payment {
   final String reference;
   final String note;
 
+  // Set by the database; the admin forms never write them.
+  final PaymentSource source;
+
+  /// Why an admin rejected an agent's payment.
+  final String rejectReason;
+
+  /// Cancelled receipts stay on record but leave every total.
+  final DateTime? cancelledAt;
+  final String cancelReason;
+
+  /// An agent asked for this receipt to be cancelled.
+  final DateTime? cancelRequestedAt;
+  final String cancelRequestReason;
+
+  bool get isCancelled => cancelledAt != null;
+  bool get hasOpenCancelRequest => cancelRequestedAt != null && !isCancelled;
+
   Payment copyWith({
     String? id,
     String? receiptNo,
@@ -88,6 +124,12 @@ class Payment {
     bool clearAgent = false,
     String? reference,
     String? note,
+    String? rejectReason,
+    DateTime? cancelledAt,
+    String? cancelReason,
+    DateTime? cancelRequestedAt,
+    String? cancelRequestReason,
+    bool clearCancelRequest = false,
   }) {
     return Payment(
       id: id ?? this.id,
@@ -102,6 +144,16 @@ class Payment {
       agentId: clearAgent ? null : (agentId ?? this.agentId),
       reference: reference ?? this.reference,
       note: note ?? this.note,
+      source: source,
+      rejectReason: rejectReason ?? this.rejectReason,
+      cancelledAt: cancelledAt ?? this.cancelledAt,
+      cancelReason: cancelReason ?? this.cancelReason,
+      cancelRequestedAt: clearCancelRequest
+          ? null
+          : (cancelRequestedAt ?? this.cancelRequestedAt),
+      cancelRequestReason: clearCancelRequest
+          ? ''
+          : (cancelRequestReason ?? this.cancelRequestReason),
     );
   }
 

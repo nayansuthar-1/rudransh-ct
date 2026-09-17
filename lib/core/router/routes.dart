@@ -30,6 +30,7 @@ class AppRoutes {
   static const yojna = '/yojna';
   static const closing = '/closing-payments';
   static const payments = '/payments';
+  static const approvals = '/approvals';
 
   // Agent screens (IMPLEMENTATION_PLAN Phases 12–16).
   static const agentHome = '/agent';
@@ -82,6 +83,13 @@ class AppRoutes {
       sublabel: S.paymentsSub,
       icon: Icons.receipt_long_outlined,
       activeIcon: Icons.receipt_long,
+    ),
+    NavItem(
+      path: approvals,
+      label: S.approvals,
+      sublabel: S.approvalsSub,
+      icon: Icons.fact_check_outlined,
+      activeIcon: Icons.fact_check,
     ),
   ];
 

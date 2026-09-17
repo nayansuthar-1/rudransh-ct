@@ -217,29 +217,13 @@ class SupabaseTrustRepository implements TrustRepository {
         try {
           final res = await _db
               .rpc('search_payments', params: params)
-              .select('*, member:members(id, name, reg_no, primary_phone)')
+              .select(_withMember)
               .order('date', ascending: false)
               .order('receipt_no', ascending: false)
               .range(offset, offset + limit - 1)
               .count(CountOption.exact);
 
-          final members = <String, MemberRef>{};
-          for (final row in res.data) {
-            final m = row['member'];
-            if (m is Map<String, dynamic>) {
-              members[m['id'] as String] = MemberRef(
-                id: m['id'] as String,
-                name: m['name'] as String? ?? '',
-                regNo: m['reg_no'] as String? ?? '',
-                primaryPhone: m['primary_phone'] as String? ?? '',
-              );
-            }
-          }
-          return PaymentPage(
-            items: res.data.map(_paymentFromRow).toList(),
-            total: res.count,
-            members: members,
-          );
+          return _paymentPage(res.data, res.count);
         } on PostgrestException catch (e) {
           if (!_isPastLastPage(e)) rethrow;
           return PaymentPage(
@@ -248,6 +232,29 @@ class SupabaseTrustRepository implements TrustRepository {
           );
         }
       });
+
+  static const _withMember = '*, member:members(id, name, reg_no, primary_phone)';
+
+  /// Payments whose rows embed `member` (see [_withMember]).
+  static PaymentPage _paymentPage(List<Map<String, dynamic>> rows, int total) {
+    final members = <String, MemberRef>{};
+    for (final row in rows) {
+      final m = row['member'];
+      if (m is Map<String, dynamic>) {
+        members[m['id'] as String] = MemberRef(
+          id: m['id'] as String,
+          name: m['name'] as String? ?? '',
+          regNo: m['reg_no'] as String? ?? '',
+          primaryPhone: m['primary_phone'] as String? ?? '',
+        );
+      }
+    }
+    return PaymentPage(
+      items: rows.map(_paymentFromRow).toList(),
+      total: total,
+      members: members,
+    );
+  }
 
   @override
   Future<PaymentTotals> fetchPaymentTotals(PaymentQuery query) =>
@@ -372,6 +379,94 @@ class SupabaseTrustRepository implements TrustRepository {
           for (final r in rows.cast<Map<String, dynamic>>())
             r['agent_id'] as String: _num(r['total']),
         };
+      });
+
+  // ---- Approvals -----------------------------------------------------------
+
+  /// The approval queue is small; one request is enough.
+  static const _queueLimit = 500;
+
+  @override
+  Future<List<Member>> fetchPendingMembers() => _guard(() async {
+        final rows = await _db
+            .from('members')
+            .select()
+            .eq('status', 'pending')
+            .order('created_at')
+            .limit(_queueLimit);
+        return rows.map(_memberFromRow).toList();
+      });
+
+  @override
+  Future<PaymentPage> fetchPendingPayments() => _guard(() async {
+        final rows = await _db
+            .from('payments')
+            .select(_withMember)
+            .eq('status', 'pending')
+            // Office-entered pending payments are unpaid dues, not submissions.
+            .neq('source', 'admin')
+            .isFilter('cancelled_at', null)
+            .order('created_at')
+            .limit(_queueLimit);
+        return _paymentPage(rows, rows.length);
+      });
+
+  @override
+  Future<PaymentPage> fetchCancelRequests() => _guard(() async {
+        final rows = await _db
+            .from('payments')
+            .select(_withMember)
+            .not('cancel_requested_at', 'is', null)
+            .isFilter('cancelled_at', null)
+            .order('cancel_requested_at')
+            .limit(_queueLimit);
+        return _paymentPage(rows, rows.length);
+      });
+
+  @override
+  Future<String> approveMember(String memberId) => _guard(() async {
+        final regNo = await _db
+            .rpc('approve_member', params: {'p_member_id': memberId});
+        return regNo as String? ?? '';
+      });
+
+  @override
+  Future<void> rejectMember(String memberId, String reason) => _guard(
+        () => _db.rpc('reject_member',
+            params: {'p_member_id': memberId, 'p_reason': reason}),
+      );
+
+  @override
+  Future<void> approvePayment(String paymentId) => _guard(
+        () => _db.rpc('approve_payment', params: {'p_payment_id': paymentId}),
+      );
+
+  @override
+  Future<void> rejectPayment(String paymentId, String reason) => _guard(
+        () => _db.rpc('reject_payment',
+            params: {'p_payment_id': paymentId, 'p_reason': reason}),
+      );
+
+  @override
+  Future<void> cancelPayment(String paymentId, String reason) => _guard(
+        () => _db.rpc('cancel_payment',
+            params: {'p_payment_id': paymentId, 'p_reason': reason}),
+      );
+
+  @override
+  Future<void> declineCancelRequest(String paymentId) => _guard(
+        () => _db.rpc('decline_cancel_request',
+            params: {'p_payment_id': paymentId}),
+      );
+
+  @override
+  Future<int> reassignMembers(String fromAgentId, String toAgentId) =>
+      _guard(() async {
+        final moved = await _db.rpc('reassign_members', params: {
+          'p_from_agent': fromAgentId,
+          'p_to_agent': toAgentId,
+        });
+        return (moved as num?)?.toInt() ?? 0;
       });
 
   // ---- Helpers -----------------------------------------------------------
@@ -517,6 +612,8 @@ class SupabaseTrustRepository implements TrustRepository {
         return 'Some of the details entered are not valid.';
       case '23502': // not_null_violation
         return 'Please fill in all required fields.';
+      case 'P0001': // raise exception in our SQL functions: already readable
+        return e.message;
       case '42501': // insufficient_privilege / RLS
         return 'You do not have permission to do this.';
       case 'PGRST116': // .single() found no row (deleted, or hidden by RLS)
@@ -532,6 +629,9 @@ class SupabaseTrustRepository implements TrustRepository {
 
   static DateTime _parseDate(Object? value) =>
       value is String ? DateTime.parse(value).toLocal() : DateTime.now();
+
+  static DateTime? _parseTimestamp(Object? value) =>
+      value is String ? DateTime.parse(value).toLocal() : null;
 
   static double _num(Object? value) => (value as num?)?.toDouble() ?? 0;
 
@@ -609,6 +709,7 @@ class SupabaseTrustRepository implements TrustRepository {
         status: MemberStatus.fromName(r['status'] as String?),
         closingDate: r['closing_date'] == null ? null : _parseDate(r['closing_date']),
         closingGroup: r['closing_group'] as String?,
+        reviewNote: r['review_note'] as String? ?? '',
       );
 
   static Map<String, dynamic> _agentToRow(Agent a) => _withId(a.id, {
@@ -663,6 +764,12 @@ class SupabaseTrustRepository implements TrustRepository {
         agentId: r['agent_id'] as String?,
         reference: r['reference'] as String? ?? '',
         note: r['note'] as String? ?? '',
+        source: PaymentSource.fromName(r['source'] as String?),
+        rejectReason: r['reject_reason'] as String? ?? '',
+        cancelledAt: _parseTimestamp(r['cancelled_at']),
+        cancelReason: r['cancel_reason'] as String? ?? '',
+        cancelRequestedAt: _parseTimestamp(r['cancel_requested_at']),
+        cancelRequestReason: r['cancel_request_reason'] as String? ?? '',
       );
 
   static Map<String, dynamic> _closingToRow(ClosingCase c) => _withId(c.id, {

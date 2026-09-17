@@ -97,4 +97,29 @@ abstract class TrustRepository {
 
   /// Paid collection per agent id.
   Future<Map<String, double>> fetchCollectionByAgent();
+
+  // ---- Approvals (IMPLEMENTATION_PLAN Phase 12) ---------------------------
+
+  /// Members added by agents and waiting for an admin, oldest first.
+  Future<List<Member>> fetchPendingMembers();
+
+  /// Payments from agents or members waiting for approval, oldest first.
+  /// Office-entered pending payments are unpaid dues and are not included.
+  Future<PaymentPage> fetchPendingPayments();
+
+  /// Receipts an agent asked to cancel, oldest first.
+  Future<PaymentPage> fetchCancelRequests();
+
+  /// Returns the registration number the member receives.
+  Future<String> approveMember(String memberId);
+  Future<void> rejectMember(String memberId, String reason);
+  Future<void> approvePayment(String paymentId);
+  Future<void> rejectPayment(String paymentId, String reason);
+
+  /// Owners only. The receipt stays on record but leaves every total.
+  Future<void> cancelPayment(String paymentId, String reason);
+  Future<void> declineCancelRequest(String paymentId);
+
+  /// Moves every member of [fromAgentId] to [toAgentId]; returns how many.
+  Future<int> reassignMembers(String fromAgentId, String toAgentId);
 }

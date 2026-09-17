@@ -226,6 +226,8 @@ class _AgentActions extends ConsumerWidget {
             );
           case 4:
             await _inviteAgent(context, ref, agent);
+          case 5:
+            await _moveMembers(context, ref, agent);
         }
       },
       itemBuilder: (context) => [
@@ -237,12 +239,48 @@ class _AgentActions extends ConsumerWidget {
         ),
         if (isOwner && !hasAccess)
           const PopupMenuItem(value: 4, child: Text(S.inviteToApp)),
+        const PopupMenuItem(value: 5, child: Text('${S.moveMembers}…')),
         PopupMenuItem(
           value: 3,
           child: Text(S.delete, style: TextStyle(color: c.danger)),
         ),
       ],
     );
+  }
+}
+
+/// Moves all of [from]'s members to another active agent, e.g. when an agent
+/// leaves.
+Future<void> _moveMembers(BuildContext context, WidgetRef ref, Agent from) async {
+  final targets = (ref.read(agentsProvider).value ?? const <Agent>[])
+      .where((a) => a.isActive && a.id != from.id)
+      .toList();
+  if (targets.isEmpty) {
+    showToast(context, 'Add another active agent first.', error: true);
+    return;
+  }
+  final to = await showDialog<Agent>(
+    context: context,
+    builder: (dialogContext) => SimpleDialog(
+      title: Text("Move ${from.name}'s members to"),
+      children: [
+        for (final a in targets)
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(dialogContext).pop(a),
+            child: Text('${a.name} (${a.code})'),
+          ),
+      ],
+    ),
+  );
+  if (to == null || !context.mounted) return;
+  try {
+    final moved =
+        await ref.read(approvalActionsProvider).reassignMembers(from.id, to.id);
+    if (context.mounted) {
+      showToast(context, 'Moved $moved ${moved == 1 ? 'member' : 'members'} to ${to.name}');
+    }
+  } catch (e) {
+    if (context.mounted) showToast(context, '$e', error: true);
   }
 }
 

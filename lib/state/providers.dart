@@ -270,6 +270,76 @@ class PaymentActions {
 final paymentActionsProvider = Provider<PaymentActions>(PaymentActions.new);
 
 // ---------------------------------------------------------------------------
+// Approvals (IMPLEMENTATION_PLAN Phase 12)
+// ---------------------------------------------------------------------------
+
+/// Everything agents submitted that waits for an admin.
+@immutable
+class ApprovalQueue {
+  const ApprovalQueue({
+    required this.members,
+    required this.payments,
+    required this.cancelRequests,
+  });
+
+  static const empty = ApprovalQueue(
+    members: [],
+    payments: PaymentPage.empty,
+    cancelRequests: PaymentPage.empty,
+  );
+
+  final List<Member> members;
+  final PaymentPage payments;
+  final PaymentPage cancelRequests;
+
+  int get count =>
+      members.length + payments.items.length + cancelRequests.items.length;
+}
+
+final approvalQueueProvider = FutureProvider<ApprovalQueue>((ref) async {
+  watchBackendData(ref);
+  if (!ref.watch(currentUserProvider).isAdmin) return ApprovalQueue.empty;
+  final repo = ref.read(repositoryProvider);
+  final members = repo.fetchPendingMembers();
+  final payments = repo.fetchPendingPayments();
+  final cancels = repo.fetchCancelRequests();
+  return ApprovalQueue(
+    members: await members,
+    payments: await payments,
+    cancelRequests: await cancels,
+  );
+});
+
+class ApprovalActions {
+  ApprovalActions(this._ref);
+
+  final Ref _ref;
+
+  TrustRepository get _repo => _ref.read(repositoryProvider);
+
+  Future<T> _run<T>(Future<T> Function(TrustRepository repo) action) async {
+    final result = await action(_repo);
+    _ref.read(dataRevisionProvider.notifier).bump();
+    return result;
+  }
+
+  Future<String> approveMember(String id) => _run((r) => r.approveMember(id));
+  Future<void> rejectMember(String id, String reason) =>
+      _run((r) => r.rejectMember(id, reason));
+  Future<void> approvePayment(String id) => _run((r) => r.approvePayment(id));
+  Future<void> rejectPayment(String id, String reason) =>
+      _run((r) => r.rejectPayment(id, reason));
+  Future<void> cancelPayment(String id, String reason) =>
+      _run((r) => r.cancelPayment(id, reason));
+  Future<void> declineCancelRequest(String id) =>
+      _run((r) => r.declineCancelRequest(id));
+  Future<int> reassignMembers(String from, String to) =>
+      _run((r) => r.reassignMembers(from, to));
+}
+
+final approvalActionsProvider = Provider<ApprovalActions>(ApprovalActions.new);
+
+// ---------------------------------------------------------------------------
 // Closing cases
 // ---------------------------------------------------------------------------
 

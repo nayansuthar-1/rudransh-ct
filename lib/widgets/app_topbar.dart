@@ -428,18 +428,18 @@ class _ThemeButton extends ConsumerWidget {
   }
 }
 
-/// Bell with a count of pending payments.
+/// Bell with a count of agent submissions waiting for approval.
 class _RequestsButton extends ConsumerWidget {
   const _RequestsButton();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
-    final pending = ref.watch(pendingPaymentCountProvider).value ?? 0;
+    final pending = ref.watch(approvalQueueProvider).value?.count ?? 0;
 
     return IconButton(
       tooltip: '${S.requests} ($pending)',
-      onPressed: () => showRequestsToast(context, pending),
+      onPressed: () => context.go(AppRoutes.approvals),
       icon: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -464,20 +464,6 @@ class _RequestsButton extends ConsumerWidget {
   }
 }
 
-void showRequestsToast(BuildContext context, int pending) {
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(
-      SnackBar(
-        width: context.isMobile ? null : 420,
-        content: Text(
-          pending == 0
-              ? 'No pending requests'
-              : '$pending pending payment ${pending == 1 ? 'request' : 'requests'} — see Payments › Pending',
-        ),
-      ),
-    );
-}
 
 /// Avatar menu. On phones it also carries requests and the theme toggle,
 /// which have no room in the header.
@@ -490,7 +476,7 @@ class _AccountMenu extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     final user = ref.watch(currentUserProvider);
-    final pending = ref.watch(pendingPaymentCountProvider).value ?? 0;
+    final pending = ref.watch(approvalQueueProvider).value?.count ?? 0;
     final dark = Theme.of(context).brightness == Brightness.dark;
 
     return PopupMenuButton<int>(
@@ -503,7 +489,7 @@ class _AccountMenu extends ConsumerWidget {
           case 0:
             ref.read(authControllerProvider.notifier).signOut();
           case 1:
-            showRequestsToast(context, pending);
+            context.go(AppRoutes.approvals);
           case 2:
             ref.read(themeModeProvider.notifier).toggle();
         }

@@ -271,3 +271,77 @@ Future<void> runWithToast(
     if (context.mounted) showToast(context, '$e', error: true);
   }
 }
+
+/// Asks for a short reason (reject, cancel). Returns null when dismissed.
+Future<String?> reasonDialog(
+  BuildContext context, {
+  required String title,
+  String message = '',
+  String confirmLabel = S.reject,
+  bool destructive = true,
+}) {
+  final c = context.colors;
+  final controller = TextEditingController();
+  final formKey = GlobalKey<FormState>();
+
+  void submit(BuildContext dialogContext) {
+    if (formKey.currentState?.validate() ?? false) {
+      Navigator.of(dialogContext).pop(controller.text.trim());
+    }
+  }
+
+  return showDialog<String>(
+    context: context,
+    barrierColor: Colors.black.withValues(alpha: 0.32),
+    builder: (dialogContext) => AlertDialog(
+      constraints: const BoxConstraints(maxWidth: 420),
+      titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+      actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      title: Text(title),
+      content: Form(
+        key: formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (message.isNotEmpty) ...[
+              Text(
+                message,
+                style: TextStyle(
+                  fontSize: 13.5,
+                  color: c.textSecondary,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            TextFormField(
+              controller: controller,
+              autofocus: true,
+              maxLines: 2,
+              decoration: const InputDecoration(hintText: S.reason),
+              validator: (v) => (v ?? '').trim().isEmpty ? S.required : null,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        OutlinedButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: const Text(S.cancel),
+        ),
+        FilledButton(
+          onPressed: () => submit(dialogContext),
+          style: destructive
+              ? FilledButton.styleFrom(
+                  backgroundColor: c.danger,
+                  foregroundColor: Colors.white,
+                )
+              : null,
+          child: Text(confirmLabel),
+        ),
+      ],
+    ),
+  ).whenComplete(controller.dispose);
+}

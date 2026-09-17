@@ -179,6 +179,7 @@ class MemberStatusPill extends StatelessWidget {
       MemberStatus.active => PillTone.success,
       MemberStatus.inactive => PillTone.neutral,
       MemberStatus.closed => PillTone.info,
+      MemberStatus.pending => PillTone.warning,
     };
     return StatusPill(status.label, tone: tone);
   }

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../data/models/models.dart';
 
 import '../../features/agents/agents_page.dart';
+import '../../features/approvals/approvals_page.dart';
 import '../../features/auth/login_page.dart';
 import '../../features/closing/closing_payments_page.dart';
 import '../../features/dashboard/dashboard_page.dart';
@@ -51,6 +52,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           _shellRoute(AppRoutes.yojna, const YojnaPage()),
           _shellRoute(AppRoutes.closing, const ClosingPaymentsPage()),
           _shellRoute(AppRoutes.payments, const PaymentsPage()),
+          _shellRoute(AppRoutes.approvals, const ApprovalsPage()),
         ],
       ),
       ShellRoute(

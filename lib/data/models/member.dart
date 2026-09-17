@@ -15,7 +15,10 @@ enum Gender {
 enum MemberStatus {
   active('Active'),
   inactive('Inactive'),
-  closed('Closed');
+  closed('Closed'),
+
+  /// Added by an agent, waiting for an admin. No registration number yet.
+  pending('Pending');
 
   const MemberStatus(this.label);
   final String label;
@@ -50,6 +53,7 @@ class Member {
     this.status = MemberStatus.active,
     this.closingDate,
     this.closingGroup,
+    this.reviewNote = '',
   });
 
   final String id;
@@ -83,7 +87,11 @@ class Member {
   /// Batch label used to group closings, e.g. `Group-14`.
   final String? closingGroup;
 
+  /// Why an admin rejected this sign-up, if they did.
+  final String reviewNote;
+
   bool get isClosed => status == MemberStatus.closed;
+  bool get isPending => status == MemberStatus.pending;
 
   String get address => [village, tehsil, district, pincode]
       .where((p) => p.trim().isNotEmpty)
@@ -126,6 +134,7 @@ class Member {
     DateTime? closingDate,
     String? closingGroup,
     bool clearClosing = false,
+    String? reviewNote,
   }) {
     return Member(
       id: id ?? this.id,
@@ -150,6 +159,7 @@ class Member {
       status: status ?? this.status,
       closingDate: clearClosing ? null : (closingDate ?? this.closingDate),
       closingGroup: clearClosing ? null : (closingGroup ?? this.closingGroup),
+      reviewNote: reviewNote ?? this.reviewNote,
     );
   }
 
@@ -176,6 +186,7 @@ class Member {
         'status': status.name,
         'closingDate': closingDate?.toIso8601String(),
         'closingGroup': closingGroup,
+        'reviewNote': reviewNote,
       };
 
   factory Member.fromMap(Map<String, dynamic> map) => Member(
@@ -203,6 +214,7 @@ class Member {
         status: MemberStatus.fromName(map['status'] as String?),
         closingDate: DateTime.tryParse(map['closingDate'] as String? ?? ''),
         closingGroup: map['closingGroup'] as String?,
+        reviewNote: map['reviewNote'] as String? ?? '',
       );
 
   @override

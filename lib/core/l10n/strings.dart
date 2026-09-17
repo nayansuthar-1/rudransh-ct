@@ -24,6 +24,8 @@ class S {
   static const closingPaymentsSub = 'Claim settlements';
   static const payments = 'Payments';
   static const paymentsSub = 'Payment history';
+  static const approvals = 'Approvals';
+  static const approvalsSub = 'Agent submissions';
 
   // Top bar
   static const home = 'Home';
@@ -172,4 +174,17 @@ class S {
   static const accessOff = 'Turned off';
   static const inviteNeedsEmail = "Add the agent's email address first.";
   static const inviteSent = 'Invite email sent';
+
+  // Approvals
+  static const newMembers = 'New members';
+  static const paymentsToApprove = 'Payments to approve';
+  static const cancelRequests = 'Cancel requests';
+  static const approve = 'Approve';
+  static const reject = 'Reject';
+  static const decline = 'Decline';
+  static const cancelReceipt = 'Cancel receipt';
+  static const cancelled = 'Cancelled';
+  static const reason = 'Reason';
+  static const nothingToApprove = 'Nothing is waiting for approval.';
+  static const moveMembers = 'Move members';
 }

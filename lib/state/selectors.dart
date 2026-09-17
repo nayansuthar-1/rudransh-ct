@@ -275,15 +275,6 @@ final paymentTotalsProvider = FutureProvider<PaymentTotals>((ref) async {
   return ref.read(repositoryProvider).fetchPaymentTotals(query);
 });
 
-/// Pending payments across all schemes, for the requests bell.
-final pendingPaymentCountProvider = FutureProvider<int>((ref) async {
-  watchBackendData(ref);
-  final totals = await ref
-      .read(repositoryProvider)
-      .fetchPaymentTotals(const PaymentQuery(status: PaymentStatus.pending));
-  return totals.count;
-});
-
 /// Latest payments in the top-bar scope, for the dashboard.
 final recentPaymentsProvider = FutureProvider<PaymentPage>((ref) {
   watchBackendData(ref);
