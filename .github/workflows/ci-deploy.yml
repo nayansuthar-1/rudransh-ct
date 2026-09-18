@@ -8,8 +8,9 @@
 #   SUPABASE_URL_STAGING, SUPABASE_PUBLISHABLE_KEY_STAGING
 # Repository variables:
 #   CLOUDFLARE_PAGES_PROJECT (default: rudransh-ct)
-#   CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET (death certificate uploads;
-#   public values, see docs/RUNBOOK.md)
+#   CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET (death certificate uploads)
+#   TURNSTILE_SITE_KEY (public member lookup), UPI_ID, UPI_PAYEE (member
+#   payments). All public values that end up in the browser; see docs/RUNBOOK.md
 
 name: CI & deploy
 
@@ -198,6 +199,9 @@ jobs:
           --dart-define=SUPABASE_PUBLISHABLE_KEY=${{ steps.env.outputs.key }}
           --dart-define=CLOUDINARY_CLOUD_NAME=${{ vars.CLOUDINARY_CLOUD_NAME }}
           --dart-define=CLOUDINARY_UPLOAD_PRESET=${{ vars.CLOUDINARY_UPLOAD_PRESET }}
+          --dart-define=TURNSTILE_SITE_KEY=${{ vars.TURNSTILE_SITE_KEY }}
+          --dart-define=UPI_ID=${{ vars.UPI_ID }}
+          --dart-define=UPI_PAYEE=${{ vars.UPI_PAYEE }}
 
       - name: Refuse a build without Supabase config
         if: steps.env.outputs.deploy == 'true'

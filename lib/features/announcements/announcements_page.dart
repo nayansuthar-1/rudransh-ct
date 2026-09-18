@@ -84,6 +84,7 @@ class _AnnouncementCard extends ConsumerWidget {
     final text = Theme.of(context).textTheme;
 
     return AppCard(
+      padding: const EdgeInsets.all(Space.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

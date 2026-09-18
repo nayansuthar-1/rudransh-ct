@@ -167,4 +167,40 @@ abstract class TrustRepository {
 
   /// Admins only.
   Future<void> deleteAnnouncement(String id);
+
+  // ---- Member portal (IMPLEMENTATION_PLAN Phase 15) -------------------------
+
+  /// The signed-in member's own record.
+  Future<Membership> fetchMyMembership();
+
+  /// The signed-in member's receipts, newest first.
+  Future<List<Payment>> fetchMyPayments({int limit = 50});
+
+  /// Closing groups the signed-in member still owes for, oldest first.
+  Future<List<MemberDue>> fetchMyDues();
+
+  /// The member's own closing case, once the office has opened one.
+  Future<ClosingCase?> fetchMyClosingCase();
+
+  /// Records a UPI transfer the member made. It waits for an admin, like an
+  /// agent's collection. [closingCaseId] null means the registration fee.
+  Future<String> submitUpiPayment({
+    required double amount,
+    required String reference,
+    String? closingCaseId,
+  });
+
+  /// Asks the office to correct one detail. One pending request per field.
+  Future<String> requestChange(ChangeField field, String newValue);
+
+  /// The signed-in member's own corrections, newest first.
+  Future<List<ChangeRequest>> fetchMyChangeRequests();
+
+  /// Admins: corrections waiting for a decision, oldest first.
+  Future<List<ChangeRequest>> fetchPendingChangeRequests();
+
+  /// Admins: applies the change to the member and closes the request.
+  Future<void> approveChangeRequest(String id);
+
+  Future<void> rejectChangeRequest(String id, String reason);
 }

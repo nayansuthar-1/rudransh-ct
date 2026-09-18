@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/config/env.dart';
 import '../../core/l10n/strings.dart';
+import '../../core/router/routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/validators.dart';
 import '../../state/auth_controller.dart';
@@ -147,6 +149,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 ],
               ),
             ),
+
+          // Most members have no login, so the public check is the way in
+          // for them (IMPLEMENTATION_PLAN Phase 15).
+          const SizedBox(height: 16),
+          TextButton(
+            onPressed: () => context.go(AppRoutes.lookup),
+            child: const Text('Members: check your membership'),
+          ),
 
           if (Env.demoMode) ...[
             const SizedBox(height: 24),

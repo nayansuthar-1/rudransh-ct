@@ -575,6 +575,121 @@ class SupabaseTrustRepository implements TrustRepository {
         () => _db.rpc('delete_announcement', params: {'p_id': id}),
       );
 
+  // ---- Member portal (IMPLEMENTATION_PLAN Phase 15) -------------------------
+
+  @override
+  Future<Membership> fetchMyMembership() => _guard(() async {
+        final rows = await _db.rpc('my_membership') as List;
+        if (rows.isEmpty) {
+          throw const RepositoryException('Only a member can do this.');
+        }
+        return Membership.fromRow(rows.first as Map<String, dynamic>);
+      });
+
+  @override
+  Future<List<Payment>> fetchMyPayments({int limit = 50}) => _guard(() async {
+        final rows = await _db.rpc(
+          'my_member_payments',
+          params: {'p_limit': limit, 'p_offset': 0},
+        ) as List;
+        return [
+          for (final r in rows.cast<Map<String, dynamic>>())
+            // The portal returns a receipt, not the whole payment row: the
+            // member and Yojna are already known from the membership.
+            Payment(
+              id: r['id'] as String,
+              receiptNo: r['receipt_no'] as String? ?? '',
+              memberId: '',
+              yojnaId: '',
+              amount: _num(r['amount']),
+              date: _parseDate(r['date']),
+              mode: PaymentMode.fromName(r['mode'] as String?),
+              status: PaymentStatus.fromName(r['status'] as String?),
+              kind: PaymentKind.fromName(r['kind'] as String?),
+              reference: r['reference'] as String? ?? '',
+              rejectReason: r['reject_reason'] as String? ?? '',
+              cancelledAt: _parseTimestamp(r['cancelled_at']),
+            ),
+        ];
+      });
+
+  @override
+  Future<List<MemberDue>> fetchMyDues() => _guard(() async {
+        final rows = await _db.rpc('my_member_dues') as List;
+        return [
+          for (final r in rows.cast<Map<String, dynamic>>())
+            memberDueFromRow({...r, 'member_id': ''}),
+        ];
+      });
+
+  @override
+  Future<ClosingCase?> fetchMyClosingCase() => _guard(() async {
+        final rows = await _db.rpc('my_closing_case') as List;
+        if (rows.isEmpty) return null;
+        final r = rows.first as Map<String, dynamic>;
+        return ClosingCase(
+          id: '',
+          memberId: '',
+          yojnaId: '',
+          closingDate: _parseDate(r['closing_date']),
+          closingGroup: r['closing_group'] as String? ?? '',
+          claimAmount: _num(r['claim_amount']),
+          collectedAmount: _num(r['collected_amount']),
+          payStatus: ClosingPayStatus.fromName(r['pay_status'] as String?),
+          nomineeName: r['nominee_name'] as String? ?? '',
+        );
+      });
+
+  @override
+  Future<String> submitUpiPayment({
+    required double amount,
+    required String reference,
+    String? closingCaseId,
+  }) =>
+      _guard(() async => await _db.rpc('member_submit_upi', params: {
+            'p_amount': amount,
+            'p_reference': reference,
+            'p_closing_case_id': closingCaseId,
+          }) as String);
+
+  @override
+  Future<String> requestChange(ChangeField field, String newValue) =>
+      _guard(() async => await _db.rpc('request_change', params: {
+            'p_field': field.column,
+            'p_new_value': newValue,
+          }) as String);
+
+  @override
+  Future<List<ChangeRequest>> fetchMyChangeRequests() => _guard(() async {
+        final rows = await _db.rpc('my_change_requests') as List;
+        return [
+          for (final r in rows.cast<Map<String, dynamic>>())
+            ChangeRequest.fromRow(r),
+        ];
+      });
+
+  @override
+  Future<List<ChangeRequest>> fetchPendingChangeRequests() => _guard(() async {
+        final rows = await _db.rpc('pending_change_requests') as List;
+        return [
+          for (final r in rows.cast<Map<String, dynamic>>())
+            ChangeRequest.fromRow(r),
+        ];
+      });
+
+  @override
+  Future<void> approveChangeRequest(String id) => _guard(
+        () => _db.rpc('approve_change_request', params: {'p_id': id}),
+      );
+
+  @override
+  Future<void> rejectChangeRequest(String id, String reason) => _guard(
+        () => _db.rpc('reject_change_request', params: {
+          'p_id': id,
+          'p_reason': reason,
+        }),
+      );
+
   /// A `member_dues` row, or an `agent_dues` row with member details.
   static MemberDue memberDueFromRow(Map<String, dynamic> r) => MemberDue(
         memberId: r['member_id'] as String,

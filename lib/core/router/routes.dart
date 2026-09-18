@@ -47,6 +47,10 @@ class AppRoutes {
   static const memberHome = '/me';
   static const memberPayments = '/me/payments';
   static const memberAnnouncements = '/me/announcements';
+  static const memberDues = '/me/dues';
+
+  /// Public: reachable without signing in.
+  static const lookup = '/lookup';
 
   static const nav = <NavItem>[
     NavItem(
@@ -196,6 +200,13 @@ class MemberRoutes {
       sublabel: S.memberHomeSub,
       icon: Icons.home_outlined,
       activeIcon: Icons.home,
+    ),
+    NavItem(
+      path: AppRoutes.memberDues,
+      label: S.myDues,
+      sublabel: S.myDuesSub,
+      icon: Icons.event_note_outlined,
+      activeIcon: Icons.event_note,
     ),
     NavItem(
       path: AppRoutes.memberPayments,

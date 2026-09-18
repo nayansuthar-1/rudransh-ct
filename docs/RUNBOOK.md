@@ -148,6 +148,36 @@ Anyone who reads the app's code can see the preset name and upload files within
 these limits; they can't read, change or delete existing files. If abused,
 rename the preset and update the variable.
 
+### 1.7 Public member lookup (Turnstile) and UPI
+
+Most members have no email and never will, so `/lookup` answers without a
+login: registration number + phone + the last four Aadhaar digits. Cloudflare
+Turnstile keeps bots from walking through registration numbers, and the
+database locks a number after five wrong tries in fifteen minutes.
+
+1. Cloudflare dashboard → **Turnstile** → Add site:
+   - Domain: the Pages domain (`rudransh-ct.pages.dev`)
+   - Widget mode: **Managed**
+   - You get a **site key** (public) and a **secret key** (never in the app)
+2. Set the repository **variable** `TURNSTILE_SITE_KEY` to the site key.
+3. Give the Edge Function the secret, then deploy it:
+   ```sh
+   supabase secrets set TURNSTILE_SECRET_KEY=0x...
+   supabase functions deploy member_lookup --no-verify-jwt
+   ```
+   `--no-verify-jwt` is required: the caller is signed out by definition.
+
+**The lookup fails closed.** Without `TURNSTILE_SECRET_KEY` the function
+returns 503 and the page says the check is not switched on. That is deliberate
+— the alternative is serving member records to anything that can send a POST —
+but it does mean the lookup looks broken until step 3 is done.
+
+For UPI payments from the member portal, set the variables `UPI_ID` (the
+trust's UPI address) and `UPI_PAYEE` (the name shown in a payment app). Leaving
+`UPI_ID` empty hides the option, and members pay through their agent as before.
+A member enters the UTR after paying; it lands as a **pending** receipt that an
+admin approves, so nothing counts until the office has seen the money.
+
 ---
 
 ## 2. Deploying

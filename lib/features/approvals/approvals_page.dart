@@ -79,6 +79,12 @@ class ApprovalsPage extends ConsumerWidget {
                 ),
             ],
           ),
+          _Section(
+            title: S.changeRequests,
+            children: [
+              for (final r in queue.changeRequests) _ChangeRequestRow(request: r),
+            ],
+          ),
         ],
       ],
     );
@@ -529,3 +535,52 @@ class _CreateClosingDialogState extends ConsumerState<_CreateClosingDialog> {
   }
 }
 
+
+/// A member asking to fix one of their own details (Phase 15). Approving
+/// writes the member row; the member is told either way.
+class _ChangeRequestRow extends ConsumerWidget {
+  const _ChangeRequestRow({required this.request});
+
+  final ChangeRequest request;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final r = request;
+    final actions = ref.read(portalActionsProvider);
+
+    return _QueueRow(
+      title: [r.memberName, r.regNo].where((s) => s.isNotEmpty).join(' · '),
+      lines: [
+        r.field.label,
+        'From: ${r.oldValue.isEmpty ? '—' : r.oldValue}',
+        'To: ${r.newValue}',
+      ],
+      actions: [
+        OutlinedButton(
+          onPressed: () async {
+            final reason = await reasonDialog(
+              context,
+              title: 'Reject this correction?',
+              message: 'Nothing changes. The member sees your reason.',
+            );
+            if (reason == null || !context.mounted) return;
+            await runWithToast(
+              context,
+              () => actions.rejectChange(r.id, reason),
+              success: 'Correction rejected',
+            );
+          },
+          child: const Text(S.reject),
+        ),
+        FilledButton(
+          onPressed: () => runWithToast(
+            context,
+            () => actions.approveChange(r.id),
+            success: 'Correction applied',
+          ),
+          child: const Text(S.approve),
+        ),
+      ],
+    );
+  }
+}

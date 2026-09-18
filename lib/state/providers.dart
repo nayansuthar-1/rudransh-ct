@@ -6,6 +6,7 @@ import '../core/config/env.dart';
 import '../data/models/models.dart';
 import '../data/repositories/access_repository.dart';
 import '../data/repositories/in_memory_trust_repository.dart';
+import '../data/repositories/lookup_repository.dart';
 import '../data/repositories/supabase_trust_repository.dart';
 import '../data/repositories/trust_repository.dart';
 import 'auth_controller.dart';
@@ -285,6 +286,7 @@ class ApprovalQueue {
     required this.payments,
     required this.cancelRequests,
     this.deathReports = const [],
+    this.changeRequests = const [],
   });
 
   static const empty = ApprovalQueue(
@@ -297,12 +299,14 @@ class ApprovalQueue {
   final PaymentPage payments;
   final PaymentPage cancelRequests;
   final List<ClosingRequest> deathReports;
+  final List<ChangeRequest> changeRequests;
 
   int get count =>
       members.length +
       payments.items.length +
       cancelRequests.items.length +
-      deathReports.length;
+      deathReports.length +
+      changeRequests.length;
 }
 
 final approvalQueueProvider = FutureProvider<ApprovalQueue>((ref) async {
@@ -313,11 +317,13 @@ final approvalQueueProvider = FutureProvider<ApprovalQueue>((ref) async {
   final payments = repo.fetchPendingPayments();
   final cancels = repo.fetchCancelRequests();
   final reports = repo.fetchPendingClosingRequests();
+  final changes = repo.fetchPendingChangeRequests();
   return ApprovalQueue(
     members: await members,
     payments: await payments,
     cancelRequests: await cancels,
     deathReports: await reports,
+    changeRequests: await changes,
   );
 });
 
@@ -526,3 +532,103 @@ final announcementsProvider =
     AsyncNotifierProvider<AnnouncementsNotifier, List<Announcement>>(
   AnnouncementsNotifier.new,
 );
+
+// ---------------------------------------------------------------------------
+// Member portal (IMPLEMENTATION_PLAN Phase 15)
+// ---------------------------------------------------------------------------
+
+/// The public lookup. Signed out, so it goes through the Edge Function rather
+/// than the database.
+final lookupRepositoryProvider = Provider<LookupRepository>((ref) {
+  if (Env.hasSupabase) {
+    return EdgeLookupRepository(Supabase.instance.client);
+  }
+  final repo = ref.read(repositoryProvider);
+  if (repo is! InMemoryTrustRepository) {
+    throw StateError('Demo lookup needs the in-memory repository.');
+  }
+  return InMemoryLookupRepository(
+    () => repo.membersView,
+    () => repo.yojnasView,
+    repo.allDues,
+  );
+});
+
+/// The signed-in member's own record.
+final myMembershipProvider = FutureProvider<Membership>((ref) {
+  watchBackendData(ref);
+  return ref.read(repositoryProvider).fetchMyMembership();
+});
+
+/// The signed-in member's receipts, newest first.
+final myPaymentsProvider = FutureProvider<List<Payment>>((ref) {
+  watchBackendData(ref);
+  return ref.read(repositoryProvider).fetchMyPayments();
+});
+
+/// Closing groups the signed-in member still owes for.
+final myDuesProvider = FutureProvider<List<MemberDue>>((ref) {
+  watchBackendData(ref);
+  return ref.read(repositoryProvider).fetchMyDues();
+});
+
+/// The member's own closing case, once the office has opened one.
+final myClosingCaseProvider = FutureProvider<ClosingCase?>((ref) {
+  watchBackendData(ref);
+  return ref.read(repositoryProvider).fetchMyClosingCase();
+});
+
+/// Corrections the member has asked for.
+final myChangeRequestsProvider = FutureProvider<List<ChangeRequest>>((ref) {
+  watchBackendData(ref);
+  return ref.read(repositoryProvider).fetchMyChangeRequests();
+});
+
+/// Corrections waiting for an admin.
+final pendingChangeRequestsProvider =
+    FutureProvider<List<ChangeRequest>>((ref) {
+  watchBackendData(ref);
+  if (!ref.watch(currentUserProvider).isAdmin) return const <ChangeRequest>[];
+  return ref.read(repositoryProvider).fetchPendingChangeRequests();
+});
+
+/// Writes from the portal and the admin's change-request screen. Each one
+/// bumps the data revision so every dependent screen reloads.
+class PortalActions {
+  PortalActions(this.ref);
+
+  final Ref ref;
+
+  TrustRepository get _repo => ref.read(repositoryProvider);
+  void _touch() => ref.read(dataRevisionProvider.notifier).bump();
+
+  Future<void> payByUpi({
+    required double amount,
+    required String reference,
+    String? closingCaseId,
+  }) async {
+    await _repo.submitUpiPayment(
+      amount: amount,
+      reference: reference,
+      closingCaseId: closingCaseId,
+    );
+    _touch();
+  }
+
+  Future<void> requestChange(ChangeField field, String newValue) async {
+    await _repo.requestChange(field, newValue);
+    _touch();
+  }
+
+  Future<void> approveChange(String id) async {
+    await _repo.approveChangeRequest(id);
+    _touch();
+  }
+
+  Future<void> rejectChange(String id, String reason) async {
+    await _repo.rejectChangeRequest(id, reason);
+    _touch();
+  }
+}
+
+final portalActionsProvider = Provider<PortalActions>(PortalActions.new);

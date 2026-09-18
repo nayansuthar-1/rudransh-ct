@@ -926,4 +926,252 @@ class InMemoryTrustRepository implements TrustRepository {
     }
     await _delayed(null);
   }
+
+  // ---- Member portal -------------------------------------------------------
+
+  /// Which member the portal screens belong to. The real backend takes this
+  /// from the session; demo mode and tests set it, or fall back to the first
+  /// active member so the screens have something to show.
+  String? portalMemberId;
+
+  /// Live views for [InMemoryLookupRepository], which needs the records
+  /// without awaiting the fake latency.
+  List<Member> get membersView => List.unmodifiable(_members);
+  List<Yojna> get yojnasView => List.unmodifiable(_yojnas);
+
+  final List<ChangeRequest> _changeRequests = [];
+
+  Member get _portalMember {
+    final id = portalMemberId;
+    final found = id == null
+        ? _members.where((m) => m.status == MemberStatus.active).firstOrNull
+        : _members.where((m) => m.id == id).firstOrNull;
+    if (found == null) {
+      throw const RepositoryException('Only a member can do this.');
+    }
+    return found;
+  }
+
+  @override
+  Future<Membership> fetchMyMembership() {
+    final m = _portalMember;
+    final yojna = _yojnas.firstWhere((y) => y.id == m.yojnaId);
+    final agent = _agents.where((a) => a.id == m.agentId).firstOrNull;
+    return _delayed(Membership(
+      memberId: m.id,
+      regNo: m.regNo,
+      name: m.name,
+      fatherOrHusbandName: m.fatherOrHusbandName,
+      warisName: m.warisName,
+      warisRelation: m.warisRelation,
+      primaryPhone: m.primaryPhone,
+      altPhone: m.altPhone,
+      village: m.village,
+      tehsil: m.tehsil,
+      district: m.district,
+      pincode: m.pincode,
+      yojnaId: m.yojnaId,
+      yojnaName: yojna.name,
+      contributionAmount: yojna.contributionAmount,
+      joinDate: m.joinDate,
+      status: m.status,
+      agentName: agent?.name ?? '',
+    ));
+  }
+
+  @override
+  Future<List<Payment>> fetchMyPayments({int limit = 50}) {
+    final id = _portalMember.id;
+    final mine = _payments.where((p) => p.memberId == id).toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
+    return _delayed(mine.take(limit).toList());
+  }
+
+  @override
+  Future<List<MemberDue>> fetchMyDues() {
+    final id = _portalMember.id;
+    return _delayed(
+      allDues().where((d) => d.memberId == id && d.due > 0).toList()
+        ..sort((a, b) => a.closingDate.compareTo(b.closingDate)),
+    );
+  }
+
+  @override
+  Future<ClosingCase?> fetchMyClosingCase() {
+    final id = _portalMember.id;
+    return _delayed(_closingCases.where((c) => c.memberId == id).firstOrNull);
+  }
+
+  @override
+  Future<String> submitUpiPayment({
+    required double amount,
+    required String reference,
+    String? closingCaseId,
+  }) async {
+    final m = _portalMember;
+    final ref = reference.trim();
+    if (amount <= 0) {
+      throw const RepositoryException('Enter the amount you paid.');
+    }
+    if (ref.length < 6) {
+      throw const RepositoryException(
+        'Enter the UPI reference (UTR) from your payment app.',
+      );
+    }
+    if (_payments.any((p) => p.memberId == m.id && p.reference == ref && !p.isCancelled)) {
+      throw const RepositoryException('That UPI reference is already recorded.');
+    }
+    final created = await createPayment(Payment(
+      id: '',
+      receiptNo: await nextReceiptNo(),
+      memberId: m.id,
+      yojnaId: m.yojnaId,
+      amount: amount,
+      date: DateTime.now(),
+      mode: PaymentMode.upi,
+      status: PaymentStatus.pending,
+      kind: closingCaseId == null
+          ? PaymentKind.registration
+          : PaymentKind.contribution,
+      reference: ref,
+      source: PaymentSource.member,
+      closingCaseId: closingCaseId,
+    ));
+    return created.id;
+  }
+
+  @override
+  Future<String> requestChange(ChangeField field, String newValue) async {
+    final m = _portalMember;
+    final value = newValue.trim();
+    if (value.isEmpty) {
+      throw const RepositoryException('Enter the new value.');
+    }
+    if (_changeRequests.any((r) =>
+        r.memberId == m.id &&
+        r.field == field &&
+        r.status == RequestStatus.pending)) {
+      throw const RepositoryException(
+        'A change to this detail is already waiting for the office.',
+      );
+    }
+    final id = 'chg-${_changeRequests.length + 1}';
+    _changeRequests.add(ChangeRequest(
+      id: id,
+      memberId: m.id,
+      memberName: m.name,
+      regNo: m.regNo,
+      field: field,
+      oldValue: _currentValue(m, field),
+      newValue: value,
+      createdAt: DateTime.now(),
+    ));
+    return _delayed(id);
+  }
+
+  static String _currentValue(Member m, ChangeField field) => switch (field) {
+        ChangeField.primaryPhone => m.primaryPhone,
+        ChangeField.altPhone => m.altPhone,
+        ChangeField.village => m.village,
+        ChangeField.tehsil => m.tehsil,
+        ChangeField.district => m.district,
+        ChangeField.pincode => m.pincode,
+        ChangeField.warisName => m.warisName,
+        ChangeField.warisRelation => m.warisRelation,
+        ChangeField.name => m.name,
+        ChangeField.fatherOrHusbandName => m.fatherOrHusbandName,
+      };
+
+  static Member _withValue(Member m, ChangeField field, String v) =>
+      switch (field) {
+        ChangeField.primaryPhone => m.copyWith(primaryPhone: v),
+        ChangeField.altPhone => m.copyWith(altPhone: v),
+        ChangeField.village => m.copyWith(village: v),
+        ChangeField.tehsil => m.copyWith(tehsil: v),
+        ChangeField.district => m.copyWith(district: v),
+        ChangeField.pincode => m.copyWith(pincode: v),
+        ChangeField.warisName => m.copyWith(warisName: v),
+        ChangeField.warisRelation => m.copyWith(warisRelation: v),
+        ChangeField.name => m.copyWith(name: v),
+        ChangeField.fatherOrHusbandName => m.copyWith(fatherOrHusbandName: v),
+      };
+
+  @override
+  Future<List<ChangeRequest>> fetchMyChangeRequests() {
+    final id = _portalMember.id;
+    return _delayed(
+      _changeRequests.where((r) => r.memberId == id).toList().reversed.toList(),
+    );
+  }
+
+  @override
+  Future<List<ChangeRequest>> fetchPendingChangeRequests() => _delayed(
+        _changeRequests
+            .where((r) => r.status == RequestStatus.pending)
+            .toList(),
+      );
+
+  int _pendingChangeIndex(String id) {
+    final i = _changeRequests.indexWhere(
+      (r) => r.id == id && r.status == RequestStatus.pending,
+    );
+    if (i == -1) {
+      throw const RepositoryException(
+        'This change is no longer waiting for a decision.',
+      );
+    }
+    return i;
+  }
+
+  @override
+  Future<void> approveChangeRequest(String id) async {
+    final i = _pendingChangeIndex(id);
+    final request = _changeRequests[i];
+    final m = _indexById(_members, request.memberId, (m) => m.id);
+    _members[m] = _withValue(_members[m], request.field, request.newValue);
+    _changeRequests[i] = ChangeRequest(
+      id: request.id,
+      memberId: request.memberId,
+      memberName: request.memberName,
+      regNo: request.regNo,
+      field: request.field,
+      oldValue: request.oldValue,
+      newValue: request.newValue,
+      status: RequestStatus.approved,
+      createdAt: request.createdAt,
+    );
+    _notify(
+      NotificationKind.other,
+      'Your correction was applied',
+      '${request.field.label} is now "${request.newValue}".',
+      '/me',
+    );
+    await _delayed(null);
+  }
+
+  @override
+  Future<void> rejectChangeRequest(String id, String reason) async {
+    final r = _requireReason(reason);
+    final i = _pendingChangeIndex(id);
+    final request = _changeRequests[i];
+    _changeRequests[i] = ChangeRequest(
+      id: request.id,
+      memberId: request.memberId,
+      memberName: request.memberName,
+      regNo: request.regNo,
+      field: request.field,
+      oldValue: request.oldValue,
+      newValue: request.newValue,
+      status: RequestStatus.rejected,
+      decisionNote: r,
+      createdAt: request.createdAt,
+    );
+    _notify(
+      NotificationKind.other,
+      'Your correction was not applied',
+      r,
+      '/me',
+    );
+    await _delayed(null);
+  }
 }

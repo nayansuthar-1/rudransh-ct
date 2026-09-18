@@ -26,7 +26,10 @@ Phase 17.
 | 4 | Rotate the Cloudinary API secret exposed on 18 Sep 2026 (key `728129852553546`) | Cloudinary → Settings → API Keys | Nothing in the app uses it, so nothing breaks — but the pair grants full control of the media account, including deleting every certificate |
 | 5 | Delete the test assets left in `rudransh/certificates` (three 1×1 PNGs, two stub PDFs) | Cloudinary → Assets → Media Library | Harmless clutter; would confuse a later audit of uploaded certificates |
 | 6 | Schedule the daily overdue-dues sweep with pg_cron (`docs/RUNBOOK.md` §2.1) | Supabase → SQL editor, once per project | Every other notification is a trigger and works on its own; this one never fires, so agents are never told about stale dues |
-| 7 | Run `supabase/tests/notifications_test.sql` against a real Postgres | CI does it on the next push | It was written without a local database to run it against, so it has never executed |
+| 7 | ~~Run `supabase/tests/notifications_test.sql` against a real Postgres~~ **Done 18 Sep 2026** | — | It found a real bug: `my_notifications` sorted only by `created_at`, which is identical for rows written in one transaction. Fixed |
+| 8 | Cloudflare Turnstile keys + `supabase functions deploy member_lookup --no-verify-jwt` (`docs/RUNBOOK.md` §1.7) | Cloudflare + Supabase CLI | The public lookup fails closed and returns 503. The page says so, but the feature is simply unavailable until this is done |
+| 9 | Render the Turnstile widget in the web build | `lib/features/portal/lookup_page.dart` | The page sends an empty token, so a properly configured deployment refuses every lookup. Item 8 alone is not enough |
+| 10 | `UPI_ID` and `UPI_PAYEE` repository variables | GitHub → Variables | The Pay by UPI button is hidden; members pay through their agent, which is the current behaviour anyway |
 
 ---
 
@@ -506,11 +509,19 @@ Release 1 support window (5–19 Oct) overlaps with this. Support fixes come fir
 - [ ] **Done when:** approving a payment notifies the agent within one page refresh (covered by both test files; check once on staging)
 
 #### Phase 15 — Member portal (23, 26–27 Oct, Fri, Mon–Tue, 3 days)
-- [ ] Public `/lookup`: reg no + phone + last 4 Aadhaar digits, Cloudflare Turnstile, lock after 5 failures
-- [ ] Member email-OTP login for members who have email (invited by an admin)
-- [ ] My membership, my payments, my dues, announcements, my family's closing case
-- [ ] Pay by UPI: trust QR code + UTR form (Pending)
-- [ ] Change request form (phone, address, nominee)
+> Built 18 Sep 2026: `supabase/migrations/20260921000100_member_portal.sql`, `supabase/functions/member_lookup/`, `lib/features/portal/`.
+> Decisions: the public lookup is granted to **`service_role` only** and fronted by the `member_lookup` Edge Function, which checks Turnstile first — so `anon` reaches no member data and a leaked publishable key is worthless here. Turnstile **fails closed**: without the secret the function returns 503 rather than serving records unprotected. The five-try lock counts per registration number, not per IP, because the database cannot see an IP and the number is what gets guessed. A member whose Aadhaar was never recorded (§7 leaves the column optional) is matched on registration number and phone alone. Members never write to `members`; every correction is an admin decision.
+
+- [x] Public `/lookup`, reachable signed out: reg no + phone + last 4 Aadhaar digits, five wrong tries lock that number for 15 minutes. Returns a summary only — no Aadhaar, no address, no agent
+- [x] `member_lookup` Edge Function: verifies Cloudflare Turnstile, then calls the database function as the service role
+- [x] Member screens: membership, dues, receipts, announcements (Phase 14), the member's own closing case
+- [x] Pay by UPI: the member pays in their own app and enters the UTR; it lands as a **pending** receipt an admin approves, and the same UTR twice is refused
+- [x] Change requests for phone, address, nominee and name: one pending change per field, applied by an admin, and the member is told either way
+- [x] Admin side: corrections join the Approvals queue beside members, payments and death reports
+- [x] Tests: `supabase/tests/member_portal_test.sql` (CI, 9 check groups, run against real Postgres), `test/member_portal_test.dart` (25 checks: the lookup rules including the lock, the portal rules, both screens at 390 and 1440 px, the signed-out route)
+- [ ] Member email-OTP login for the few members who have email — the invite path exists (`invite_user`, role `member`); not yet exercised end to end
+- [ ] Turnstile keys and the Edge Function deploy (`docs/RUNBOOK.md` §1.7); `UPI_ID` / `UPI_PAYEE` variables
+- [ ] Render the Turnstile widget on the web build — the page sends an empty token today, which a configured deployment refuses
 - [ ] **Done when:** a member finds their dues on a phone in under a minute
 
 #### Phase 16 — Commission, cash handover, change requests (28–30 Oct, Wed–Fri, 3 days)

@@ -5,5 +5,6 @@ export 'dues.dart';
 export 'member.dart';
 export 'notifications.dart';
 export 'payment.dart';
+export 'portal.dart';
 export 'queries.dart';
 export 'yojna.dart';

@@ -14,6 +14,8 @@ import '../../features/closing/closing_payments_page.dart';
 import '../../features/dashboard/dashboard_page.dart';
 import '../../features/members/members_page.dart';
 import '../../features/payments/payments_page.dart';
+import '../../features/portal/lookup_page.dart';
+import '../../features/portal/member_pages.dart';
 import '../../features/portal/portal_pages.dart';
 import '../../features/yojna/yojna_page.dart';
 import '../../state/auth_controller.dart';
@@ -38,6 +40,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) =>
         redirectFor(ref.read(authControllerProvider), state.matchedLocation),
     routes: [
+      GoRoute(
+        path: AppRoutes.lookup,
+        pageBuilder: (context, state) =>
+            const NoTransitionPage(child: LookupPage()),
+      ),
       GoRoute(
         path: AppRoutes.login,
         pageBuilder: (context, state) =>
@@ -84,10 +91,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
           _shellRoute(AppRoutes.memberHome, const MemberHomePage()),
-          _shellRoute(
-            AppRoutes.memberPayments,
-            const ComingSoonPage(item: AppRoutes.memberPayments),
-          ),
+          _shellRoute(AppRoutes.memberDues, const MemberDuesPage()),
+          _shellRoute(AppRoutes.memberPayments, const MemberPaymentsPage()),
           _shellRoute(
             AppRoutes.memberAnnouncements,
             const AnnouncementsPage(),
@@ -99,14 +104,21 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-/// Signed out → login. Signed in → the role's own screens only; anything
-/// else sends them to their home. While a restored session's access is being
-/// checked nothing moves, so a reload stays on the same page.
+/// Signed out → login, except the public lookup, which is the whole point of
+/// Phase 15: most members have no login and never will. Signed in → the role's
+/// own screens only; anything else sends them to their home. While a restored
+/// session's access is being checked nothing moves, so a reload stays on the
+/// same page.
 @visibleForTesting
 String? redirectFor(AuthState auth, String location) {
   final atLogin = location == AppRoutes.login;
-  if (!auth.isSignedIn) return atLogin ? null : AppRoutes.login;
+  final atLookup = location == AppRoutes.lookup;
+  if (!auth.isSignedIn) {
+    return (atLogin || atLookup) ? null : AppRoutes.login;
+  }
   if (auth.checkingAccess) return null;
+  // A signed-in person has their own screens; the public page is not for them.
+  if (atLookup) return auth.user?.role.home ?? AppRoutes.dashboard;
 
   final role = auth.user?.role ?? UserRole.member;
   if (atLogin || !role.canOpen(location)) return role.home;

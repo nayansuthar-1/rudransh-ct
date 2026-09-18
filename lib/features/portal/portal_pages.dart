@@ -6,9 +6,13 @@ import '../../core/l10n/strings.dart';
 import '../../core/router/routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/formatters.dart';
+import '../../data/models/models.dart';
 import '../../state/auth_controller.dart';
+import '../../state/providers.dart';
 import '../../widgets/app_shell.dart';
 import '../../widgets/primitives.dart';
+import 'member_pages.dart';
 
 /// Member landing page. Dues, receipts and announcements arrive in Phase 15.
 class MemberHomePage extends StatelessWidget {
@@ -26,6 +30,7 @@ class _PortalHome extends ConsumerWidget {
     final c = context.colors;
     final user = ref.watch(currentUserProvider);
     final sections = user.role.nav.skip(1).toList();
+    final isMember = user.role == UserRole.member;
 
     return PageBody(
       maxWidth: 720,
@@ -35,6 +40,12 @@ class _PortalHome extends ConsumerWidget {
           subtitle: '${S.trustName} · ${user.role.label}',
         ),
         const SizedBox(height: Space.xl),
+        if (isMember) ...[
+          const _MembershipCard(),
+          const SizedBox(height: Space.md),
+          const _CorrectionsCard(),
+          const SizedBox(height: Space.md),
+        ],
         AppCard(
           child: Column(
             children: [
@@ -74,6 +85,139 @@ class ComingSoonPage extends StatelessWidget {
         const SizedBox(height: Space.xl),
         AppCard(child: EmptyState(message: S.comingSoon, icon: nav.icon)),
       ],
+    );
+  }
+}
+
+/// The member's own record, with the details the office holds.
+class _MembershipCard extends ConsumerWidget {
+  const _MembershipCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(myMembershipProvider);
+    final m = async.value;
+
+    if (m == null && async.hasError) {
+      return AppCard(
+        child: ErrorStateView(
+          error: async.error!,
+          onRetry: () => ref.invalidate(myMembershipProvider),
+        ),
+      );
+    }
+    if (m == null) return const AppCard(child: LoadingState(height: 120));
+
+    final text = Theme.of(context).textTheme;
+    return AppCard(
+      padding: const EdgeInsets.all(Space.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  S.myMembership,
+                  style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ),
+              StatusPill(
+                m.status.label,
+                tone: m.status == MemberStatus.active
+                    ? PillTone.success
+                    : PillTone.neutral,
+              ),
+            ],
+          ),
+          const SizedBox(height: Space.sm),
+          DetailRow(label: S.lookupRegNo, value: m.regNo),
+          DetailRow(label: S.yojna, value: m.yojnaName),
+          DetailRow(label: 'Contribution', value: Fmt.money(m.contributionAmount)),
+          DetailRow(label: 'Member since', value: Fmt.date(m.joinDate)),
+          DetailRow(label: 'Phone', value: Fmt.phone(m.primaryPhone)),
+          DetailRow(label: 'Address', value: m.address),
+          DetailRow(
+            label: 'Nominee',
+            value: m.warisRelation.isEmpty
+                ? m.warisName
+                : '${m.warisName} (${m.warisRelation})',
+          ),
+          if (m.agentName.isNotEmpty)
+            DetailRow(label: 'Your agent', value: m.agentName),
+        ],
+      ),
+    );
+  }
+}
+
+/// Corrections the member has asked for, and the button to ask for one.
+class _CorrectionsCard extends ConsumerWidget {
+  const _CorrectionsCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colors;
+    final text = Theme.of(context).textTheme;
+    final items = ref.watch(myChangeRequestsProvider).value ?? const [];
+
+    return AppCard(
+      padding: const EdgeInsets.all(Space.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Wrap, not Row: the button and the heading do not fit side by side
+          // at 390 px, and the button drops below instead of overflowing.
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: Space.md,
+            children: [
+              Text(
+                S.myCorrections,
+                style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              TextButton.icon(
+                onPressed: () => showCorrectionDialog(context),
+                icon: const Icon(Icons.edit_outlined, size: 16),
+                label: const Text(S.requestCorrection),
+              ),
+            ],
+          ),
+          if (items.isEmpty)
+            Text(
+              S.noCorrections,
+              style: TextStyle(fontSize: 13, color: c.textSecondary),
+            )
+          else
+            for (final r in items) ...[
+              const SizedBox(height: Space.sm),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${r.field.label}: ${r.newValue}',
+                      style: text.bodySmall,
+                    ),
+                  ),
+                  StatusPill(
+                    r.status.label,
+                    tone: switch (r.status) {
+                      RequestStatus.approved => PillTone.success,
+                      RequestStatus.rejected => PillTone.danger,
+                      RequestStatus.pending => PillTone.warning,
+                    },
+                  ),
+                ],
+              ),
+              if (r.decisionNote.isNotEmpty)
+                Text(
+                  r.decisionNote,
+                  style: text.bodySmall?.copyWith(color: c.danger),
+                ),
+            ],
+        ],
+      ),
     );
   }
 }
