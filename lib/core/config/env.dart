@@ -10,7 +10,7 @@
 /// `CLOUDINARY_UPLOAD_PRESET`.
 ///
 /// A legacy `SUPABASE_ANON_KEY` is also accepted. Never commit real values.
-/// Without them the app runs in demo mode on in-memory seed data with login
+/// Without them the app runs in demo mode on an empty in-memory store, login
 /// bypassed.
 abstract final class Env {
   static const supabaseUrl = String.fromEnvironment('SUPABASE_URL');

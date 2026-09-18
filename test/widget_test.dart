@@ -7,10 +7,11 @@ import 'package:rudransh_ct/core/utils/formatters.dart';
 import 'package:rudransh_ct/data/models/models.dart';
 import 'package:rudransh_ct/data/repositories/in_memory_trust_repository.dart';
 import 'package:rudransh_ct/state/providers.dart';
+import 'support/seed_data.dart';
 
 /// A repository with no artificial latency so tests settle quickly.
 InMemoryTrustRepository _fastRepo() =>
-    InMemoryTrustRepository(latency: Duration.zero);
+    seededRepository();
 
 void main() {
   group('InMemoryTrustRepository', () {

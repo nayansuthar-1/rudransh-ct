@@ -447,3 +447,82 @@ class SidebarPinnedNotifier extends Notifier<bool> {
 
 final sidebarPinnedProvider =
     NotifierProvider<SidebarPinnedNotifier, bool>(SidebarPinnedNotifier.new);
+
+// ---------------------------------------------------------------------------
+// Notifications and announcements (IMPLEMENTATION_PLAN Phase 14)
+// ---------------------------------------------------------------------------
+
+/// The signed-in user's own notifications, newest first.
+///
+/// Written by database triggers, so a save anywhere in the app can add to
+/// them; [watchBackendData] refreshes the list after every write.
+class NotificationsNotifier extends AsyncNotifier<List<AppNotification>> {
+  TrustRepository get _repo => ref.read(repositoryProvider);
+
+  @override
+  Future<List<AppNotification>> build() {
+    watchBackendData(ref);
+    return _repo.fetchNotifications();
+  }
+
+  Future<void> markRead(int id) async {
+    await _repo.markNotificationRead(id);
+    await _refresh();
+  }
+
+  Future<void> markAllRead() async {
+    await _repo.markAllNotificationsRead();
+    await _refresh();
+  }
+
+  Future<void> _refresh() async {
+    state = await AsyncValue.guard(_repo.fetchNotifications);
+  }
+}
+
+final notificationsProvider =
+    AsyncNotifierProvider<NotificationsNotifier, List<AppNotification>>(
+  NotificationsNotifier.new,
+);
+
+/// Badge count on the bell. Derived from the list so marking one read updates
+/// the badge without a second round trip.
+final unreadCountProvider = Provider<int>((ref) {
+  final list = ref.watch(notificationsProvider).value ?? const <AppNotification>[];
+  return list.where((n) => n.isUnread).length;
+});
+
+/// Announcements for whoever is signed in.
+class AnnouncementsNotifier extends AsyncNotifier<List<Announcement>> {
+  TrustRepository get _repo => ref.read(repositoryProvider);
+
+  @override
+  Future<List<Announcement>> build() {
+    watchBackendData(ref);
+    return _repo.fetchAnnouncements();
+  }
+
+  /// Admins only. A null [yojnaId] posts to every Yojna.
+  Future<void> post({
+    required String title,
+    String body = '',
+    String? yojnaId,
+  }) async {
+    await _repo.postAnnouncement(title: title, body: body, yojnaId: yojnaId);
+    await _refresh();
+  }
+
+  Future<void> remove(String id) async {
+    await _repo.deleteAnnouncement(id);
+    await _refresh();
+  }
+
+  Future<void> _refresh() async {
+    state = await AsyncValue.guard(_repo.fetchAnnouncements);
+  }
+}
+
+final announcementsProvider =
+    AsyncNotifierProvider<AnnouncementsNotifier, List<Announcement>>(
+  AnnouncementsNotifier.new,
+);

@@ -9,9 +9,10 @@ import 'package:rudransh_ct/data/models/models.dart';
 import 'package:rudransh_ct/data/repositories/in_memory_trust_repository.dart';
 import 'package:rudransh_ct/data/repositories/trust_repository.dart';
 import 'package:rudransh_ct/state/providers.dart';
+import 'support/seed_data.dart';
 
 InMemoryTrustRepository _repo() =>
-    InMemoryTrustRepository(latency: Duration.zero);
+    seededRepository();
 
 /// An agent's sign-up plus its registration fee, both waiting for approval.
 Future<(Member, Payment)> _agentSubmission(InMemoryTrustRepository repo) async {

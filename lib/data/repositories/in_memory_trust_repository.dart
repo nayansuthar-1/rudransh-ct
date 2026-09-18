@@ -1,20 +1,32 @@
 import 'package:uuid/uuid.dart';
 
 import '../models/models.dart';
-import '../seed/seed_data.dart';
 import 'trust_repository.dart';
 
-/// In-memory implementation backed by [SeedData].
+/// In-memory implementation used by demo builds and widget tests.
+///
+/// It starts **empty**: a demo build shows the same blank panel a fresh
+/// Supabase project does, so every screen can be tested from zero. Tests load
+/// their own records with [loadFixture] (see `test/support/seed_data.dart`).
 ///
 /// It fakes a little network latency so loading/empty/error states in the UI
 /// are exercised the same way they will be against a real backend.
 class InMemoryTrustRepository implements TrustRepository {
-  InMemoryTrustRepository({this.latency = const Duration(milliseconds: 260)}) {
-    _agents.addAll(SeedData.agents());
-    _members.addAll(SeedData.members(_agents));
-    _closingCases.addAll(SeedData.closingCases(_members));
-    _payments.addAll(SeedData.payments(_members));
-    _yojnas.addAll(SeedData.yojnas);
+  InMemoryTrustRepository({this.latency = const Duration(milliseconds: 260)});
+
+  /// Preloads records. Test-only hook; nothing under `lib/` calls it.
+  void loadFixture({
+    List<Yojna> yojnas = const [],
+    List<Agent> agents = const [],
+    List<Member> members = const [],
+    List<ClosingCase> closingCases = const [],
+    List<Payment> payments = const [],
+  }) {
+    _yojnas.addAll(yojnas);
+    _agents.addAll(agents);
+    _members.addAll(members);
+    _closingCases.addAll(closingCases);
+    _payments.addAll(payments);
   }
 
   final Duration latency;
@@ -26,6 +38,9 @@ class InMemoryTrustRepository implements TrustRepository {
   final List<Payment> _payments = [];
   final List<ClosingCase> _closingCases = [];
   final List<ClosingRequest> _closingRequests = [];
+  final List<AppNotification> _notifications = [];
+  final List<Announcement> _announcements = [];
+  int _nextNotificationId = 1;
 
   Future<T> _delayed<T>(T value) =>
       Future.delayed(latency, () => value);
@@ -570,6 +585,14 @@ class InMemoryTrustRepository implements TrustRepository {
     }
     _payments[i] =
         _payments[i].copyWith(status: PaymentStatus.paid, rejectReason: '');
+    final p = _payments[i];
+    _notify(
+      NotificationKind.paymentApproved,
+      'Payment approved',
+      'Rs ${p.amount.toStringAsFixed(0)} from ${_memberName(p.memberId)} '
+          '(receipt ${p.receiptNo}) is approved.',
+      '/agent/collections',
+    );
     await _delayed(null);
   }
 
@@ -579,6 +602,14 @@ class InMemoryTrustRepository implements TrustRepository {
     final i = _pendingPaymentIndex(paymentId);
     _payments[i] =
         _payments[i].copyWith(status: PaymentStatus.failed, rejectReason: r);
+    final p = _payments[i];
+    _notify(
+      NotificationKind.paymentRejected,
+      'Payment rejected',
+      'Rs ${p.amount.toStringAsFixed(0)} from ${_memberName(p.memberId)} '
+          'was rejected. $r',
+      '/agent/collections',
+    );
     await _delayed(null);
   }
 
@@ -621,6 +652,12 @@ class InMemoryTrustRepository implements TrustRepository {
     for (var i = 0; i < _members.length; i++) {
       if (_members[i].agentId == fromAgentId) {
         _members[i] = _members[i].copyWith(agentId: toAgentId);
+        _notify(
+          NotificationKind.memberAssigned,
+          'A member was moved to you',
+          '${_members[i].name} is now on your list.',
+          '/agent/members',
+        );
         moved++;
       }
     }
@@ -764,6 +801,19 @@ class InMemoryTrustRepository implements TrustRepository {
       decisionNote: '',
       closingCaseId: created.id,
     );
+    _notify(
+      NotificationKind.closingApproved,
+      'Death report approved',
+      'The report for ${member.name} is approved and a closing case is open.',
+      '/agent/dues',
+    );
+    _notify(
+      NotificationKind.closingNew,
+      'New closing to collect for',
+      '${member.name} in ${yojna.name}. '
+          'Collect one contribution from each of your members.',
+      '/agent/dues',
+    );
     return created.id;
   }
 
@@ -771,8 +821,109 @@ class InMemoryTrustRepository implements TrustRepository {
   Future<void> rejectClosingRequest(String requestId, String reason) async {
     final r = _requireReason(reason);
     final i = _pendingRequestIndex(requestId);
-    _closingRequests[i] = _closingRequests[i]
-        .copyWith(status: RequestStatus.rejected, decisionNote: r);
+    final request = _closingRequests[i];
+    _closingRequests[i] =
+        request.copyWith(status: RequestStatus.rejected, decisionNote: r);
+    _notify(
+      NotificationKind.closingRejected,
+      'Death report rejected',
+      'The report for ${_memberName(request.memberId)} was rejected. $r',
+      '/agent/dues',
+    );
+    await _delayed(null);
+  }
+
+  // ---- Notifications and announcements -------------------------------------
+
+  /// Stands in for the database triggers so demo mode behaves like the real
+  /// thing: the same events produce the same lines in the panel.
+  void _notify(
+    NotificationKind kind,
+    String title,
+    String body,
+    String link,
+  ) {
+    _notifications.add(AppNotification(
+      id: _nextNotificationId++,
+      kind: kind,
+      title: title,
+      body: body,
+      link: link,
+      createdAt: DateTime.now(),
+    ));
+  }
+
+  String _memberName(String memberId) {
+    final i = _members.indexWhere((m) => m.id == memberId);
+    return i == -1 ? 'a member' : _members[i].name;
+  }
+
+  @override
+  Future<List<AppNotification>> fetchNotifications({int limit = 30}) => _delayed(
+        _notifications.reversed.take(limit).toList(),
+      );
+
+  @override
+  Future<int> fetchUnreadCount() =>
+      _delayed(_notifications.where((n) => n.isUnread).length);
+
+  @override
+  Future<void> markNotificationRead(int id) async {
+    final i = _notifications.indexWhere((n) => n.id == id);
+    if (i != -1 && _notifications[i].isUnread) {
+      _notifications[i] = _notifications[i].copyWith(readAt: DateTime.now());
+    }
+    await _delayed(null);
+  }
+
+  @override
+  Future<int> markAllNotificationsRead() async {
+    var changed = 0;
+    for (var i = 0; i < _notifications.length; i++) {
+      if (_notifications[i].isUnread) {
+        _notifications[i] = _notifications[i].copyWith(readAt: DateTime.now());
+        changed++;
+      }
+    }
+    return _delayed(changed);
+  }
+
+  @override
+  Future<List<Announcement>> fetchAnnouncements({int limit = 20}) => _delayed(
+        _announcements.reversed.take(limit).toList(),
+      );
+
+  @override
+  Future<String> postAnnouncement({
+    required String title,
+    String body = '',
+    String? yojnaId,
+  }) async {
+    final t = title.trim();
+    if (t.isEmpty) {
+      throw const RepositoryException('Give the announcement a title.');
+    }
+    final id = 'ann-${_announcements.length + 1}';
+    _announcements.add(Announcement(
+      id: id,
+      title: t,
+      body: body,
+      yojnaId: yojnaId,
+      yojnaName: yojnaId == null
+          ? ''
+          : _yojnas.firstWhere((y) => y.id == yojnaId).name,
+      publishedAt: DateTime.now(),
+    ));
+    return _delayed(id);
+  }
+
+  @override
+  Future<void> deleteAnnouncement(String id) async {
+    final before = _announcements.length;
+    _announcements.removeWhere((a) => a.id == id);
+    if (_announcements.length == before) {
+      throw const RepositoryException('That announcement is already gone.');
+    }
     await _delayed(null);
   }
 }

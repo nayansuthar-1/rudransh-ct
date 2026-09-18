@@ -6,12 +6,12 @@ import 'package:rudransh_ct/core/l10n/strings.dart';
 import 'package:rudransh_ct/core/router/app_router.dart';
 import 'package:rudransh_ct/core/router/routes.dart';
 import 'package:rudransh_ct/data/models/models.dart';
-import 'package:rudransh_ct/data/repositories/in_memory_trust_repository.dart';
 import 'package:rudransh_ct/features/agents/agents_page.dart';
 import 'package:rudransh_ct/state/auth_controller.dart';
 import 'package:rudransh_ct/state/providers.dart';
 import 'package:rudransh_ct/widgets/app_shell.dart';
 import 'package:rudransh_ct/widgets/role_shell.dart';
+import 'support/seed_data.dart';
 
 AuthState _signedIn(UserRole role, {bool checking = false}) => AuthState(
       stage: AuthStage.signedIn,
@@ -47,7 +47,7 @@ Future<ProviderContainer> _pumpAs(
     ProviderScope(
       overrides: [
         repositoryProvider.overrideWithValue(
-          InMemoryTrustRepository(latency: Duration.zero),
+          seededRepository(),
         ),
         authControllerProvider.overrideWith(() => _FixedAuth(_signedIn(role))),
       ],
@@ -154,7 +154,7 @@ void main() {
       ProviderScope(
         overrides: [
           repositoryProvider.overrideWithValue(
-            InMemoryTrustRepository(latency: Duration.zero),
+            seededRepository(),
           ),
           authControllerProvider.overrideWith(
             () => _FixedAuth(_signedIn(UserRole.owner, checking: true)),

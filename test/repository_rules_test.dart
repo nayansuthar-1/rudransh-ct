@@ -1,13 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rudransh_ct/data/repositories/in_memory_trust_repository.dart';
 import 'package:rudransh_ct/data/repositories/supabase_trust_repository.dart';
 import 'package:rudransh_ct/data/repositories/trust_repository.dart';
+import 'support/seed_data.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 
 void main() {
   group('delete rules match the database', () {
     test('a member with receipts cannot be deleted', () async {
-      final repo = InMemoryTrustRepository(latency: Duration.zero);
+      final repo = seededRepository();
       final payment = (await repo.fetchPayments()).first;
 
       await expectLater(
@@ -21,7 +21,7 @@ void main() {
     });
 
     test('a scheme with members cannot be deleted', () async {
-      final repo = InMemoryTrustRepository(latency: Duration.zero);
+      final repo = seededRepository();
       final member = (await repo.fetchMembers()).first;
 
       await expectLater(

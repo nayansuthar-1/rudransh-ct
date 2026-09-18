@@ -4,9 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rudransh_ct/app.dart';
 import 'package:rudransh_ct/core/l10n/strings.dart';
 import 'package:rudransh_ct/core/router/routes.dart';
-import 'package:rudransh_ct/data/repositories/in_memory_trust_repository.dart';
 import 'package:rudransh_ct/state/providers.dart';
 import 'package:rudransh_ct/widgets/app_sidebar.dart';
+import 'support/seed_data.dart';
 
 /// Widths that bracket every breakpoint the shell reacts to, plus the
 /// 390 / 768 / 1440 px sizes from the Phase 8 QA checklist.
@@ -34,7 +34,7 @@ Future<void> _pumpApp(
     ProviderScope(
       overrides: [
         repositoryProvider.overrideWithValue(
-          InMemoryTrustRepository(latency: Duration.zero),
+          seededRepository(),
         ),
       ],
       child: const RudranshAdminApp(),

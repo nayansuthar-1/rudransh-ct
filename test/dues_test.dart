@@ -15,6 +15,7 @@ import 'package:rudransh_ct/data/repositories/trust_repository.dart';
 import 'package:rudransh_ct/data/repositories/upload_repository.dart';
 import 'package:rudransh_ct/state/auth_controller.dart';
 import 'package:rudransh_ct/state/providers.dart';
+import 'support/seed_data.dart';
 
 /// The same closing group as `supabase/tests/dues_test.sql`, in memory.
 ///
@@ -35,7 +36,7 @@ class _Scenario {
   String get firstCase => ids['c1']!;
 
   static Future<_Scenario> build() async {
-    final base = InMemoryTrustRepository(latency: Duration.zero);
+    final base = seededRepository();
     final agents = (await base.fetchAgents()).where((a) => a.isActive).toList();
     final me = agents[0];
     final other = agents[1];

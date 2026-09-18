@@ -37,6 +37,24 @@ class S {
   static const addMember = 'Add Member';
   static const requests = 'Requests';
   static const online = 'Online';
+
+  // Notifications and announcements (Phase 14)
+  static const notifications = 'Notifications';
+  static const noNotifications = 'Nothing new';
+  static const noNotificationsHint =
+      'Approvals, new closings and moved members show up here.';
+  static const markAllRead = 'Mark all read';
+  static const announcements = 'Announcements';
+  static const announcementsSub = 'Notices for agents and members';
+  static const newAnnouncement = 'New announcement';
+  static const noAnnouncements = 'No announcements yet';
+  static const noAnnouncementsHint =
+      'Post a notice and every agent and member will see it.';
+  static const forEveryYojna = 'Every Yojna';
+  static const announcementTitle = 'Title';
+  static const announcementBody = 'Message';
+  static const post = 'Post';
+
   static const logout = 'Logout';
   static const toggleTheme = 'Toggle theme';
   static const selectYojna = 'Select Yojna';

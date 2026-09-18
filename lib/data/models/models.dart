@@ -3,6 +3,7 @@ export 'agent.dart';
 export 'closing_case.dart';
 export 'dues.dart';
 export 'member.dart';
+export 'notifications.dart';
 export 'payment.dart';
 export 'queries.dart';
 export 'yojna.dart';

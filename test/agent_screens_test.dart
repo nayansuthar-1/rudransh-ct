@@ -11,6 +11,7 @@ import 'package:rudransh_ct/data/repositories/in_memory_trust_repository.dart';
 import 'package:rudransh_ct/data/repositories/trust_repository.dart';
 import 'package:rudransh_ct/state/auth_controller.dart';
 import 'package:rudransh_ct/state/providers.dart';
+import 'support/seed_data.dart';
 
 class _AgentAuth extends AuthController {
   @override
@@ -32,7 +33,7 @@ void main() {
     late InMemoryAgentRepository agent;
 
     setUp(() {
-      base = InMemoryTrustRepository(latency: Duration.zero);
+      base = seededRepository();
       agent = InMemoryAgentRepository(base);
     });
 
@@ -131,7 +132,7 @@ void main() {
           ProviderScope(
             overrides: [
               repositoryProvider.overrideWithValue(
-                InMemoryTrustRepository(latency: Duration.zero),
+                seededRepository(),
               ),
               authControllerProvider.overrideWith(_AgentAuth.new),
             ],
@@ -159,7 +160,7 @@ void main() {
       ProviderScope(
         overrides: [
           repositoryProvider.overrideWithValue(
-            InMemoryTrustRepository(latency: Duration.zero),
+            seededRepository(),
           ),
           authControllerProvider.overrideWith(_AgentAuth.new),
         ],

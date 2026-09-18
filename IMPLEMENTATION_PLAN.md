@@ -25,6 +25,8 @@ Phase 17.
 | 3 | Confirm on staging that a test closing group's dues match a manual count | Staging | Phase 13's "done when" is unverified; `dues_test.sql` covers the logic but not the deployed data |
 | 4 | Rotate the Cloudinary API secret exposed on 18 Sep 2026 (key `728129852553546`) | Cloudinary → Settings → API Keys | Nothing in the app uses it, so nothing breaks — but the pair grants full control of the media account, including deleting every certificate |
 | 5 | Delete the test assets left in `rudransh/certificates` (three 1×1 PNGs, two stub PDFs) | Cloudinary → Assets → Media Library | Harmless clutter; would confuse a later audit of uploaded certificates |
+| 6 | Schedule the daily overdue-dues sweep with pg_cron (`docs/RUNBOOK.md` §2.1) | Supabase → SQL editor, once per project | Every other notification is a trigger and works on its own; this one never fires, so agents are never told about stale dues |
+| 7 | Run `supabase/tests/notifications_test.sql` against a real Postgres | CI does it on the next push | It was written without a local database to run it against, so it has never executed |
 
 ---
 
@@ -491,10 +493,17 @@ Release 1 support window (5–19 Oct) overlaps with this. Support fixes come fir
 **20 Oct (Tue):** Dussehra, holiday.
 
 #### Phase 14 — Notifications and announcements (21–22 Oct, Wed–Thu, 2 days)
-- [ ] `notifications` triggers: approved, rejected, new closing, member reassigned, dues overdue
-- [ ] Notification bell with unread count in the top bar, for all roles
-- [ ] Admin posts announcements (all or per Yojna); agents and members see them
-- [ ] **Done when:** approving a payment notifies the agent within one page refresh
+> Built 18 Sep 2026: `supabase/migrations/20260920000100_notifications.sql`, `lib/widgets/notifications_button.dart`, `lib/features/announcements/announcements_page.dart`.
+> Decisions: the `notifications` and `announcements` tables already existed (Phase 11), so this phase only fills and serves them. Overdue dues are **not** a trigger — nothing happens at the moment a payment becomes late — so they come from `notify_overdue_dues(days)`, run daily by pg_cron (`docs/RUNBOOK.md` §2.1). The bell and the admin Requests inbox are separate: Requests is a work queue, the bell is what the office decided. On a phone the header has no room for the bell, so it moves into the avatar menu.
+
+- [x] Triggers write notifications: payment approved / rejected (with the reason), death report approved / rejected, a new closing (every agent with an active member in that Yojna), members moved between agents (both sides). Re-saving a decided record does not notify again
+- [x] `notify_overdue_dues(p_days)` for the daily sweep: one notice per agent per closing group, and never twice to the same agent for the same group on one day
+- [x] RPCs `my_notifications`, `my_unread_count`, `mark_notification_read`, `mark_all_notifications_read`; the helpers (`notify`, `agent_user_id`, the sweep) are revoked from `authenticated`
+- [x] Notification bell with an unread badge for all roles, opening a panel that marks one or all read and follows the link; on a phone it lives in the avatar menu
+- [x] Admin posts announcements (all Yojnas or one) and deletes them; `my_announcements` shows an agent the Yojnas their members are in, a member their own, and trust-wide notices to everyone
+- [x] Tests: `supabase/tests/notifications_test.sql` (CI), `test/notifications_test.dart` (18 checks: the same events in memory, both screens at 390 and 1440 px, the phone avatar-menu path)
+- [ ] Schedule the daily job: `docs/RUNBOOK.md` §2.1, once per Supabase project
+- [ ] **Done when:** approving a payment notifies the agent within one page refresh (covered by both test files; check once on staging)
 
 #### Phase 15 — Member portal (23, 26–27 Oct, Fri, Mon–Tue, 3 days)
 - [ ] Public `/lookup`: reg no + phone + last 4 Aadhaar digits, Cloudflare Turnstile, lock after 5 failures

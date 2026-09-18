@@ -92,7 +92,6 @@ lib/
                    ├─ SupabaseTrustRepository   (real backend)
                    └─ InMemoryTrustRepository   (demo mode + tests)
                    AccessRepository, AgentRepository, UploadRepository
-    seed/          demo data (~150 members)
   state/       Riverpod providers, selectors, auth controller, agent providers
   widgets/     app shell, sidebar, top bar, role shell, responsive table, form dialogs
   features/    one folder per page (dashboard, members, agents, yojna, closing, payments,
@@ -111,7 +110,7 @@ scripts/       restore_backup.sh
 ### Key design decisions
 
 - **The app only talks to `TrustRepository`.** Swapping backends means writing one new implementation.
-- **Demo mode vs real mode** is chosen at build time: no Supabase defines → in-memory seed data and login bypassed.
+- **Demo mode vs real mode** is chosen at build time: no Supabase defines → an empty in-memory store and login bypassed.
 - **Numbers come from the database** (reg no, receipt no, agent code) via locked counters, so two users saving at once never clash. The form only shows a preview.
 - **Security lives in the database, not the UI.**
   - Owner and staff use table policies (`is_admin()`, `is_owner()`).

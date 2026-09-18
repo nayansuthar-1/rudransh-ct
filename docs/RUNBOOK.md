@@ -161,6 +161,29 @@ rename the preset and update the variable.
 Database changes: add a new file in `supabase/migrations/` (never edit an applied
 one), merge, then `supabase db push` to staging, test, and push to prod.
 
+### 2.1 Overdue dues (daily job)
+
+Most notifications come from triggers and need no setup. Overdue dues are the
+exception: nothing happens at the moment a payment becomes late, so a sweep has
+to run on a schedule. Without it agents are never told about stale dues, and
+nothing else in the app reports it.
+
+In the Supabase dashboard → SQL editor, once per project:
+
+```sql
+create extension if not exists pg_cron;
+select cron.schedule(
+  'overdue-dues', '30 3 * * *',           -- 09:00 IST
+  $$select public.notify_overdue_dues(30)$$
+);
+```
+
+It writes one notification per agent per closing group older than 30 days that
+still has unpaid members, and it will not repeat a group to the same agent on
+the same day, so a retry after a failed run is safe. Change the `30` to move
+the threshold. To check it: `select * from cron.job_run_details order by
+start_time desc limit 5;`.
+
 ---
 
 ## 3. Admins

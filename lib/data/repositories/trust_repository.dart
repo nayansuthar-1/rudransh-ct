@@ -140,4 +140,31 @@ abstract class TrustRepository {
   });
 
   Future<void> rejectClosingRequest(String requestId, String reason);
+
+  // ---- Notifications and announcements (IMPLEMENTATION_PLAN Phase 14) -------
+
+  /// The signed-in user's own notifications, newest first.
+  Future<List<AppNotification>> fetchNotifications({int limit = 30});
+
+  /// How many of them are unread. Cheap enough to poll for the badge.
+  Future<int> fetchUnreadCount();
+
+  Future<void> markNotificationRead(int id);
+
+  /// Marks every unread one read; returns how many changed.
+  Future<int> markAllNotificationsRead();
+
+  /// Announcements the signed-in user should see, newest first. Admins see
+  /// every one; agents and members see their own Yojnas and trust-wide notices.
+  Future<List<Announcement>> fetchAnnouncements({int limit = 20});
+
+  /// Admins only. A null [yojnaId] posts to every Yojna. Returns the new id.
+  Future<String> postAnnouncement({
+    required String title,
+    String body = '',
+    String? yojnaId,
+  });
+
+  /// Admins only.
+  Future<void> deleteAnnouncement(String id);
 }

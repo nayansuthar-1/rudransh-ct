@@ -64,6 +64,8 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -q -f supabase/tests/agent_work_test.sql
       - name: Dues and closing report checks
         run: psql -v ON_ERROR_STOP=1 -q -f supabase/tests/dues_test.sql
+      - name: Notification and announcement checks
+        run: psql -v ON_ERROR_STOP=1 -q -f supabase/tests/notifications_test.sql
       - name: Parallel saves get unique numbers
         run: bash supabase/tests/concurrent_numbering_test.sh
       - uses: denoland/setup-deno@v2

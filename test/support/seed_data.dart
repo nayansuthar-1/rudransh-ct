@@ -1,9 +1,13 @@
 import 'dart:math';
 
-import '../models/models.dart';
+import 'package:rudransh_ct/data/models/models.dart';
+import 'package:rudransh_ct/data/repositories/in_memory_trust_repository.dart';
 
-/// Deterministic demo dataset so the panel is usable before a backend exists.
-/// Delete this file once a real data source is wired up.
+/// Deterministic dataset for the test suite only.
+///
+/// It lives under `test/` on purpose: the app ships no sample records, so a
+/// demo build and a fresh Supabase project both start empty.
+/// Use [seededRepository] to get an [InMemoryTrustRepository] holding it.
 class SeedData {
   SeedData._();
 
@@ -256,4 +260,21 @@ class SeedData {
     result.sort((a, b) => b.date.compareTo(a.date));
     return result;
   }
+}
+
+/// An in-memory repository preloaded with the dataset above.
+InMemoryTrustRepository seededRepository({
+  Duration latency = Duration.zero,
+}) {
+  final repo = InMemoryTrustRepository(latency: latency);
+  final agents = SeedData.agents();
+  final members = SeedData.members(agents);
+  repo.loadFixture(
+    yojnas: SeedData.yojnas,
+    agents: agents,
+    members: members,
+    closingCases: SeedData.closingCases(members),
+    payments: SeedData.payments(members),
+  );
+  return repo;
 }

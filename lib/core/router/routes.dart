@@ -31,12 +31,14 @@ class AppRoutes {
   static const closing = '/closing-payments';
   static const payments = '/payments';
   static const approvals = '/approvals';
+  static const announcements = '/announcements';
 
   // Agent screens (IMPLEMENTATION_PLAN Phases 12–16).
   static const agentHome = '/agent';
   static const agentMembers = '/agent/members';
   static const agentCollections = '/agent/collections';
   static const agentDues = '/agent/dues';
+  static const agentAnnouncements = '/agent/announcements';
 
   /// One closing group: `?yojna=<id>&group=<label>`.
   static const agentDuesGroup = '/agent/dues/group';
@@ -44,6 +46,7 @@ class AppRoutes {
   // Member screens (Phase 15).
   static const memberHome = '/me';
   static const memberPayments = '/me/payments';
+  static const memberAnnouncements = '/me/announcements';
 
   static const nav = <NavItem>[
     NavItem(
@@ -94,6 +97,13 @@ class AppRoutes {
       sublabel: S.approvalsSub,
       icon: Icons.fact_check_outlined,
       activeIcon: Icons.fact_check,
+    ),
+    NavItem(
+      path: announcements,
+      label: S.announcements,
+      sublabel: S.announcementsSub,
+      icon: Icons.campaign_outlined,
+      activeIcon: Icons.campaign,
     ),
   ];
 
@@ -166,6 +176,13 @@ class AgentRoutes {
       icon: Icons.currency_rupee_outlined,
       activeIcon: Icons.currency_rupee,
     ),
+    NavItem(
+      path: AppRoutes.agentAnnouncements,
+      label: S.announcements,
+      sublabel: S.announcementsSub,
+      icon: Icons.campaign_outlined,
+      activeIcon: Icons.campaign,
+    ),
   ];
 }
 
@@ -186,6 +203,13 @@ class MemberRoutes {
       sublabel: S.myPaymentsSub,
       icon: Icons.receipt_long_outlined,
       activeIcon: Icons.receipt_long,
+    ),
+    NavItem(
+      path: AppRoutes.memberAnnouncements,
+      label: S.announcements,
+      sublabel: S.announcementsSub,
+      icon: Icons.campaign_outlined,
+      activeIcon: Icons.campaign,
     ),
   ];
 }

@@ -12,6 +12,7 @@ import '../state/auth_controller.dart';
 import '../state/providers.dart';
 import '../state/selectors.dart';
 import 'app_sidebar.dart';
+import 'notifications_button.dart';
 import 'forms/agent_form_dialog.dart';
 import 'forms/member_form_dialog.dart';
 import 'forms/payment_form_dialog.dart';
@@ -146,6 +147,7 @@ class AppTopBar extends ConsumerWidget {
             const _NewMenu(compact: false),
             const SizedBox(width: Space.md),
             const _RequestsButton(),
+            const NotificationsButton(),
             const _ThemeButton(),
             const SizedBox(width: Space.sm),
             const _AccountMenu(extended: false),
@@ -428,7 +430,8 @@ class _ThemeButton extends ConsumerWidget {
   }
 }
 
-/// Bell with a count of agent submissions waiting for approval.
+/// Inbox with a count of agent submissions waiting for approval. The bell
+/// beside it is notifications (Phase 14); this one is the admin work queue.
 class _RequestsButton extends ConsumerWidget {
   const _RequestsButton();
 
@@ -443,7 +446,7 @@ class _RequestsButton extends ConsumerWidget {
       icon: Stack(
         clipBehavior: Clip.none,
         children: [
-          const Icon(Icons.notifications_none_rounded, size: 19),
+          const Icon(Icons.inbox_outlined, size: 19),
           if (pending > 0)
             Positioned(
               right: -1,
@@ -477,6 +480,7 @@ class _AccountMenu extends ConsumerWidget {
     final c = context.colors;
     final user = ref.watch(currentUserProvider);
     final pending = ref.watch(approvalQueueProvider).value?.count ?? 0;
+    final unread = ref.watch(unreadCountProvider);
     final dark = Theme.of(context).brightness == Brightness.dark;
 
     return PopupMenuButton<int>(
@@ -492,6 +496,8 @@ class _AccountMenu extends ConsumerWidget {
             context.go(AppRoutes.approvals);
           case 2:
             ref.read(themeModeProvider.notifier).toggle();
+          case 3:
+            showNotificationsPanel(context);
         }
       },
       itemBuilder: (context) => [
@@ -522,8 +528,14 @@ class _AccountMenu extends ConsumerWidget {
           _item(
             context,
             1,
-            Icons.notifications_none_rounded,
+            Icons.inbox_outlined,
             pending == 0 ? S.requests : '${S.requests} ($pending)',
+          ),
+          _item(
+            context,
+            3,
+            Icons.notifications_none_rounded,
+            unread == 0 ? S.notifications : '${S.notifications} ($unread)',
           ),
           _item(
             context,

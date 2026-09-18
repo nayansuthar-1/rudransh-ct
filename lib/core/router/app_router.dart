@@ -7,6 +7,7 @@ import '../../data/models/models.dart';
 import '../../features/agent/agent_dues.dart';
 import '../../features/agent/agent_pages.dart';
 import '../../features/agents/agents_page.dart';
+import '../../features/announcements/announcements_page.dart';
 import '../../features/approvals/approvals_page.dart';
 import '../../features/auth/login_page.dart';
 import '../../features/closing/closing_payments_page.dart';
@@ -55,6 +56,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           _shellRoute(AppRoutes.closing, const ClosingPaymentsPage()),
           _shellRoute(AppRoutes.payments, const PaymentsPage()),
           _shellRoute(AppRoutes.approvals, const ApprovalsPage()),
+          _shellRoute(AppRoutes.announcements, const AnnouncementsPage()),
         ],
       ),
       ShellRoute(
@@ -67,6 +69,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           _shellRoute(AppRoutes.agentMembers, const AgentMembersPage()),
           _shellRoute(AppRoutes.agentCollections, const AgentCollectionsPage()),
           _shellRoute(AppRoutes.agentDues, const AgentDuesPage()),
+          _shellRoute(
+            AppRoutes.agentAnnouncements,
+            const AnnouncementsPage(),
+          ),
           GoRoute(
             path: AppRoutes.agentDuesGroup,
             pageBuilder: (context, state) => NoTransitionPage(
@@ -81,6 +87,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           _shellRoute(
             AppRoutes.memberPayments,
             const ComingSoonPage(item: AppRoutes.memberPayments),
+          ),
+          _shellRoute(
+            AppRoutes.memberAnnouncements,
+            const AnnouncementsPage(),
           ),
         ],
       ),

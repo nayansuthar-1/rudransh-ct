@@ -515,6 +515,66 @@ class SupabaseTrustRepository implements TrustRepository {
             'p_reason': reason,
           }));
 
+  // ---- Notifications and announcements (IMPLEMENTATION_PLAN Phase 14) -------
+
+  @override
+  Future<List<AppNotification>> fetchNotifications({int limit = 30}) =>
+      _guard(() async {
+        final rows = await _db.rpc(
+          'my_notifications',
+          params: {'p_limit': limit, 'p_offset': 0},
+        ) as List;
+        return [
+          for (final r in rows.cast<Map<String, dynamic>>())
+            AppNotification.fromRow(r),
+        ];
+      });
+
+  @override
+  Future<int> fetchUnreadCount() =>
+      _guard(() async => (await _db.rpc('my_unread_count') as num).toInt());
+
+  @override
+  Future<void> markNotificationRead(int id) => _guard(
+        () => _db.rpc('mark_notification_read', params: {'p_id': id}),
+      );
+
+  @override
+  Future<int> markAllNotificationsRead() => _guard(
+        () async =>
+            (await _db.rpc('mark_all_notifications_read') as num).toInt(),
+      );
+
+  @override
+  Future<List<Announcement>> fetchAnnouncements({int limit = 20}) =>
+      _guard(() async {
+        final rows = await _db.rpc(
+          'my_announcements',
+          params: {'p_limit': limit, 'p_offset': 0},
+        ) as List;
+        return [
+          for (final r in rows.cast<Map<String, dynamic>>())
+            Announcement.fromRow(r),
+        ];
+      });
+
+  @override
+  Future<String> postAnnouncement({
+    required String title,
+    String body = '',
+    String? yojnaId,
+  }) =>
+      _guard(() async => await _db.rpc('post_announcement', params: {
+            'p_title': title,
+            'p_body': body,
+            'p_yojna_id': yojnaId,
+          }) as String);
+
+  @override
+  Future<void> deleteAnnouncement(String id) => _guard(
+        () => _db.rpc('delete_announcement', params: {'p_id': id}),
+      );
+
   /// A `member_dues` row, or an `agent_dues` row with member details.
   static MemberDue memberDueFromRow(Map<String, dynamic> r) => MemberDue(
         memberId: r['member_id'] as String,

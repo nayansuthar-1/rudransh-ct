@@ -7,9 +7,10 @@ import 'package:rudransh_ct/data/models/models.dart';
 import 'package:rudransh_ct/data/repositories/in_memory_trust_repository.dart';
 import 'package:rudransh_ct/state/providers.dart';
 import 'package:rudransh_ct/state/selectors.dart';
+import 'support/seed_data.dart';
 
 InMemoryTrustRepository _repo() =>
-    InMemoryTrustRepository(latency: Duration.zero);
+    seededRepository();
 
 void main() {
   group('paged repository queries', () {

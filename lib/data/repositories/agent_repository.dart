@@ -419,9 +419,13 @@ class InMemoryAgentRepository implements AgentRepository {
 
   Future<Agent> _me() async {
     final agents = await _base.fetchAgents();
-    return agents.firstWhere(
-      (a) => a.id == agentId,
-      orElse: () => agents.firstWhere((a) => a.isActive),
+    final mine = agents.where((a) => a.id == agentId);
+    if (mine.isNotEmpty) return mine.first;
+    final active = agents.where((a) => a.isActive);
+    if (active.isNotEmpty) return active.first;
+    // A demo build starts with no records at all.
+    throw const RepositoryException(
+      'No agent record yet. Add an agent from the admin screens first.',
     );
   }
 
