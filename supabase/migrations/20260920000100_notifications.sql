@@ -244,7 +244,9 @@ language sql stable security definer set search_path = '' as $$
   select n.id, n.type, n.title, n.body, n.link, n.read_at, n.created_at
     from public.notifications n
    where n.user_id = (select auth.uid())
-   order by n.created_at desc
+   -- `id` breaks the tie: everything written in one transaction shares a
+   -- `created_at`, so ordering by the timestamp alone is not stable.
+   order by n.created_at desc, n.id desc
    limit greatest(1, least(p_limit, 100)) offset greatest(0, p_offset);
 $$;
 

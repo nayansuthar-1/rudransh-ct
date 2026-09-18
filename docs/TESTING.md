@@ -22,7 +22,7 @@ width.
 ```bash
 # Staging, locally
 flutter run -d chrome \
-  --dart-define=SUPABASE_URL=https://gyzxvtqmzrabjyexqeno.supabase.co \
+  --dart-define=SUPABASE_URL=https://<staging-ref>.supabase.co \
   --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_... \
   --dart-define=CLOUDINARY_CLOUD_NAME=n9mgnr8s \
   --dart-define=CLOUDINARY_UPLOAD_PRESET=rudransh_certificates
@@ -44,7 +44,7 @@ Supabase project too, run [`scripts/reset_data.sql`](../scripts/reset_data.sql)
    and Phase 13 (`20260919000100_dues.sql`) are in the repo; check they are on
    the project, or the bell and the dues tab will error.
    ```bash
-   supabase link --project-ref gyzxvtqmzrabjyexqeno
+   supabase link --project-ref <staging-ref>
    supabase db push
    supabase functions deploy invite_user
    ```
@@ -54,8 +54,8 @@ Supabase project too, run [`scripts/reset_data.sql`](../scripts/reset_data.sql)
    - **owner** — you; already an owner if you were an admin before the roles migration
    - **staff** — invite in Supabase → Authentication → Users, then
      `insert into public.profiles (user_id, role, name, email) select id, 'staff', 'Test Staff', email from auth.users where email = '…';`
-   - **agent** — created from inside the app (see §5, step 1)
-   - **member** — no UI for this yet; see §6
+   - **agent** — create the agent record in the app, then invite them (§4.2)
+   - **member** — no invite button in the app yet; see §7
 4. Use four browser profiles or windows, one per role. Signing in as another
    role in the same window replaces the session.
 
@@ -161,7 +161,11 @@ pending members must not be counted** — only Paid and Active.
 ## 5. Staff admin — daily work, no deletes
 
 Sign in as staff. Same screens as the owner, minus the owner-only powers.
-The point of this pass is what staff **cannot** do:
+The point of this pass is what staff **cannot** do. The table below is the
+agreed permission set from IMPLEMENTATION_PLAN §11.3, i.e. what *should*
+happen. Access is enforced in the database first, so a gap here is usually a
+screen that still shows a button the database will refuse — worth reporting,
+but not the same class of bug as data actually changing.
 
 | Check | Expected |
 | --- | --- |
@@ -255,7 +259,7 @@ There is also **no invite-a-member button** in the app. To get a member login
 for testing you have to call the edge function yourself:
 
 ```bash
-curl -X POST https://gyzxvtqmzrabjyexqeno.supabase.co/functions/v1/invite_user \
+curl -X POST https://<staging-ref>.supabase.co/functions/v1/invite_user \
   -H "Authorization: Bearer <owner access token>" \
   -H "Content-Type: application/json" \
   -d '{"role":"member","email":"test.member@example.com","member_id":"<members.id>"}'
