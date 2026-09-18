@@ -6,6 +6,9 @@
 ///   --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 /// ```
 ///
+/// Certificate uploads also need `CLOUDINARY_CLOUD_NAME` and
+/// `CLOUDINARY_UPLOAD_PRESET`.
+///
 /// A legacy `SUPABASE_ANON_KEY` is also accepted. Never commit real values.
 /// Without them the app runs in demo mode on in-memory seed data with login
 /// bypassed.
@@ -24,6 +27,17 @@ abstract final class Env {
       supabaseUrl.isNotEmpty && supabaseKey.isNotEmpty;
 
   static bool get demoMode => !hasSupabase;
+
+  /// Cloudinary account and unsigned upload preset for death certificates
+  /// (IMPLEMENTATION_PLAN Phase 13). Public values; the preset limits what
+  /// can be uploaded. See docs/RUNBOOK.md.
+  static const cloudinaryCloudName =
+      String.fromEnvironment('CLOUDINARY_CLOUD_NAME');
+  static const cloudinaryUploadPreset =
+      String.fromEnvironment('CLOUDINARY_UPLOAD_PRESET');
+
+  static bool get hasCloudinary =>
+      cloudinaryCloudName.isNotEmpty && cloudinaryUploadPreset.isNotEmpty;
 
   /// Demo mode only: which screens to open without a login, to preview them.
   /// `owner` (default), `staff`, `agent` or `member`:

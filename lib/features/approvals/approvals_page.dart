@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/validators.dart';
 import '../../data/models/models.dart';
 import '../../state/auth_controller.dart';
 import '../../state/providers.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_shell.dart';
+import '../../widgets/inputs.dart';
 import '../../widgets/primitives.dart';
 
 /// What agents submitted and an admin must decide on
@@ -58,6 +61,12 @@ class ApprovalsPage extends ConsumerWidget {
                   payment: p,
                   member: queue.payments.members[p.memberId],
                 ),
+            ],
+          ),
+          _Section(
+            title: S.deathReports,
+            children: [
+              for (final r in queue.deathReports) _DeathReportRow(report: r),
             ],
           ),
           _Section(
@@ -345,3 +354,178 @@ class _CancelRequestRow extends ConsumerWidget {
     );
   }
 }
+
+class _DeathReportRow extends ConsumerWidget {
+  const _DeathReportRow({required this.report});
+
+  final ClosingRequest report;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final r = report;
+    final yojna = ref.watch(yojnaByIdProvider)[r.yojnaId];
+    final actions = ref.read(approvalActionsProvider);
+
+    return _QueueRow(
+      title: [r.memberName, r.memberRegNo].where((s) => s.isNotEmpty).join(' · '),
+      lines: [
+        [yojna?.name ?? '', '${S.dateOfDeath}: ${Fmt.date(r.dateOfDeath)}']
+            .where((s) => s.isNotEmpty)
+            .join(' · '),
+        if (r.nomineeName.isNotEmpty)
+          'Nominee: ${r.nomineeName}'
+              '${r.nomineeRelation.isEmpty ? '' : ' (${r.nomineeRelation})'}',
+        _agentLine(ref, r.agentId),
+        if (r.remarks.isNotEmpty) 'Remarks: ${r.remarks}',
+      ],
+      actions: [
+        TextButton.icon(
+          onPressed: () => launchUrl(
+            Uri.parse(r.certificateUrl),
+            mode: LaunchMode.externalApplication,
+          ),
+          icon: const Icon(Icons.open_in_new_rounded, size: 16),
+          label: const Text(S.deathCertificate),
+        ),
+        OutlinedButton(
+          onPressed: () async {
+            final reason = await reasonDialog(
+              context,
+              title: 'Reject the report for ${r.memberName}?',
+              message: 'The member stays active. The agent sees your reason.',
+            );
+            if (reason == null || !context.mounted) return;
+            await runWithToast(
+              context,
+              () => actions.rejectDeathReport(r.id, reason),
+              success: 'Report rejected',
+            );
+          },
+          child: const Text(S.reject),
+        ),
+        FilledButton(
+          onPressed: () => AppDialog.show<void>(
+            context: context,
+            builder: (_) => _CreateClosingDialog(report: r),
+          ),
+          child: const Text(S.createClosing),
+        ),
+      ],
+    );
+  }
+}
+
+/// Approves a death report: asks for the closing group and claim amount.
+class _CreateClosingDialog extends ConsumerStatefulWidget {
+  const _CreateClosingDialog({required this.report});
+
+  final ClosingRequest report;
+
+  @override
+  ConsumerState<_CreateClosingDialog> createState() =>
+      _CreateClosingDialogState();
+}
+
+class _CreateClosingDialogState extends ConsumerState<_CreateClosingDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _group;
+  late final TextEditingController _claim;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final r = widget.report;
+    // Suggest the newest group in the same Yojna.
+    final cases = (ref.read(closingCasesProvider).value ?? const <ClosingCase>[])
+        .where((c) => c.yojnaId == r.yojnaId && c.closingGroup.isNotEmpty)
+        .toList()
+      ..sort((a, b) => b.closingDate.compareTo(a.closingDate));
+    _group = TextEditingController(text: cases.firstOrNull?.closingGroup ?? '');
+    final claim = ref.read(yojnaByIdProvider)[r.yojnaId]?.claimAmount;
+    _claim = TextEditingController(
+      text: claim == null ? '' : claim.toStringAsFixed(0),
+    );
+  }
+
+  @override
+  void dispose() {
+    _group.dispose();
+    _claim.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() => _saving = true);
+    try {
+      await ref.read(approvalActionsProvider).approveDeathReport(
+            widget.report.id,
+            closingGroup: _group.text.trim(),
+            claimAmount: double.tryParse(_claim.text.replaceAll(',', '').trim()),
+          );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      showToast(context, 'Closing created for ${widget.report.memberName}');
+    } catch (e) {
+      if (mounted) showToast(context, '$e', error: true);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final r = widget.report;
+    return AppDialog(
+      title: S.createClosing,
+      subtitle: '${r.memberName} · ${S.dateOfDeath} ${Fmt.date(r.dateOfDeath)}',
+      maxWidth: 560,
+      actions: [
+        OutlinedButton(
+          onPressed: _saving ? null : () => Navigator.of(context).pop(),
+          child: const Text(S.cancel),
+        ),
+        FilledButton(
+          onPressed: _saving ? null : _submit,
+          child: _saving ? const ButtonSpinner() : const Text(S.createClosing),
+        ),
+      ],
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'The member is marked Closed. Every active member of the Yojna '
+              'who joined before this date owes a contribution for the group.',
+              style: TextStyle(fontSize: 13, color: context.colors.textSecondary),
+            ),
+            const SizedBox(height: Space.lg),
+            FormGrid(
+              columnsOverride: MediaQuery.sizeOf(context).width < 680 ? 1 : 2,
+              items: [
+                GridItem(AppTextField(
+                  label: S.closingGroup,
+                  controller: _group,
+                  required: true,
+                  hint: 'Group-14',
+                  validator: V.required,
+                )),
+                GridItem(AppTextField(
+                  label: '${S.claimAmount} (₹)',
+                  controller: _claim,
+                  required: true,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: Fmts.amount(),
+                  validator: V.required,
+                )),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

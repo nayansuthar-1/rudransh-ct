@@ -1,3 +1,5 @@
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,10 +9,13 @@ import '../../core/theme/app_theme.dart';
 import '../../core/responsive/breakpoints.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/validators.dart';
+import '../../core/utils/whatsapp.dart';
 import '../../data/models/models.dart';
+import '../../data/repositories/upload_repository.dart';
 import '../../state/agent_providers.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/inputs.dart';
+import '../../widgets/primitives.dart';
 
 // ---------------------------------------------------------------------------
 // Add member
@@ -358,16 +363,23 @@ class _ContactFormState extends ConsumerState<_ContactForm> {
 // Record payment
 // ---------------------------------------------------------------------------
 
-Future<void> showAgentPaymentForm(BuildContext context, {Member? member}) =>
+/// [closingCaseId] preselects the closing a contribution is for.
+Future<void> showAgentPaymentForm(
+  BuildContext context, {
+  Member? member,
+  String? closingCaseId,
+}) =>
     AppDialog.show<void>(
       context: context,
-      builder: (_) => _AgentPaymentForm(preset: member),
+      builder: (_) =>
+          _AgentPaymentForm(preset: member, presetClosingId: closingCaseId),
     );
 
 class _AgentPaymentForm extends ConsumerStatefulWidget {
-  const _AgentPaymentForm({this.preset});
+  const _AgentPaymentForm({this.preset, this.presetClosingId});
 
   final Member? preset;
+  final String? presetClosingId;
 
   @override
   ConsumerState<_AgentPaymentForm> createState() => _AgentPaymentFormState();
@@ -388,6 +400,10 @@ class _AgentPaymentFormState extends ConsumerState<_AgentPaymentForm> {
   String _search = '';
   List<Member> _results = const [];
 
+  /// Closings the member still owes for; null until loaded.
+  List<MemberDue>? _dues;
+  late String? _closingId = widget.presetClosingId;
+
   static PaymentKind _defaultKind(Member? m) =>
       m != null && m.status != MemberStatus.active
           ? PaymentKind.registration
@@ -396,7 +412,10 @@ class _AgentPaymentFormState extends ConsumerState<_AgentPaymentForm> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _prefillAmount());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _prefillAmount();
+      _loadDues();
+    });
   }
 
   @override
@@ -417,6 +436,42 @@ class _AgentPaymentFormState extends ConsumerState<_AgentPaymentForm> {
         ? yojna.registrationFee
         : yojna.contributionAmount;
     if (amount > 0) _amount.text = amount.toStringAsFixed(0);
+    final due = _selectedDue;
+    if (due != null && due.toCollect > 0) {
+      _amount.text = due.toCollect.toStringAsFixed(0);
+    }
+  }
+
+  MemberDue? get _selectedDue =>
+      _dues?.where((d) => d.closingCaseId == _closingId).firstOrNull;
+
+  /// Only still-open closings can be picked.
+  List<MemberDue> get _openDues =>
+      (_dues ?? const <MemberDue>[]).where((d) => d.toCollect > 0).toList();
+
+  bool get _showsClosing =>
+      _kind == PaymentKind.contribution &&
+      _member?.status == MemberStatus.active;
+
+  /// Picks the oldest closing still to collect, unless one was preset.
+  Future<void> _loadDues() async {
+    final member = _member;
+    if (member == null || member.status != MemberStatus.active) return;
+    try {
+      final dues = await ref.read(agentActionsProvider).memberDues(member.id);
+      if (!mounted || _member?.id != member.id) return;
+      setState(() {
+        _dues = dues;
+        final open = _openDues;
+        if (!open.any((d) => d.closingCaseId == _closingId)) {
+          _closingId = open.firstOrNull?.closingCaseId;
+        }
+      });
+      _prefillAmount();
+    } catch (_) {
+      // The form still works without a closing; saving reports real errors.
+      if (mounted) setState(() => _dues = const []);
+    }
   }
 
   Future<void> _find(String text) async {
@@ -438,8 +493,11 @@ class _AgentPaymentFormState extends ConsumerState<_AgentPaymentForm> {
       _member = m;
       _kind = _defaultKind(m);
       _results = const [];
+      _dues = null;
+      _closingId = null;
     });
     _prefillAmount();
+    _loadDues();
   }
 
   Future<void> _submit() async {
@@ -450,26 +508,36 @@ class _AgentPaymentFormState extends ConsumerState<_AgentPaymentForm> {
     }
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _saving = true);
+    final closing = _showsClosing ? _selectedDue : null;
+    final payment = Payment(
+      id: '',
+      receiptNo: '',
+      memberId: member.id,
+      yojnaId: member.yojnaId,
+      amount: double.parse(_amount.text.replaceAll(',', '').trim()),
+      date: _date,
+      mode: _mode,
+      kind: _kind,
+      status: PaymentStatus.pending,
+      reference: _reference.text.trim(),
+      note: _note.text.trim(),
+      closingCaseId: closing?.closingCaseId,
+      closingGroup: closing?.closingGroup ?? '',
+      source: PaymentSource.agent,
+    );
     try {
-      final receiptNo = await ref.read(agentActionsProvider).recordPayment(
-            Payment(
-              id: '',
-              receiptNo: '',
-              memberId: member.id,
-              yojnaId: member.yojnaId,
-              amount: double.parse(_amount.text.replaceAll(',', '').trim()),
-              date: _date,
-              mode: _mode,
-              kind: _kind,
-              status: PaymentStatus.pending,
-              reference: _reference.text.trim(),
-              note: _note.text.trim(),
-              source: PaymentSource.agent,
-            ),
-          );
+      final receiptNo =
+          await ref.read(agentActionsProvider).recordPayment(payment);
       if (!mounted) return;
-      Navigator.of(context).pop();
-      showToast(context, 'Saved · $receiptNo · waiting for approval');
+      final navigator = Navigator.of(context);
+      final outer = navigator.context;
+      navigator.pop();
+      if (!outer.mounted) return;
+      showReceiptSaved(
+        outer,
+        member: member,
+        payment: payment.copyWith(receiptNo: receiptNo),
+      );
     } catch (e) {
       if (mounted) showToast(context, '$e', error: true);
     } finally {
@@ -559,6 +627,26 @@ class _AgentPaymentFormState extends ConsumerState<_AgentPaymentForm> {
                     _prefillAmount();
                   },
                 )),
+                if (_showsClosing && _dues != null)
+                  GridItem(AppDropdown<String>(
+                    key: ValueKey('closing-${member?.id}-${_dues!.length}'),
+                    label: S.forClosing,
+                    value: _closingId,
+                    items: [for (final d in _openDues) d.closingCaseId],
+                    itemLabel: (id) {
+                      final d = _openDues.firstWhere((d) => d.closingCaseId == id);
+                      return '${d.closingGroup} · ${Fmt.date(d.closingDate)} · '
+                          '${Fmt.money(d.toCollect)}';
+                    },
+                    includeAllOption: true,
+                    allLabel: _openDues.isEmpty
+                        ? 'Nothing due'
+                        : S.notForClosing,
+                    onChanged: (v) {
+                      setState(() => _closingId = v);
+                      _prefillAmount();
+                    },
+                  )),
                 GridItem(AppTextField(
                   label: S.amount,
                   controller: _amount,
@@ -597,3 +685,257 @@ class _AgentPaymentFormState extends ConsumerState<_AgentPaymentForm> {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// WhatsApp
+// ---------------------------------------------------------------------------
+
+/// Opens WhatsApp with [text] for [phone], or says why it can't.
+Future<void> sendOnWhatsApp(
+  BuildContext context, {
+  required String phone,
+  required String text,
+}) async {
+  final uri = WhatsApp.link(phone, text);
+  if (uri == null) {
+    showToast(context, S.noPhone, error: true);
+    return;
+  }
+  final opened = await WhatsApp.open(uri);
+  if (!opened && context.mounted) {
+    showToast(context, S.whatsAppFailed, error: true);
+  }
+}
+
+/// After recording a payment: the receipt number, and sending it to the member.
+Future<void> showReceiptSaved(
+  BuildContext context, {
+  required Member member,
+  required Payment payment,
+}) =>
+    AppDialog.show<void>(
+      context: context,
+      builder: (dialogContext) => AppDialog(
+        title: 'Receipt ${payment.receiptNo}',
+        subtitle: 'Saved · waiting for approval',
+        maxWidth: 480,
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Close'),
+          ),
+          FilledButton.icon(
+            onPressed: () => sendOnWhatsApp(
+              dialogContext,
+              phone: member.primaryPhone,
+              text: WhatsApp.receiptMessage(
+                memberName: member.name,
+                payment: payment,
+              ),
+            ),
+            icon: const Icon(Icons.chat_outlined, size: 17),
+            label: const Text(S.shareReceipt),
+          ),
+        ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DetailRow(label: 'Member', value: member.name),
+            DetailRow(label: S.amount, value: Fmt.money(payment.amount)),
+            DetailRow(label: 'Type', value: payment.kind.label),
+            if (payment.closingGroup.isNotEmpty)
+              DetailRow(label: S.forClosing, value: payment.closingGroup),
+          ],
+        ),
+      ),
+    );
+
+// ---------------------------------------------------------------------------
+// Report death
+// ---------------------------------------------------------------------------
+
+Future<void> showDeathReportForm(BuildContext context, Member member) =>
+    AppDialog.show<void>(
+      context: context,
+      builder: (_) => _DeathReportForm(member: member),
+    );
+
+class _DeathReportForm extends ConsumerStatefulWidget {
+  const _DeathReportForm({required this.member});
+
+  final Member member;
+
+  @override
+  ConsumerState<_DeathReportForm> createState() => _DeathReportFormState();
+}
+
+class _DeathReportFormState extends ConsumerState<_DeathReportForm> {
+  final _formKey = GlobalKey<FormState>();
+  late final _nominee = TextEditingController(text: widget.member.warisName);
+  late final _relation =
+      TextEditingController(text: widget.member.warisRelation);
+  final _remarks = TextEditingController();
+
+  DateTime _dateOfDeath = DateTime.now();
+  String? _fileName;
+  Uint8List? _bytes;
+  bool _saving = false;
+  String _progress = '';
+
+  @override
+  void dispose() {
+    _nominee.dispose();
+    _relation.dispose();
+    _remarks.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickCertificate() async {
+    try {
+      final file = await FilePicker.pickFile(
+        type: FileType.custom,
+        allowedExtensions: CertificateUploader.allowedExtensions,
+      );
+      if (file == null) return;
+      final bytes = await file.readAsBytes();
+      CertificateUploader.check(bytes.length, file.name);
+      if (mounted) {
+        setState(() {
+          _fileName = file.name;
+          _bytes = bytes;
+        });
+      }
+    } catch (e) {
+      if (mounted) showToast(context, '$e', error: true);
+    }
+  }
+
+  Future<void> _submit() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    final bytes = _bytes;
+    final fileName = _fileName;
+    if (bytes == null || fileName == null) {
+      showToast(context, 'Choose the death certificate', error: true);
+      return;
+    }
+    final actions = ref.read(agentActionsProvider);
+    setState(() {
+      _saving = true;
+      _progress = 'Uploading certificate…';
+    });
+    try {
+      final url = await actions.uploadCertificate(bytes, fileName);
+      if (mounted) setState(() => _progress = 'Sending to the office…');
+      await actions.reportDeath(
+        ClosingRequest(
+          id: '',
+          memberId: widget.member.id,
+          dateOfDeath: _dateOfDeath,
+          nomineeName: _nominee.text.trim(),
+          nomineeRelation: _relation.text.trim(),
+          certificateUrl: url,
+          remarks: _remarks.text.trim(),
+        ),
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      showToast(context, 'Reported · the office will verify it');
+    } catch (e) {
+      if (mounted) showToast(context, '$e', error: true);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _progress = '';
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final m = widget.member;
+
+    return AppDialog(
+      title: S.reportDeath,
+      subtitle: '${m.name}${m.regNo.isEmpty ? '' : ' · ${m.regNo}'}',
+      maxWidth: 640,
+      actions: [
+        OutlinedButton(
+          onPressed: _saving ? null : () => Navigator.of(context).pop(),
+          child: const Text(S.cancel),
+        ),
+        FilledButton(
+          onPressed: _saving ? null : _submit,
+          child: _saving ? const ButtonSpinner() : const Text('Send to office'),
+        ),
+      ],
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'The office checks the certificate and opens the closing. '
+              'Members start paying dues after that.',
+              style: TextStyle(fontSize: 13, color: c.textSecondary),
+            ),
+            const SizedBox(height: Space.lg),
+            FormGrid(
+              columnsOverride: context.isMobile ? 1 : 2,
+              items: [
+                GridItem(AppDateField(
+                  label: S.dateOfDeath,
+                  required: true,
+                  value: _dateOfDeath,
+                  firstDate: m.joinDate,
+                  lastDate: DateTime.now(),
+                  onChanged: (d) => setState(() => _dateOfDeath = d),
+                )),
+                GridItem(AppTextField(
+                  label: S.fldWaris,
+                  controller: _nominee,
+                  required: true,
+                  validator: V.required,
+                )),
+                GridItem(AppTextField(
+                  label: S.fldWarisRelation,
+                  controller: _relation,
+                  required: true,
+                  validator: V.required,
+                )),
+                GridItem(AppTextField(label: 'Remarks', controller: _remarks)),
+              ],
+            ),
+            const SizedBox(height: Space.lg),
+            FieldLabel(S.deathCertificate, required: true),
+            Wrap(
+              spacing: Space.md,
+              runSpacing: Space.sm,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _saving ? null : _pickCertificate,
+                  icon: const Icon(Icons.upload_file_rounded, size: 17),
+                  label: Text(_fileName == null ? 'Choose photo or PDF' : 'Change'),
+                ),
+                Text(
+                  _fileName == null
+                      ? 'JPG, PNG or PDF, up to 10 MB'
+                      : '$_fileName · ${(_bytes!.length / 1024).ceil()} KB',
+                  style: TextStyle(fontSize: 13, color: c.textSecondary),
+                ),
+              ],
+            ),
+            if (_progress.isNotEmpty) ...[
+              const SizedBox(height: Space.md),
+              Text(_progress, style: TextStyle(fontSize: 13, color: c.textMuted)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+

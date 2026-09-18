@@ -49,6 +49,10 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
   String? _agentId;
   bool _saving = false;
 
+  /// Closings the member owes (or owed) a contribution for; null until loaded.
+  List<MemberDue>? _dues;
+  String? _closingCaseId;
+
   bool get _isEdit => widget.existing != null;
 
   @override
@@ -66,7 +70,36 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
     _date = p?.date ?? DateTime.now();
     _agentId = p?.agentId ?? widget.presetMember?.agentId;
     _member = widget.presetMember;
+    _closingCaseId = p?.closingCaseId;
     if (p != null && _member == null) _loadMember(p.memberId);
+    if (_member != null) _loadDues(_member!.id);
+  }
+
+  Future<void> _loadDues(String memberId) async {
+    try {
+      final dues = await ref.read(paymentActionsProvider).memberDues(memberId);
+      if (mounted && _member?.id == memberId) setState(() => _dues = dues);
+    } catch (_) {
+      // Without the list the payment is saved without a closing link.
+      if (mounted) setState(() => _dues = const []);
+    }
+  }
+
+  bool get _showsClosing =>
+      _kind == PaymentKind.contribution &&
+      _dues != null &&
+      (_dues!.isNotEmpty || _closingCaseId != null);
+
+  String _closingLabel(String id) {
+    final due = _dues?.where((d) => d.closingCaseId == id).firstOrNull;
+    if (due == null) {
+      final linked = (ref.read(closingCasesProvider).value ?? const <ClosingCase>[])
+          .where((c) => c.id == id)
+          .firstOrNull;
+      return linked == null ? 'Linked closing' : linked.closingGroup;
+    }
+    final state = due.due <= 0 ? 'paid' : '${Fmt.money(due.due)} due';
+    return '${due.closingGroup} · ${Fmt.date(due.closingDate)} · $state';
   }
 
   Future<void> _loadMember(String id) async {
@@ -74,6 +107,7 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
       final found = await ref.read(repositoryProvider).fetchMembersByIds([id]);
       if (mounted && found.isNotEmpty && _member == null) {
         setState(() => _member = found.first);
+        _loadDues(id);
       }
     } catch (_) {
       // The picker stays empty; the admin can search for the member.
@@ -94,6 +128,8 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
     setState(() {
       _member = member;
       _agentId = member.agentId;
+      _dues = null;
+      _closingCaseId = null;
       if (_amount.text.trim().isEmpty && yojna != null) {
         _amount.text = (_kind == PaymentKind.registration
                 ? yojna.registrationFee
@@ -114,6 +150,7 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
     setState(() => _saving = true);
     final notifier = ref.read(paymentActionsProvider);
     final amount = double.tryParse(_amount.text.replaceAll(',', '').trim()) ?? 0;
+    final closingId = _kind == PaymentKind.contribution ? _closingCaseId : null;
 
     try {
       if (_isEdit) {
@@ -130,6 +167,8 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
             clearAgent: _agentId == null,
             reference: _reference.text.trim(),
             note: _note.text.trim(),
+            closingCaseId: closingId,
+            clearClosing: closingId == null,
           ),
         );
       } else {
@@ -148,6 +187,7 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
             agentId: _agentId,
             reference: _reference.text.trim(),
             note: _note.text.trim(),
+            closingCaseId: closingId,
           ),
         );
       }
@@ -194,7 +234,11 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
               search: (text) => ref.read(memberActionsProvider).search(text),
               selected: _member,
               onSelected: _onMemberPicked,
-              onCleared: () => setState(() => _member = null),
+              onCleared: () => setState(() {
+                _member = null;
+                _dues = null;
+                _closingCaseId = null;
+              }),
             ),
             if (yojna != null) ...[
               const SizedBox(height: 8),
@@ -217,6 +261,24 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
                     onChanged: (v) => setState(() => _kind = v ?? _kind),
                   ),
                 ),
+                if (_showsClosing)
+                  GridItem(
+                    AppDropdown<String>(
+                      key: ValueKey('closing-${_member?.id}-${_dues!.length}'),
+                      label: S.forClosing,
+                      value: _closingCaseId,
+                      items: [
+                        for (final d in _dues!) d.closingCaseId,
+                        if (_closingCaseId != null &&
+                            !_dues!.any((d) => d.closingCaseId == _closingCaseId))
+                          _closingCaseId!,
+                      ],
+                      itemLabel: _closingLabel,
+                      includeAllOption: true,
+                      allLabel: S.notForClosing,
+                      onChanged: (v) => setState(() => _closingCaseId = v),
+                    ),
+                  ),
                 GridItem(
                   AppTextField(
                     label: '${S.amount} (₹)',

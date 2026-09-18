@@ -107,9 +107,46 @@ Settings → Secrets and variables → Actions.
 
 Optional variable `CLOUDFLARE_PAGES_PROJECT` if the Pages project has another name.
 
+Variables (not secrets; they end up in the browser): `CLOUDINARY_CLOUD_NAME` and
+`CLOUDINARY_UPLOAD_PRESET` from step 1.6. Without them agents can't upload a
+death certificate, and the app says so.
+
 The publishable key is safe in the browser: row-level security allows nothing
 unless the signed-in user has an active profile in `public.profiles`. Never put the secret or
 service-role key in the app or in `--dart-define`.
+
+### 1.6 Cloudinary (death certificates)
+
+Agents upload a photo or PDF of the death certificate when they report a death.
+The app uploads straight to Cloudinary with an **unsigned upload preset**; the
+database stores only the `https://res.cloudinary.com/…` link.
+
+1. Cloudinary console → Settings → **Upload** → Upload presets → **Add upload preset**:
+   - Signing mode: **Unsigned**
+   - Asset folder: `rudransh/certificates`
+   - Use filename / unique filename: off / on
+   - Allowed formats: `jpg,jpeg,png,pdf`
+   - Max file size: leave it. The console drops `max_file_size` on a preset, but
+     the free plan already caps uploads at 10 MB, and `allowed_formats` keeps
+     everything to image types, so that cap applies. The app checks 10 MB too,
+     in the browser, to give a clear message before the upload starts.
+   - Incoming transformation (optional, keeps photos small): limit to 2000 px, quality auto
+2. Settings → **Security** → turn on **Allow delivery of PDF and ZIP files**,
+   or admins can't open PDF certificates.
+3. Set the GitHub repository **variables** (Settings → Secrets and variables →
+   Actions → Variables, *not* Secrets; the workflow reads them with `vars.`):
+   `CLOUDINARY_CLOUD_NAME` = `n9mgnr8s`, `CLOUDINARY_UPLOAD_PRESET` =
+   `rudransh_certificates`. Local runs:
+   `--dart-define=CLOUDINARY_CLOUD_NAME=… --dart-define=CLOUDINARY_UPLOAD_PRESET=…`
+
+Editing the preset through the Admin API **replaces** its settings instead of
+merging them, so a call that sets one field clears the others — send the asset
+folder and allowed formats every time, then read the preset back and check.
+The console UI merges, so prefer it for one-off changes.
+
+Anyone who reads the app's code can see the preset name and upload files within
+these limits; they can't read, change or delete existing files. If abused,
+rename the preset and update the variable.
 
 ---
 

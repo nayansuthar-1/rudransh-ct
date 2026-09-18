@@ -264,6 +264,10 @@ class PaymentActions {
 
   Future<String> nextReceiptNo() => _repo.nextReceiptNo();
 
+  /// Closing groups the member owes a contribution for, oldest first.
+  Future<List<MemberDue>> memberDues(String memberId) =>
+      _repo.fetchMemberDues(memberId);
+
   void _changed() => _ref.read(dataRevisionProvider.notifier).bump();
 }
 
@@ -280,6 +284,7 @@ class ApprovalQueue {
     required this.members,
     required this.payments,
     required this.cancelRequests,
+    this.deathReports = const [],
   });
 
   static const empty = ApprovalQueue(
@@ -291,9 +296,13 @@ class ApprovalQueue {
   final List<Member> members;
   final PaymentPage payments;
   final PaymentPage cancelRequests;
+  final List<ClosingRequest> deathReports;
 
   int get count =>
-      members.length + payments.items.length + cancelRequests.items.length;
+      members.length +
+      payments.items.length +
+      cancelRequests.items.length +
+      deathReports.length;
 }
 
 final approvalQueueProvider = FutureProvider<ApprovalQueue>((ref) async {
@@ -303,10 +312,12 @@ final approvalQueueProvider = FutureProvider<ApprovalQueue>((ref) async {
   final members = repo.fetchPendingMembers();
   final payments = repo.fetchPendingPayments();
   final cancels = repo.fetchCancelRequests();
+  final reports = repo.fetchPendingClosingRequests();
   return ApprovalQueue(
     members: await members,
     payments: await payments,
     cancelRequests: await cancels,
+    deathReports: await reports,
   );
 });
 
@@ -335,6 +346,23 @@ class ApprovalActions {
       _run((r) => r.declineCancelRequest(id));
   Future<int> reassignMembers(String from, String to) =>
       _run((r) => r.reassignMembers(from, to));
+
+  /// Creates the closing case, so the closing list reloads too.
+  Future<void> approveDeathReport(
+    String id, {
+    required String closingGroup,
+    double? claimAmount,
+  }) async {
+    await _run((r) => r.approveClosingRequest(
+          id,
+          closingGroup: closingGroup,
+          claimAmount: claimAmount,
+        ));
+    _ref.invalidate(closingCasesProvider);
+  }
+
+  Future<void> rejectDeathReport(String id, String reason) =>
+      _run((r) => r.rejectClosingRequest(id, reason));
 }
 
 final approvalActionsProvider = Provider<ApprovalActions>(ApprovalActions.new);

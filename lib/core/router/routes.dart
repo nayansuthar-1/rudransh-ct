@@ -36,6 +36,10 @@ class AppRoutes {
   static const agentHome = '/agent';
   static const agentMembers = '/agent/members';
   static const agentCollections = '/agent/collections';
+  static const agentDues = '/agent/dues';
+
+  /// One closing group: `?yojna=<id>&group=<label>`.
+  static const agentDuesGroup = '/agent/dues/group';
 
   // Member screens (Phase 15).
   static const memberHome = '/me';
@@ -147,6 +151,13 @@ class AgentRoutes {
       sublabel: S.myMembersSub,
       icon: Icons.people_outline,
       activeIcon: Icons.people,
+    ),
+    NavItem(
+      path: AppRoutes.agentDues,
+      label: S.dues,
+      sublabel: S.duesSub,
+      icon: Icons.event_note_outlined,
+      activeIcon: Icons.event_note,
     ),
     NavItem(
       path: AppRoutes.agentCollections,

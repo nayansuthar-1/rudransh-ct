@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 
@@ -5,6 +6,7 @@ import '../core/config/env.dart';
 import '../data/models/models.dart';
 import '../data/repositories/agent_repository.dart';
 import '../data/repositories/in_memory_trust_repository.dart';
+import '../data/repositories/upload_repository.dart';
 import 'auth_controller.dart';
 import 'providers.dart';
 
@@ -122,6 +124,49 @@ final agentPaymentsProvider = FutureProvider<PaymentPage>((ref) {
       );
 });
 
+// ---- Dues and death reports ----------------------------------------------------
+
+final agentDuesPageProvider = NotifierProvider<ValueHolder<int>, int>(
+  () => ValueHolder(0),
+);
+
+final agentClosingGroupsProvider =
+    FutureProvider<PageResult<ClosingGroupDues>>((ref) {
+  watchBackendData(ref);
+  if (!_signedInAsAgent(ref)) return PageResult.empty();
+  return ref.read(agentRepositoryProvider).fetchClosingGroups(
+        offset: ref.watch(agentDuesPageProvider) * agentListPageSize,
+        limit: agentListPageSize,
+      );
+});
+
+/// The agent's members in one closing group, keyed by (Yojna id, group).
+final agentGroupDuesProvider =
+    FutureProvider.family<List<MemberDue>, (String, String)>((ref, group) {
+  watchBackendData(ref);
+  if (!_signedInAsAgent(ref)) return const [];
+  return ref.read(agentRepositoryProvider).fetchGroupDues(group.$1, group.$2);
+});
+
+final agentDeathReportsProvider = FutureProvider<List<ClosingRequest>>((ref) {
+  watchBackendData(ref);
+  if (!_signedInAsAgent(ref)) return const [];
+  return ref.read(agentRepositoryProvider).fetchMyDeathReports();
+});
+
+/// Cloudinary in live builds; a stand-in in demo mode and tests.
+final certificateUploaderProvider = Provider<CertificateUploader>((ref) {
+  if (Env.hasCloudinary) {
+    return CloudinaryUploader(
+      cloudName: Env.cloudinaryCloudName,
+      uploadPreset: Env.cloudinaryUploadPreset,
+    );
+  }
+  return Env.hasSupabase
+      ? UnconfiguredCertificateUploader()
+      : FakeCertificateUploader();
+});
+
 // ---- Writes --------------------------------------------------------------------
 
 class AgentActions {
@@ -148,6 +193,17 @@ class AgentActions {
 
   Future<void> requestCancel(String paymentId, String reason) =>
       _run((r) => r.requestCancel(paymentId, reason));
+
+  /// Closing groups the member owes for, for the payment form.
+  Future<List<MemberDue>> memberDues(String memberId) =>
+      _repo.fetchMemberDues(memberId);
+
+  /// Returns the certificate's URL.
+  Future<String> uploadCertificate(Uint8List bytes, String fileName) =>
+      _ref.read(certificateUploaderProvider).upload(bytes, fileName);
+
+  Future<void> reportDeath(ClosingRequest request) =>
+      _run((r) => r.reportDeath(request));
 
   /// Search for the payment form's member picker.
   Future<List<Member>> searchMembers(String text) async =>

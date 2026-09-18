@@ -9,6 +9,9 @@ class S {
   static const appSubtitle = 'Admin Panel';
   static const trustName = 'Rudransh Charitable Trust';
 
+  /// Used in WhatsApp messages to members, which are in Hindi.
+  static const trustNameHindi = 'रुद्रांश चैरिटेबल ट्रस्ट';
+
   // Navigation
   static const mainMenu = 'Menu';
   static const system = 'Account';
@@ -159,7 +162,7 @@ class S {
   static const myMembers = 'My Members';
   static const myMembersSub = 'Members you enrolled';
   static const collections = 'Collections';
-  static const collectionsSub = 'Dues and receipts';
+  static const collectionsSub = 'Receipts you issued';
   static const memberHomeSub = 'Your membership';
   static const myPayments = 'My Payments';
   static const myPaymentsSub = 'Receipts and dues';
@@ -195,4 +198,20 @@ class S {
   static const waitingApproval = 'Waiting for approval';
   static const approvedThisMonth = 'Approved this month';
   static const cancelRequested = 'Cancel requested';
+
+  // Dues and death reports (Phase 13)
+  static const dues = 'Dues';
+  static const duesSub = 'Contributions per closing';
+  static const forClosing = 'For closing';
+  static const notForClosing = 'Not for a closing';
+  static const toCollect = 'To collect';
+  static const sendReminder = 'Send reminder';
+  static const shareReceipt = 'Send receipt';
+  static const reportDeath = 'Report death';
+  static const deathReports = 'Death reports';
+  static const dateOfDeath = 'Date of death';
+  static const deathCertificate = 'Death certificate';
+  static const createClosing = 'Create closing';
+  static const noPhone = 'This member has no valid phone number.';
+  static const whatsAppFailed = 'Could not open WhatsApp.';
 }

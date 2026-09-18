@@ -25,6 +25,7 @@ class InMemoryTrustRepository implements TrustRepository {
   final List<Agent> _agents = [];
   final List<Payment> _payments = [];
   final List<ClosingCase> _closingCases = [];
+  final List<ClosingRequest> _closingRequests = [];
 
   Future<T> _delayed<T>(T value) =>
       Future.delayed(latency, () => value);
@@ -176,8 +177,29 @@ class InMemoryTrustRepository implements TrustRepository {
   Future<List<Payment>> fetchPayments() =>
       _delayed(List<Payment>.unmodifiable(_payments));
 
+  /// Same rules as the `payments_check_closing` database trigger.
+  void _checkClosingLink(Payment p) {
+    final id = p.closingCaseId;
+    if (id == null) return;
+    if (p.kind != PaymentKind.contribution) {
+      throw const RepositoryException('Only a contribution can be for a closing.');
+    }
+    final found = _closingCases.where((c) => c.id == id).firstOrNull;
+    if (found == null || found.yojnaId != p.yojnaId) {
+      throw const RepositoryException(
+        "That closing is not in this member's Yojna.",
+      );
+    }
+    if (found.memberId == p.memberId) {
+      throw const RepositoryException(
+        'A member cannot contribute to their own closing.',
+      );
+    }
+  }
+
   @override
   Future<Payment> createPayment(Payment payment) {
+    _checkClosingLink(payment);
     final created = payment.id.isEmpty
         ? payment.copyWith(id: 'p_${_uuid.v4()}')
         : payment;
@@ -187,6 +209,7 @@ class InMemoryTrustRepository implements TrustRepository {
 
   @override
   Future<Payment> updatePayment(Payment payment) {
+    _checkClosingLink(payment);
     _payments[_indexById(_payments, payment.id, (p) => p.id)] = payment;
     return _delayed(payment);
   }
@@ -602,5 +625,154 @@ class InMemoryTrustRepository implements TrustRepository {
       }
     }
     return _delayed(moved);
+  }
+
+  // ---- Dues and death reports ------------------------------------------------
+
+  static DateTime _day(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  /// Every member's dues per closing group, by the rules of the
+  /// `member_dues` view. Also used by [InMemoryAgentRepository].
+  List<MemberDue> allDues() {
+    final groups = <(String, String), List<ClosingCase>>{};
+    for (final c in _closingCases.where((c) => c.closingGroup.isNotEmpty)) {
+      groups.putIfAbsent((c.yojnaId, c.closingGroup), () => []).add(c);
+    }
+
+    final result = <MemberDue>[];
+    for (final cases in groups.values) {
+      cases.sort((a, b) => a.closingDate.compareTo(b.closingDate));
+      final first = cases.first;
+      final caseIds = {for (final c in cases) c.id};
+      final yojna = _yojnas.where((y) => y.id == first.yojnaId).firstOrNull;
+      if (yojna == null) continue;
+
+      for (final m in _members) {
+        if (m.yojnaId != first.yojnaId ||
+            m.status != MemberStatus.active ||
+            !_day(m.joinDate).isBefore(_day(first.closingDate))) {
+          continue;
+        }
+        double sum(PaymentStatus status) => _payments
+            .where((p) =>
+                p.memberId == m.id &&
+                p.kind == PaymentKind.contribution &&
+                p.status == status &&
+                !p.isCancelled &&
+                caseIds.contains(p.closingCaseId))
+            .fold(0, (total, p) => total + p.amount);
+        result.add(
+          MemberDue(
+            memberId: m.id,
+            yojnaId: m.yojnaId,
+            closingCaseId: first.id,
+            closingGroup: first.closingGroup,
+            closingDate: first.closingDate,
+            amount: yojna.contributionAmount,
+            paid: sum(PaymentStatus.paid),
+            pending: sum(PaymentStatus.pending),
+            memberName: m.name,
+            regNo: m.regNo,
+            phone: m.primaryPhone,
+            village: m.village,
+          ),
+        );
+      }
+    }
+    return result;
+  }
+
+  @override
+  Future<List<MemberDue>> fetchMemberDues(String memberId) => _delayed(
+        allDues().where((d) => d.memberId == memberId).toList()
+          ..sort((a, b) => a.closingDate.compareTo(b.closingDate)),
+      );
+
+  ClosingRequest _withMember(ClosingRequest r) {
+    final m = _members.where((m) => m.id == r.memberId).firstOrNull;
+    return m == null
+        ? r
+        : r.copyWith(memberName: m.name, memberRegNo: m.regNo, yojnaId: m.yojnaId);
+  }
+
+  /// Every death report, newest first. Used by [InMemoryAgentRepository].
+  List<ClosingRequest> allClosingRequests() =>
+      _closingRequests.map(_withMember).toList();
+
+  /// Stores an agent's report; the agent repository checks the rules.
+  Future<ClosingRequest> createClosingRequest(ClosingRequest request) {
+    final created = request.copyWith(
+      id: request.id.isEmpty ? 'r_${_uuid.v4()}' : request.id,
+      status: RequestStatus.pending,
+      createdAt: DateTime.now(),
+    );
+    _closingRequests.insert(0, created);
+    return _delayed(_withMember(created));
+  }
+
+  int _pendingRequestIndex(String id) {
+    final i = _closingRequests
+        .indexWhere((r) => r.id == id && r.status == RequestStatus.pending);
+    if (i == -1) {
+      throw const RepositoryException(
+        'This report is no longer waiting for a decision.',
+      );
+    }
+    return i;
+  }
+
+  @override
+  Future<List<ClosingRequest>> fetchPendingClosingRequests() => _delayed(
+        _closingRequests.reversed
+            .where((r) => r.status == RequestStatus.pending)
+            .map(_withMember)
+            .toList(),
+      );
+
+  @override
+  Future<String> approveClosingRequest(
+    String requestId, {
+    required String closingGroup,
+    double? claimAmount,
+  }) async {
+    if (closingGroup.trim().isEmpty) {
+      throw const RepositoryException('Enter the closing group.');
+    }
+    final i = _pendingRequestIndex(requestId);
+    final request = _closingRequests[i];
+    final member = _members.firstWhere((m) => m.id == request.memberId);
+    if (_closingCases.any((c) => c.memberId == member.id)) {
+      throw const RepositoryException(
+        'A closing case already exists for this member.',
+      );
+    }
+    final yojna = _yojnas.firstWhere((y) => y.id == member.yojnaId);
+    final created = await createClosingCase(
+      ClosingCase(
+        id: '',
+        memberId: member.id,
+        yojnaId: member.yojnaId,
+        closingDate: request.dateOfDeath,
+        closingGroup: closingGroup.trim(),
+        claimAmount: claimAmount ?? yojna.claimAmount,
+        nomineeName: request.nomineeName,
+        remarks: request.remarks,
+      ),
+    );
+    _closingRequests[i] = request.copyWith(
+      status: RequestStatus.approved,
+      decisionNote: '',
+      closingCaseId: created.id,
+    );
+    return created.id;
+  }
+
+  @override
+  Future<void> rejectClosingRequest(String requestId, String reason) async {
+    final r = _requireReason(reason);
+    final i = _pendingRequestIndex(requestId);
+    _closingRequests[i] = _closingRequests[i]
+        .copyWith(status: RequestStatus.rejected, decisionNote: r);
+    await _delayed(null);
   }
 }

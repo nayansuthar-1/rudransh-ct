@@ -6,8 +6,10 @@
 #   CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID
 #   SUPABASE_URL_PROD,    SUPABASE_PUBLISHABLE_KEY_PROD
 #   SUPABASE_URL_STAGING, SUPABASE_PUBLISHABLE_KEY_STAGING
-# Repository variable:
+# Repository variables:
 #   CLOUDFLARE_PAGES_PROJECT (default: rudransh-ct)
+#   CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET (death certificate uploads;
+#   public values, see docs/RUNBOOK.md)
 
 name: CI & deploy
 
@@ -60,6 +62,8 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -q -f supabase/tests/roles_test.sql
       - name: Agent work and approval checks
         run: psql -v ON_ERROR_STOP=1 -q -f supabase/tests/agent_work_test.sql
+      - name: Dues and closing report checks
+        run: psql -v ON_ERROR_STOP=1 -q -f supabase/tests/dues_test.sql
       - name: Parallel saves get unique numbers
         run: bash supabase/tests/concurrent_numbering_test.sh
       - uses: denoland/setup-deno@v2
@@ -188,6 +192,8 @@ jobs:
           flutter build web --release
           --dart-define=SUPABASE_URL=${{ steps.env.outputs.url }}
           --dart-define=SUPABASE_PUBLISHABLE_KEY=${{ steps.env.outputs.key }}
+          --dart-define=CLOUDINARY_CLOUD_NAME=${{ vars.CLOUDINARY_CLOUD_NAME }}
+          --dart-define=CLOUDINARY_UPLOAD_PRESET=${{ vars.CLOUDINARY_UPLOAD_PRESET }}
 
       - name: Refuse a build without Supabase config
         if: steps.env.outputs.deploy == 'true'

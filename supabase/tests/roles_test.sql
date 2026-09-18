@@ -105,7 +105,8 @@ begin
   begin
     delete from public.agents where id = '00000000-0000-0000-0000-0000000d0012';
     raise exception 'agent with a cash handover was deleted';
-  exception when foreign_key_violation then null;
+  -- Postgres 18 reports RESTRICT as restrict_violation, earlier versions as foreign_key_violation.
+  exception when foreign_key_violation or restrict_violation then null;
   end;
 
   assert (select source from public.payments where id = '00000000-0000-0000-0000-0000000d0031') = 'admin',

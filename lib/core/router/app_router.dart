@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/models/models.dart';
 
+import '../../features/agent/agent_dues.dart';
 import '../../features/agent/agent_pages.dart';
 import '../../features/agents/agents_page.dart';
 import '../../features/approvals/approvals_page.dart';
@@ -65,6 +66,17 @@ final routerProvider = Provider<GoRouter>((ref) {
           _shellRoute(AppRoutes.agentHome, const AgentHomePage()),
           _shellRoute(AppRoutes.agentMembers, const AgentMembersPage()),
           _shellRoute(AppRoutes.agentCollections, const AgentCollectionsPage()),
+          _shellRoute(AppRoutes.agentDues, const AgentDuesPage()),
+          GoRoute(
+            path: AppRoutes.agentDuesGroup,
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: AgentGroupDuesPage(
+                yojnaId: state.uri.queryParameters['yojna'] ?? '',
+                closingGroup: state.uri.queryParameters['group'] ?? '',
+              ),
+            ),
+          ),
           _shellRoute(AppRoutes.memberHome, const MemberHomePage()),
           _shellRoute(
             AppRoutes.memberPayments,

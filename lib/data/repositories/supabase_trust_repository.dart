@@ -469,6 +469,92 @@ class SupabaseTrustRepository implements TrustRepository {
         return (moved as num?)?.toInt() ?? 0;
       });
 
+  // ---- Dues and death reports ------------------------------------------------
+
+  @override
+  Future<List<MemberDue>> fetchMemberDues(String memberId) =>
+      _guard(() async {
+        final rows = await _db
+            .from('member_dues')
+            .select()
+            .eq('member_id', memberId)
+            .order('closing_date');
+        return rows.map(memberDueFromRow).toList();
+      });
+
+  @override
+  Future<List<ClosingRequest>> fetchPendingClosingRequests() =>
+      _guard(() async {
+        final rows = await _db
+            .from('closing_requests')
+            .select('*, member:members(name, reg_no, yojna_id)')
+            .eq('status', 'pending')
+            .order('created_at');
+        return rows.map(closingRequestFromRow).toList();
+      });
+
+  @override
+  Future<String> approveClosingRequest(
+    String requestId, {
+    required String closingGroup,
+    double? claimAmount,
+  }) =>
+      _guard(() async {
+        final id = await _db.rpc('approve_closing_request', params: {
+          'p_request_id': requestId,
+          'p_closing_group': closingGroup,
+          'p_claim_amount': claimAmount,
+        });
+        return id as String;
+      });
+
+  @override
+  Future<void> rejectClosingRequest(String requestId, String reason) =>
+      _guard(() => _db.rpc('reject_closing_request', params: {
+            'p_request_id': requestId,
+            'p_reason': reason,
+          }));
+
+  /// A `member_dues` row, or an `agent_dues` row with member details.
+  static MemberDue memberDueFromRow(Map<String, dynamic> r) => MemberDue(
+        memberId: r['member_id'] as String,
+        yojnaId: r['yojna_id'] as String? ?? '',
+        closingCaseId: r['closing_case_id'] as String,
+        closingGroup: r['closing_group'] as String? ?? '',
+        closingDate: _parseDate(r['closing_date']),
+        amount: _num(r['amount']),
+        paid: _num(r['paid']),
+        pending: _num(r['pending']),
+        memberName: r['name'] as String? ?? '',
+        regNo: r['reg_no'] as String? ?? '',
+        phone: r['primary_phone'] as String? ?? '',
+        village: r['village'] as String? ?? '',
+      );
+
+  /// A `closing_requests` row (member embedded as `member`), or an
+  /// `agent_closing_requests` row.
+  static ClosingRequest closingRequestFromRow(Map<String, dynamic> r) {
+    final member = r['member'] as Map<String, dynamic>?;
+    return ClosingRequest(
+      id: r['id'] as String,
+      memberId: r['member_id'] as String,
+      memberName: member?['name'] as String? ?? r['member_name'] as String? ?? '',
+      memberRegNo:
+          member?['reg_no'] as String? ?? r['member_reg_no'] as String? ?? '',
+      yojnaId: member?['yojna_id'] as String? ?? '',
+      agentId: r['agent_id'] as String?,
+      dateOfDeath: _parseDate(r['date_of_death']),
+      nomineeName: r['nominee_name'] as String? ?? '',
+      nomineeRelation: r['nominee_relation'] as String? ?? '',
+      certificateUrl: r['certificate_url'] as String? ?? '',
+      remarks: r['remarks'] as String? ?? '',
+      status: RequestStatus.fromName(r['status'] as String?),
+      decisionNote: r['decision_note'] as String? ?? '',
+      closingCaseId: r['closing_case_id'] as String?,
+      createdAt: _parseTimestamp(r['created_at']),
+    );
+  }
+
   // ---- Helpers -----------------------------------------------------------
 
   static Map<String, dynamic> _memberParams(MemberQuery q) => {
@@ -749,6 +835,7 @@ class SupabaseTrustRepository implements TrustRepository {
         'agent_id': p.agentId,
         'reference': p.reference,
         'note': p.note,
+        'closing_case_id': p.closingCaseId,
       });
 
   static Payment _paymentFromRow(Map<String, dynamic> r) => Payment(
@@ -764,6 +851,7 @@ class SupabaseTrustRepository implements TrustRepository {
         agentId: r['agent_id'] as String?,
         reference: r['reference'] as String? ?? '',
         note: r['note'] as String? ?? '',
+        closingCaseId: r['closing_case_id'] as String?,
         source: PaymentSource.fromName(r['source'] as String?),
         rejectReason: r['reject_reason'] as String? ?? '',
         cancelledAt: _parseTimestamp(r['cancelled_at']),

@@ -1,6 +1,7 @@
 export 'app_user.dart';
 export 'agent.dart';
 export 'closing_case.dart';
+export 'dues.dart';
 export 'member.dart';
 export 'payment.dart';
 export 'queries.dart';

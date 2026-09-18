@@ -7,6 +7,7 @@ import '../../core/router/routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/whatsapp.dart';
 import '../../data/models/models.dart';
 import '../../data/repositories/agent_repository.dart';
 import '../../state/agent_providers.dart';
@@ -218,6 +219,14 @@ void _showMember(BuildContext context, Member m) {
       subtitle: m.regNo.isEmpty ? m.status.label : m.regNo,
       maxWidth: 560,
       actions: [
+        if (m.status == MemberStatus.active)
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              showDeathReportForm(context, m);
+            },
+            child: const Text(S.reportDeath),
+          ),
         OutlinedButton(
           onPressed: () {
             Navigator.of(dialogContext).pop();
@@ -316,7 +325,7 @@ class AgentCollectionsPage extends ConsumerWidget {
                           ref.read(agentPaymentPageProvider.notifier).set,
                       busy: async.isLoading,
                       emptyMessage: 'No receipts yet.',
-                      onRowTap: (p) => _showReceipt(context, p, memberName(p)),
+                      onRowTap: (p) => _showReceipt(context, p, page.members[p.memberId]),
                       mobileTitle: (p) =>
                           '${p.receiptNo} · ${Fmt.money(p.amount)}',
                       mobileSubtitle: (p) =>
@@ -386,7 +395,7 @@ class _ReceiptStatus extends StatelessWidget {
   }
 }
 
-void _showReceipt(BuildContext context, Payment p, String memberName) {
+void _showReceipt(BuildContext context, Payment p, MemberRef? member) {
   final canRequestCancel = !p.isCancelled &&
       p.cancelRequestedAt == null &&
       p.status != PaymentStatus.failed;
@@ -396,13 +405,26 @@ void _showReceipt(BuildContext context, Payment p, String memberName) {
     builder: (dialogContext) => Consumer(
       builder: (context, ref, _) => AppDialog(
         title: p.receiptNo,
-        subtitle: memberName,
+        subtitle: member?.name ?? '',
         maxWidth: 520,
         actions: [
           OutlinedButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Close'),
           ),
+          if (member != null && p.status != PaymentStatus.failed)
+            OutlinedButton.icon(
+              onPressed: () => sendOnWhatsApp(
+                dialogContext,
+                phone: member.primaryPhone,
+                text: WhatsApp.receiptMessage(
+                  memberName: member.name,
+                  payment: p,
+                ),
+              ),
+              icon: const Icon(Icons.chat_outlined, size: 17),
+              label: const Text(S.shareReceipt),
+            ),
           if (canRequestCancel)
             FilledButton(
               onPressed: () async {
@@ -435,6 +457,8 @@ void _showReceipt(BuildContext context, Payment p, String memberName) {
             const SizedBox(height: 8),
             DetailRow(label: S.amount, value: Fmt.money(p.amount)),
             DetailRow(label: 'Type', value: p.kind.label),
+            if (p.closingGroup.isNotEmpty)
+              DetailRow(label: S.forClosing, value: p.closingGroup),
             DetailRow(label: S.mode, value: p.mode.label),
             if (p.reference.isNotEmpty)
               DetailRow(label: 'UTR / cheque no', value: p.reference),

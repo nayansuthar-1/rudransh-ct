@@ -94,10 +94,8 @@ class _YojnaCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
-    final selected = ref.watch(selectedYojnaIdProvider) == yojna.id;
 
     return AppCard(
-      borderColor: selected ? c.brand : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -140,12 +138,8 @@ class _YojnaCard extends ConsumerWidget {
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: StatusPill(
-                    selected
-                        ? 'In scope'
-                        : (yojna.isActive ? S.active : S.inactive),
-                    tone: selected
-                        ? PillTone.brand
-                        : (yojna.isActive ? PillTone.success : PillTone.neutral),
+                    yojna.isActive ? S.active : S.inactive,
+                    tone: yojna.isActive ? PillTone.success : PillTone.neutral,
                   ),
                 ),
                 _YojnaMenu(yojna: yojna),
@@ -205,23 +199,6 @@ class _YojnaCard extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
             child: Row(
               children: [
-                Flexible(
-                  child: TextButton(
-                    onPressed: selected
-                        ? () => ref
-                            .read(selectedYojnaIdProvider.notifier)
-                            .select(null)
-                        : () => ref
-                            .read(selectedYojnaIdProvider.notifier)
-                            .select(yojna.id),
-                    child: Text(
-                      selected ? 'Show all schemes' : 'Set as scope',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: Space.sm),
                 const Spacer(),
                 OutlinedButton(
                   onPressed: () =>

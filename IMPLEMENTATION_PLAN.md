@@ -410,6 +410,7 @@ Added 17 Sep 2026. Right now only invited admins can use the app. Release 2 give
 
 - [ ] `AuthController`: load the profile after login; unknown or inactive profile → signed out with a message
 - [ ] Router: three shells by role — `/admin/*` (today's app), `/agent/*`, `/me/*` — plus a public `/lookup` page. The redirect guard blocks routes for other roles.
+
 - [ ] `AdminUser` becomes `AppUser` with a `role` enum
 - [ ] `TrustRepository` split into `AdminRepository`, `AgentRepository`, `MemberRepository`, with Supabase and in-memory versions of each for tests
 - [ ] Agent and member screens designed for phones first (390 px), with a bottom navigation bar
@@ -457,12 +458,19 @@ Release 1 support window (5–19 Oct) overlaps with this. Support fixes come fir
 - [ ] **Done when:** an agent's payment appears in the admin queue, and after approval shows in totals with a receipt number (covered by the SQL and app tests; check once on staging)
 
 #### Phase 13 — Dues and WhatsApp (16, 19 Oct, Fri–Mon, 2 days)
-- [ ] Link contributions to a closing case in the payment forms (admin and agent)
-- [ ] `member_dues` view and `agent_dues` function
-- [ ] Agent dues screen per closing group: paid, pending and amount due
-- [ ] WhatsApp share buttons: receipt, dues reminder (Hindi template)
-- [ ] Agent closing request with certificate upload (Cloudinary)
-- [ ] **Done when:** for a test closing group, the dues list matches a manual count
+> Built 17 Sep 2026: `supabase/migrations/20260919000100_dues.sql`, agent Dues tab in `lib/features/agent/agent_dues.dart`, WhatsApp messages in `lib/core/utils/whatsapp.dart`.
+> Decisions: dues are per closing **group** (§11.2). A contribution linked to any case in the group counts; forms link to the group's first case. Members owe for a group when they are Active and joined before its first closing date; cases without a group label raise no dues. Agents can't collect twice for the same group; the office form allows it (for corrections). Death reports also got the admin side (approve into a closing case, or reject), so a report doesn't wait for Phase 16.
+
+- [x] Link contributions to a closing in the payment forms: agent form picks the oldest open closing; office form offers every closing the member owes for (optional). A database trigger checks the link (contribution only, same Yojna, not the member's own case)
+- [x] `closing_groups` and `member_dues` views (admins, under their access rules); agent functions `agent_closing_groups`, `agent_dues(yojna, group)`, `agent_member_dues(member)`; `agent_payments` also returns the member's phone and the closing group
+- [x] Agent Dues tab: closing groups with paid count and amount to collect; per group, members still due, waiting for approval, or paid, with **Collect** and **Send reminder**
+- [x] WhatsApp `wa.me` links with Hindi messages: receipt (after saving and from a receipt) and dues reminder
+- [x] Agent reports a death from the member's details, with the certificate uploaded to Cloudinary (unsigned preset, JPG/PNG/PDF up to 10 MB; setup in `docs/RUNBOOK.md` §1.6). Office: Approvals page → **Create closing** (group and claim amount) or reject with a reason; agents see the outcome on the Dues tab
+- [x] Tests: `supabase/tests/dues_test.sql` (CI) counts a closing group by hand; `test/dues_test.dart` (same count in memory, WhatsApp messages, screens at 390 and 1440 px)
+- [x] Cloudinary preset `rudransh_certificates` (cloud `n9mgnr8s`): unsigned, folder `rudransh/certificates`, formats jpg/jpeg/png/pdf, unguessable public IDs, PDF delivery on. Verified 18 Sep 2026: PNG and PDF land in the folder, a PDF opens (HTTP 200), a `.txt` is refused
+- [ ] GitHub variables `CLOUDINARY_CLOUD_NAME` = `n9mgnr8s`, `CLOUDINARY_UPLOAD_PRESET` = `rudransh_certificates` (repository **Variables**, not Secrets — `docs/RUNBOOK.md` §1.6)
+- [ ] Deploy to staging: `supabase db push`
+- [ ] **Done when:** for a test closing group, the dues list matches a manual count (covered by `dues_test.sql`; check once on staging)
 
 **20 Oct (Tue):** Dussehra, holiday.
 

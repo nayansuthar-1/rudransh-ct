@@ -68,6 +68,8 @@ class Payment {
     this.agentId,
     this.reference = '',
     this.note = '',
+    this.closingCaseId,
+    this.closingGroup = '',
     this.source = PaymentSource.admin,
     this.rejectReason = '',
     this.cancelledAt,
@@ -92,6 +94,12 @@ class Payment {
   /// UTR / cheque number / UPI reference.
   final String reference;
   final String note;
+
+  /// The closing a contribution pays for (IMPLEMENTATION_PLAN Phase 13).
+  final String? closingCaseId;
+
+  /// Group label of [closingCaseId], for display only.
+  final String closingGroup;
 
   // Set by the database; the admin forms never write them.
   final PaymentSource source;
@@ -124,6 +132,9 @@ class Payment {
     bool clearAgent = false,
     String? reference,
     String? note,
+    String? closingCaseId,
+    String? closingGroup,
+    bool clearClosing = false,
     String? rejectReason,
     DateTime? cancelledAt,
     String? cancelReason,
@@ -144,6 +155,9 @@ class Payment {
       agentId: clearAgent ? null : (agentId ?? this.agentId),
       reference: reference ?? this.reference,
       note: note ?? this.note,
+      closingCaseId:
+          clearClosing ? null : (closingCaseId ?? this.closingCaseId),
+      closingGroup: clearClosing ? '' : (closingGroup ?? this.closingGroup),
       source: source,
       rejectReason: rejectReason ?? this.rejectReason,
       cancelledAt: cancelledAt ?? this.cancelledAt,
@@ -170,6 +184,7 @@ class Payment {
         'agentId': agentId,
         'reference': reference,
         'note': note,
+        'closingCaseId': closingCaseId,
       };
 
   factory Payment.fromMap(Map<String, dynamic> map) => Payment(
@@ -185,6 +200,7 @@ class Payment {
         agentId: map['agentId'] as String?,
         reference: map['reference'] as String? ?? '',
         note: map['note'] as String? ?? '',
+        closingCaseId: map['closingCaseId'] as String?,
       );
 
   @override
