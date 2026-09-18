@@ -12,6 +12,22 @@ Plan to take the Flutter web admin panel (रुद्रांश चैरि�
 
 ---
 
+## 0. Outstanding setup — must happen before launch
+
+Work that is built and committed but not yet switched on. Each line says what
+breaks if it is forgotten. Deferred 18 Sep 2026 to keep building; clear before
+Phase 17.
+
+| # | Task | Where | If forgotten |
+| --- | --- | --- | --- |
+| 1 | GitHub repository **variables** `CLOUDINARY_CLOUD_NAME` = `n9mgnr8s`, `CLOUDINARY_UPLOAD_PRESET` = `rudransh_certificates` | GitHub → Settings → Secrets and variables → Actions → **Variables** (not Secrets) | Production builds fine, but every agent reporting a death is told "Certificate upload is not set up yet". Silent: no build error |
+| 2 | `supabase db push` of `20260919000100_dues.sql` to staging, then production | Supabase CLI | The Dues tab and death reports fail against a database without the views and RPCs |
+| 3 | Confirm on staging that a test closing group's dues match a manual count | Staging | Phase 13's "done when" is unverified; `dues_test.sql` covers the logic but not the deployed data |
+| 4 | Rotate the Cloudinary API secret exposed on 18 Sep 2026 (key `728129852553546`) | Cloudinary → Settings → API Keys | Nothing in the app uses it, so nothing breaks — but the pair grants full control of the media account, including deleting every certificate |
+| 5 | Delete the test assets left in `rudransh/certificates` (three 1×1 PNGs, two stub PDFs) | Cloudinary → Assets → Media Library | Harmless clutter; would confuse a later audit of uploaded certificates |
+
+---
+
 ## 1. Recommended stack
 
 The data is relational: members belong to a Yojna and an agent, and payments and closing cases point at members. The dashboard is mostly sums and counts. Postgres fits this better than a document store. Supabase also has email OTP login built in, which matches the login screens already in the app.
@@ -496,6 +512,7 @@ Release 1 support window (5–19 Oct) overlaps with this. Support fixes come fir
 - [ ] **Done when:** one month of test data gives correct commission and handover balances
 
 #### Phase 17 — QA and launch (2–5 Nov, Mon–Thu, 4 days)
+- [ ] **Clear section 0, "Outstanding setup"** — deferred switch-on work, including the Cloudinary GitHub variables and the dues migration. Do this first: item 1 fails silently in production
 - [ ] Access tests for each role, through the API as well as the UI (try to read another agent's members directly)
 - [ ] Layout at 390 px for the agent and member shells; Hindi text; light and dark themes
 - [ ] Two agents and an admin working at once: no duplicate reg or receipt numbers
