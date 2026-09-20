@@ -39,6 +39,23 @@ abstract final class Env {
   static bool get hasCloudinary =>
       cloudinaryCloudName.isNotEmpty && cloudinaryUploadPreset.isNotEmpty;
 
+  /// The trust's own login. It is always allowed to ask for a sign-in code,
+  /// and in a demo build it is the *only* address that is: anything else is
+  /// turned away without a code, so a preview build is not an open door.
+  ///
+  /// Invited agents and members are unaffected — a real build still decides
+  /// access from `public.profiles`, not from this list.
+  ///
+  /// Override per build with `--dart-define=ADMIN_EMAIL=someone@example.com`.
+  static const adminEmail = String.fromEnvironment(
+    'ADMIN_EMAIL',
+    defaultValue: 'rudranshct@gmail.com',
+  );
+
+  /// True when [address] is the trust's login, whatever the user typed.
+  static bool isAdminEmail(String address) =>
+      address.trim().toLowerCase() == adminEmail.trim().toLowerCase();
+
   /// Cloudflare Turnstile site key for the public member lookup
   /// (IMPLEMENTATION_PLAN Phase 15). Public by design; the matching secret
   /// lives in the `member_lookup` Edge Function. See docs/RUNBOOK.md §1.7.

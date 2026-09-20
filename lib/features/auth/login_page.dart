@@ -161,7 +161,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           if (Env.demoMode) ...[
             const SizedBox(height: 24),
             Text(
-              'Demo build — any 6-digit code signs you in.',
+              'Demo build — ${Env.adminEmail} only; any 6-digit code works.',
               style: TextStyle(fontSize: 12.5, color: c.textMuted),
             ),
           ],

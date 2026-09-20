@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rudransh_ct/app.dart';
+import 'package:rudransh_ct/core/config/env.dart';
 import 'package:rudransh_ct/core/l10n/strings.dart';
 import 'package:rudransh_ct/core/router/app_router.dart';
 import 'package:rudransh_ct/core/router/routes.dart';
@@ -184,4 +185,27 @@ void main() {
       expect(find.text(S.inviteToApp), visible ? findsOneWidget : findsNothing);
     });
   }
+
+  // Tests build without Supabase defines, so this is the demo path.
+  group('demo sign-in accepts the trust email only', () {
+    Future<AuthState> request(String email) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await container.read(authControllerProvider.notifier).requestOtp(email);
+      return container.read(authControllerProvider);
+    }
+
+    test('the trust email is sent a code, whatever the casing', () async {
+      final state = await request(' ${Env.adminEmail.toUpperCase()} ');
+      expect(state.stage, AuthStage.awaitingOtp);
+      expect(state.error, isNull);
+      expect(state.email, Env.adminEmail);
+    });
+
+    test('any other address is turned away with no code', () async {
+      final state = await request('someone.else@example.com');
+      expect(state.stage, isNot(AuthStage.awaitingOtp));
+      expect(state.error, isNotNull);
+    });
+  });
 }

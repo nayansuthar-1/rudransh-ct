@@ -311,6 +311,69 @@ select p.name, p.email, p.role, p.is_active, u.last_sign_in_at
 
 ---
 
+## 3.1 Email (Brevo) — switching it on and checking it
+
+Every email the app sends is sent by **Supabase Auth**, not by the app: the
+sign-in code and the invite. Supabase hands the message to Brevo over SMTP.
+The app never talks to Brevo and holds no email credentials.
+
+```
+app  →  Supabase Auth  →  Brevo SMTP  →  the person's inbox
+        (templates, OTP)   (relay, 300/day free)
+```
+
+**Switch it on** (once per project — staging and production are separate):
+
+1. Brevo → **Senders, Domains & Dedicated IPs → Senders** → add
+   `rudranshct@gmail.com` and click the confirmation link Brevo emails there.
+   Sending from an unverified sender fails.
+2. Brevo → **SMTP & API → SMTP** → note the login (`…@smtp-brevo.com`) and
+   generate an SMTP key. The key is not the API key.
+3. New Brevo accounts are often held for review before they may send. Check
+   the dashboard for a "pending activation" banner; if it is there, no amount
+   of correct configuration will deliver anything.
+4. Push the config from this repo. It carries the SMTP settings **and** both
+   email templates in one go — free projects reject custom templates unless
+   SMTP is pushed in the same call:
+   ```powershell
+   supabase link --project-ref <staging-ref>
+   $env:BREVO_SMTP_USER    = "<login>@smtp-brevo.com"
+   $env:BREVO_SMTP_KEY     = "<smtp key>"
+   $env:BREVO_SENDER_EMAIL = "rudranshct@gmail.com"
+   supabase config push
+   Remove-Item Env:BREVO_SMTP_KEY
+   ```
+5. Confirm in Dashboard → Authentication → **Emails → SMTP Settings** that the
+   host reads `smtp-relay.brevo.com`. If it is off, the push did not land.
+6. Repeat for production with its own `--project-ref`.
+
+**Until this is done**, Supabase uses its built-in mailer, which delivers only
+to addresses belonging to members of the Supabase organisation and allows
+about 2 emails an hour. Invites to an agent's own Gmail address simply never
+arrive, with no error in the app.
+
+**Nothing arrives — where to look, in order**
+
+| # | Where | What it tells you |
+| --- | --- | --- |
+| 1 | Dashboard → **Logs → Auth logs**, filtered to the time you clicked | Decisive. Shows whether a send was attempted and what SMTP replied |
+| 2 | Dashboard → **Authentication → Users** | Is the address there? If yes the account exists, so a repeat invite takes the "already exists" path and sends no email by design |
+| 3 | Brevo → **Transactional → Logs** | Whether Brevo received the message, and whether it was delivered, bounced or blocked |
+| 4 | The inbox's **Spam** and **Promotions** tabs | Likeliest place for a first message. There is no trust domain, so there is no SPF/DKIM for the sender and Gmail is suspicious of it |
+| 5 | The agent record's email address | A typo here looks exactly like a delivery failure |
+
+**Rate limits to keep in mind:** Brevo free is 300 emails/day. Supabase's own
+`emails per hour` (Authentication → Rate Limits) can only be raised above the
+default once custom SMTP is on; §1.2 sets it to 100.
+
+**Why an invite can legitimately send no email.** If the address already has a
+Supabase account, `invite_user` reuses it and returns `email_sent: false`. That
+person does not need an invite — they can type their email on the login page
+and get a code immediately. A genuine send failure is a **502** with the SMTP
+error in the message, never a success.
+
+---
+
 ## 4. Monitoring
 
 - **Keep-alive** runs every 2 days. It queries both projects so free projects never

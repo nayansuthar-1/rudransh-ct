@@ -3,7 +3,9 @@
 //
 // POST { role: "owner" | "staff" | "agent" | "member", email, name?,
 //        agent_id? (role agent), member_id? (role member) }
-// → 200 { user_id }  or  4xx/5xx { error: "<readable message>" }
+// → 200 { user_id, email_sent }  or  4xx/5xx { error: "<readable message>" }
+//   email_sent is false when the person already had an account, so no invite
+//   email was needed. A failed send is a 502, never a 200.
 //
 // Deploy: supabase functions deploy invite_user   (docs/RUNBOOK.md 3)
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided by Supabase.
@@ -66,13 +68,30 @@ Deno.serve(async (req) => {
 
     let userId = invited?.user?.id;
     let createdNow = true;
+    // False when the person already had an account: no invite email goes out,
+    // because they can already ask for a sign-in code with their email.
+    let emailSent = true;
+
     if (inviteError) {
-      // Already has an auth account (for example a removed admin): reuse it.
-      userId = await findUserIdByEmail(admin, input.email);
-      createdNow = false;
+      // Two very different failures arrive here, and they must not be treated
+      // alike. `email_exists` means the person already has an auth account (a
+      // removed admin, an earlier invite) — reuse it, no email needed. Anything
+      // else is a genuine send failure: SMTP not configured on the project, a
+      // rate limit, a rejected sender. Hiding that reports "invite sent" when
+      // nothing was sent, which is impossible to diagnose from the app.
+      const alreadyExists =
+        inviteError.code === "email_exists" || inviteError.status === 422;
+      userId = alreadyExists
+        ? await findUserIdByEmail(admin, input.email)
+        : undefined;
       if (!userId) {
-        throw new HttpError(400, `Could not send the invite: ${inviteError.message}`);
+        throw new HttpError(
+          502,
+          `Could not send the invite: ${inviteError.message}`,
+        );
       }
+      createdNow = false;
+      emailSent = false;
     }
 
     const { error: profileError } = await admin.from("profiles").insert({
@@ -91,7 +110,7 @@ Deno.serve(async (req) => {
       throw new HttpError(500, `Could not save the login: ${profileError.message}`);
     }
 
-    return json({ user_id: userId });
+    return json({ user_id: userId, email_sent: emailSent });
   } catch (e) {
     if (e instanceof HttpError) return json({ error: e.message }, e.status);
     console.error(e);

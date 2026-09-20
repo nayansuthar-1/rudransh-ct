@@ -93,6 +93,13 @@ class AuthController extends Notifier<AuthState> {
 
     if (bypassLogin) {
       await Future<void>.delayed(const Duration(milliseconds: 700));
+      // A demo build has no database to check against, so the trust's own
+      // address is the only one it accepts. Without this any address at all
+      // would open the panel.
+      if (!Env.isAdminEmail(address)) {
+        state = state.copyWith(busy: false, error: _noAccess);
+        return;
+      }
       state = state.copyWith(
         stage: AuthStage.awaitingOtp,
         email: address,
