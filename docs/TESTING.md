@@ -1,7 +1,7 @@
 # Manual testing guide
 
 How to walk through every built feature by hand, role by role. Written against
-the code as of 18 Sep 2026 (Release 2, Phase 14 in progress).
+the code as of 20 Sep 2026 (Release 2, Phases 10-16 built and not yet deployed).
 
 ---
 
@@ -40,13 +40,17 @@ Supabase project too, run [`scripts/reset_data.sql`](../scripts/reset_data.sql)
 
 ## 2. Before the first run
 
-1. **Push the migrations to staging.** Phase 14 (`20260920000100_notifications.sql`)
-   and Phase 13 (`20260919000100_dues.sql`) are in the repo; check they are on
-   the project, or the bell and the dues tab will error.
+1. **Push the migrations to staging.** Phases 13 to 16 (`20260919000100_dues.sql`
+   through `20260922000100_commission.sql`) are in the repo but not yet on any
+   project (IMPLEMENTATION_PLAN section 0). Without them the dues tab, the bell,
+   the member portal and the agent's cash card all error — and the Phase 16
+   migration replaces `agent_summary()`, so the agent home breaks until it is
+   applied.
    ```bash
    supabase link --project-ref <staging-ref>
    supabase db push
    supabase functions deploy invite_user
+   supabase functions deploy member_lookup --no-verify-jwt
    ```
 2. **Cloudinary defines.** Without them the agent's death-certificate upload is
    disabled and the app says so. Not a bug — check the message, then set them.
@@ -85,6 +89,11 @@ Sign in as the owner. You land on `/dashboard`.
 ### 4.1 Yojna
 - **Yojna** → create a scheme. Set contribution, claim and registration amounts.
   These three numbers drive every later calculation, so write down what you set.
+- Three fields on this form are printed on the membership certificate and
+  nowhere else, so fill them as the trust writes them: the **scheme name** in
+  Hindi, the **scheme start date** (`योजना प्रारंभ`) and the **description**,
+  which becomes the `नोंध` payout line. Leaving the start date empty falls back
+  to the day the record was created, which is not the same date.
 - Create a second scheme so the **Yojna scope selector** in the top bar has
   something to switch between.
 - Edit a scheme; confirm the change shows on the cards.
@@ -106,7 +115,7 @@ Sign in as the owner. You land on `/dashboard`.
 ### 4.3 Members
 - **Members** → Add Member. Reg number is assigned by the database on save.
 - Check the Hinglish fields are all there: Jati, Gotra, Waris name and relation,
-  village/tehsil/district, Aadhaar, two phone numbers.
+  date of birth, village/tehsil/district/state, Aadhaar, two phone numbers.
 - Search by name, reg no and phone. Filter by status, agent and district.
   Combine a filter with the top-bar Yojna scope — the list must respect both.
 - Open a member's detail sheet. **As owner you see the full Aadhaar.**
@@ -114,6 +123,34 @@ Sign in as the owner. You land on `/dashboard`.
 - Mark a member **Inactive** (owner only — staff must not be able to).
 - Try to delete a member who has receipts → must be refused, with the advice to
   mark them Inactive instead.
+- **Print certificate** on the detail sheet opens a new tab and the print dialog.
+  Check on paper: Hindi renders with matras joined, it fits **one A4 landscape**
+  page, the reg number, name, gotra, jati, date of birth, village, district,
+  state, address, phone, nominee and karyakarta are all filled. The certificate
+  frame is the **whole page** — nothing prints outside it. Blank dotted lines
+  are expected wherever the client has not sent the trust's own details yet
+  (`docs/MEMBERSHIP_CERTIFICATE_PLAN.md` §8).
+- ⚠️ `संस्था रजीस्टर नं.` currently reads **`F/0000/B.K., GJ/0000/B.K.`**. That
+  is a placeholder, not the trust's number. It must be replaced in `TrustInfo`
+  before any certificate is handed to a member. Same for `संस्था स्थापना`,
+  which stands in at 01-07-2026.
+- Against the reference sheet the client supplied, check the branding: the
+  **arched heading** reads रुद्रांश चेरीटेबल ट्रस्ट – लाखणी and is not clipped
+  at either end, the **logo** shows with no white box around it, the three
+  invocations sit across the top, गुजरात and राजस्थान flank the heading, and
+  the footer carries the Lakhani office address and three phone numbers.
+- In the print dialog, **Background graphics must be on**, or the border,
+  the crimson slogan bar and the corner flourishes are dropped.
+
+To look at the design without starting the app:
+
+```bash
+flutter test tool/certificate_preview/preview_test.dart
+```
+
+That writes `build/certificate_preview.html` with the fonts and logo inlined,
+so it renders correctly opened straight off the disk. It uses made-up data and
+does not print itself; the real page loads its assets from the app.
 
 ### 4.4 Payments
 - **Add Payment** from the top bar. Pick a member; the Yojna and amount should
@@ -133,8 +170,9 @@ Sign in as the owner. You land on `/dashboard`.
 - **Mark settled / paid** — owner only; staff must not see it.
 
 ### 4.6 Approvals
-- The bell in the top bar opens **Approvals**. Three sections: new members,
-  payments to approve, cancel requests.
+- The bell in the top bar opens **Approvals**. Six sections: new members,
+  payments to approve, death reports, cancel requests, cash handovers and
+  corrections.
 - Approve an agent's member → a reg number is issued at that moment, and the
   member turns Active.
 - Reject one with a reason → the member stays **Inactive with no reg number**,
@@ -142,6 +180,22 @@ Sign in as the owner. You land on `/dashboard`.
 - Approve an agent payment → it gets counted in the dashboard and agent totals.
 - **Create closing** from a death report: set the group and claim amount, or
   reject with a reason.
+- **Confirm received** on a cash handover, or reject it with a reason. A
+  rejected handover puts the money straight back into that agent's cash in hand
+  — check the agent's Collections page afterwards.
+
+### 4.6a Commission (owner)
+- **Commission** in the sidebar, one month at a time. The month switcher does
+  not go past the current month.
+- Every active agent is listed, even one who collected nothing.
+- Check the numbers by hand for one agent: approved, uncancelled registration
+  and contribution receipts dated in that month, times their percentage. A
+  cancelled receipt and a claim payout must **not** count.
+- **Mark paid** — leaving the amount as it is pays the calculated commission.
+  Mark the same month again with a different amount: it corrects rather than
+  fails, and the row then shows what was actually paid.
+- Sign in as **staff** and open the page: the numbers are there, the Mark paid
+  button is not.
 
 ### 4.7 Announcements and the bell
 - **Announcements** → post one for every Yojna, and one scoped to a single
@@ -192,16 +246,22 @@ Invite an agent from the Agents page, accept the email, sign in. You land on
 `/agent` with its own five-section shell.
 
 ### 6.1 Home
-- Members, amount waiting for approval, approved this month. All three should
-  read zero for a brand-new agent.
+- Members, amount waiting for approval, approved this month, cash in hand and
+  this month's commission. All five should read zero for a brand-new agent.
+- Once there are closing groups, the three newest appear below the buttons with
+  the amount still to collect; tapping one opens that group's dues.
 
 ### 6.2 My Members
 - Only this agent's members. Confirm a member belonging to the other agent is
   **not** listed and cannot be opened.
 - **Add member** → saves as **Pending approval**, with no reg number. Check it
   lands in the owner's Approvals queue.
-- **Edit contact** → phones and address only. Name, Aadhaar, nominee and Yojna
-  must not be editable. Aadhaar should never be visible to an agent.
+- **Edit contact** → phones, address and state only. Name, date of birth,
+  Aadhaar, nominee and Yojna must not be editable. Aadhaar should never be
+  visible to an agent.
+- **Print certificate** on an approved member prints the same sheet with this
+  agent's name as the karyakarta. On a member still waiting for approval the
+  button is hidden — there is no reg number to print yet.
 
 ### 6.3 Record payment
 - Before the member is approved, only the **registration fee** can be recorded.
@@ -233,6 +293,21 @@ Invite an agent from the Agents page, accept the email, sign in. You land on
 ### 6.6 Collections
 - Receipts this agent issued, with their approval state.
 
+### 6.6a Cash in hand and commission
+- The card at the top of Collections counts only **approved cash** receipts
+  that are not in a handover yet. Record a cash payment and leave it pending:
+  the figure must not move until the office approves it. A UPI receipt must
+  never appear there at all.
+- **Hand over cash** → everything is ticked to start with. Untick a receipt and
+  the total follows. Declare it: cash in hand drops, "waiting to be confirmed"
+  rises, and the handover shows in the office's Approvals queue.
+- Ask the office to reject it. The agent gets a bell notice with the reason, and
+  the money is back in cash in hand.
+- Ask the office to confirm the next one. The agent gets a bell notice and the
+  money stays out.
+- **My commission** lists the last six months with what was collected, the
+  percentage and whether the office has paid it.
+
 ### 6.7 Access
 - Type `/dashboard` or `/members` into the address bar as an agent → you must be
   bounced back to `/agent`.
@@ -241,22 +316,30 @@ Invite an agent from the Agents page, accept the email, sign in. You land on
 
 ---
 
-## 7. Member — mostly not built yet
+## 7. Member — the portal (Phase 15)
 
-Be clear about this before you spend time on it: **Phase 15 is not built.**
-What exists today is the shell, the home page and announcements.
+The portal is built, and so is the Turnstile widget on the web build. What is
+still missing is the **keys**: set them and run
+`supabase functions deploy member_lookup --no-verify-jwt`
+(IMPLEMENTATION_PLAN section 0, item 8). Until then `/lookup` **fails closed**
+and says so — that is the designed behaviour, not a bug.
 
-| Screen | State |
+With the keys set, check on a real browser that the Cloudflare checkbox appears
+on `/lookup` and that **Check** stays greyed out until it is ticked. This is the
+one part of the portal no test covers: the widget needs a real site key and a
+real browser.
+
+| Screen | What to check |
 | --- | --- |
-| `/me` home | built — greeting and section links |
-| `/me/payments` | **placeholder** ("being prepared") |
-| `/me/announcements` | built |
-| `/lookup` (reg no + phone + last 4 of Aadhaar) | not built |
-| UPI payment with UTR | not built |
-| Change requests | table exists, no screen |
+| `/lookup`, signed out | reg no + phone + last 4 of Aadhaar returns a summary only — no Aadhaar, no address, no agent. Five wrong tries lock that number for 15 minutes |
+| `/me` home | the member's own membership |
+| `/me/dues` | what they owe, and their family's closing case if there is one |
+| `/me/payments` | their receipts; **Pay by UPI** needs the `UPI_ID` / `UPI_PAYEE` variables, and the same UTR twice must be refused |
+| `/me/announcements` | only notices that apply to them |
+| Corrections | one pending change per field; it lands in the office's Approvals queue and the member hears the outcome |
 
-There is also **no invite-a-member button** in the app. To get a member login
-for testing you have to call the edge function yourself:
+There is **no invite-a-member button** in the app. To get a member login for
+testing you have to call the edge function yourself:
 
 ```bash
 curl -X POST https://<staging-ref>.supabase.co/functions/v1/invite_user \
@@ -265,8 +348,9 @@ curl -X POST https://<staging-ref>.supabase.co/functions/v1/invite_user \
   -d '{"role":"member","email":"test.member@example.com","member_id":"<members.id>"}'
 ```
 
-What is worth testing today: the member lands on `/me` and not on `/dashboard`,
-sees only their own announcements, and is bounced out of `/agent` and `/members`.
+Also check the access rules: the member lands on `/me` and not on `/dashboard`,
+sees only their own announcements, cannot see another member's record, and is
+bounced out of `/agent` and `/members`.
 
 ---
 
@@ -286,6 +370,24 @@ Run these for each role, at least once:
 - **Empty states.** With no data at all, every page should say something useful
   rather than show a broken table.
 - **Hindi text** in WhatsApp messages and the invite email renders correctly.
+
+### What the test suite already covers
+
+Do not spend a session by hand on these — they run in CI on every push, and
+repeating them wastes the time better spent on the real database:
+
+| Check | Where |
+| --- | --- |
+| Every role against every table and RPC, through the API | `test/integration/role_api_test.dart` |
+| Agent and member pages at 390 / 768 / 1440 px, both themes, Hindi names | `test/role_layout_test.dart` |
+| Admin pages at 8 widths, both themes | `test/responsive_test.dart` |
+| Two agents + an admin saving at once | `supabase/tests/concurrent_roles_test.sh` |
+| Four sessions hammering the counter | `supabase/tests/concurrent_numbering_test.sh` |
+
+What is left for a person is everything the tests cannot reach: real email
+delivery, the Turnstile checkbox, WhatsApp opening on a real phone, Hindi on
+paper and on an Android screen, and whether the day's work actually makes
+sense to the office.
 
 ---
 

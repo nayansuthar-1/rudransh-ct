@@ -139,6 +139,17 @@ class S {
   static const add = 'Add';
   static const edit = 'Edit';
   static const view = 'View';
+  static const show = 'Show';
+
+  // Consent and privacy (§7)
+  static const consentTitle = 'The member agrees to the trust keeping these details';
+  static const consentBody =
+      'Name, phone, address, nominee and Aadhaar are kept to run the Yojna and '
+      'settle claims. Tick only after telling the member.';
+  static const consentRequired =
+      'Tick the consent box before saving a new member.';
+  static const exportData = 'Export data';
+  static const eraseData = 'Erase data';
   static const delete = 'Delete';
   static const save = 'Save';
   static const cancel = 'Cancel';
@@ -169,12 +180,14 @@ class S {
   static const fldWaris = 'Nominee (Waris) name';
   static const fldWarisRelation = 'Relation to nominee';
   static const fldGender = 'Gender';
+  static const fldDob = 'Date of birth';
   static const fldPrimaryPhone = 'Phone';
   static const fldAltPhone = 'Alternate phone (optional)';
   static const fldAadhaar = 'Aadhaar number';
   static const fldVillage = 'Village / city';
   static const fldTehsil = 'Tehsil';
   static const fldDistrict = 'District';
+  static const fldState = 'State';
   static const fldPincode = 'PIN code';
   static const fldAgent = 'Agent';
   static const fldJoinDate = 'Joining date';
@@ -267,4 +280,38 @@ class S {
   static const createClosing = 'Create closing';
   static const noPhone = 'This member has no valid phone number.';
   static const whatsAppFailed = 'Could not open WhatsApp.';
+
+  // Cash handovers and commission (Phase 16)
+  static const cashInHand = 'Cash in hand';
+  static const cashInHandSub = 'Approved cash you have not handed over yet';
+  static const handover = 'Hand over cash';
+  static const handovers = 'Cash handovers';
+  static const handoversSub = 'Cash agents say they handed to the office';
+  static const handoverWaiting = 'Waiting to be confirmed';
+  static const declareHandover = 'Declare handover';
+  static const confirmHandover = 'Confirm received';
+  static const handoverNote = 'Note for the office';
+  static const receiptsInHandover = 'Receipts';
+  static const noOpenCash = 'No approved cash is waiting to be handed over.';
+  static const handoverDeclared = 'Handover declared. The office will confirm it.';
+  static const handoverConfirmed = 'Handover confirmed.';
+  static const commissionSub = 'Monthly commission per agent';
+  static const myCommission = 'My commission';
+  static const thisMonthCommission = "This month's commission";
+  static const collectedInMonth = 'Collected';
+  static const commissionPaid = 'Paid';
+  static const commissionUnpaid = 'Not paid yet';
+  static const markCommissionPaid = 'Mark paid';
+  static const commissionReference = 'Reference';
+  static const amountPaid = 'Amount paid';
+  static const commissionDiffers =
+      'What was paid no longer matches what is owed.';
+  static const ownerOnlyCommission = 'Only an owner can mark commission paid.';
+
+  // Membership certificate (docs/MEMBERSHIP_CERTIFICATE_PLAN.md)
+  static const printCertificate = 'Print certificate';
+  static const certificateNeedsRegNo =
+      'This member needs a registration number before a certificate can be printed.';
+  static const certificateFailed =
+      'Could not open the certificate. Allow pop-ups for this site and try again.';
 }

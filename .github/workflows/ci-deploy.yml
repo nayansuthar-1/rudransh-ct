@@ -69,8 +69,14 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -q -f supabase/tests/notifications_test.sql
       - name: Member portal checks
         run: psql -v ON_ERROR_STOP=1 -q -f supabase/tests/member_portal_test.sql
+      - name: Cash handover and commission checks
+        run: psql -v ON_ERROR_STOP=1 -q -f supabase/tests/commission_test.sql
+      - name: Aadhaar encryption checks
+        run: psql -v ON_ERROR_STOP=1 -q -f supabase/tests/aadhaar_test.sql
       - name: Parallel saves get unique numbers
         run: bash supabase/tests/concurrent_numbering_test.sh
+      - name: Two agents and an admin at once get unique numbers
+        run: bash supabase/tests/concurrent_roles_test.sh
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
@@ -132,6 +138,10 @@ jobs:
           }
           echo "POSTGREST_ADMIN_JWT=$(jwt 00000000-0000-0000-0000-00000000a001)" >> "$GITHUB_ENV"
           echo "POSTGREST_STRANGER_JWT=$(jwt 00000000-0000-0000-0000-00000000a002)" >> "$GITHUB_ENV"
+          # Phase 17 access sweep (test/integration/role_api_test.dart).
+          echo "POSTGREST_AGENT_JWT=$(jwt 00000000-0000-0000-0000-00000000a003)" >> "$GITHUB_ENV"
+          echo "POSTGREST_AGENT2_JWT=$(jwt 00000000-0000-0000-0000-00000000a004)" >> "$GITHUB_ENV"
+          echo "POSTGREST_MEMBER_JWT=$(jwt 00000000-0000-0000-0000-00000000a005)" >> "$GITHUB_ENV"
 
       - uses: subosito/flutter-action@v2
         with:

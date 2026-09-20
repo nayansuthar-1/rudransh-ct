@@ -16,6 +16,9 @@ class AgentSummary {
     required this.pendingPayments,
     required this.pendingAmount,
     required this.monthApproved,
+    this.cashInHand = 0,
+    this.handoverWaiting = 0,
+    this.monthCommission = 0,
   });
 
   static const empty = AgentSummary(
@@ -33,6 +36,16 @@ class AgentSummary {
 
   /// Approved collections this calendar month.
   final double monthApproved;
+
+  /// Approved cash the agent has not handed to the office yet
+  /// (IMPLEMENTATION_PLAN Phase 16).
+  final double cashInHand;
+
+  /// Declared, waiting for an admin to confirm it.
+  final double handoverWaiting;
+
+  /// This month's commission, as it stands today.
+  final double monthCommission;
 }
 
 /// What a signed-in agent can read and do (IMPLEMENTATION_PLAN Phase 12).
@@ -88,6 +101,24 @@ abstract class AgentRepository {
 
   /// Deaths the agent reported, newest first.
   Future<List<ClosingRequest>> fetchMyDeathReports();
+
+  // ---- Cash and commission (IMPLEMENTATION_PLAN Phase 16) -------------------
+
+  /// The approved cash receipts that make up cash in hand, oldest first.
+  Future<List<OpenCashReceipt>> fetchOpenCash();
+
+  /// Declares cash handed to the office. An empty [paymentIds] means every
+  /// open receipt. Returns the amount declared.
+  Future<double> declareHandover({
+    List<String> paymentIds = const [],
+    String note = '',
+  });
+
+  /// The agent's own handovers, newest first.
+  Future<List<CashHandover>> fetchMyHandovers();
+
+  /// The last [months] calendar months, newest first.
+  Future<List<CommissionMonth>> fetchMyCommission({int months = 6});
 }
 
 class SupabaseAgentRepository implements AgentRepository {
@@ -122,6 +153,9 @@ class SupabaseAgentRepository implements AgentRepository {
           pendingPayments: (r['pending_payments'] as num).toInt(),
           pendingAmount: (r['pending_amount'] as num).toDouble(),
           monthApproved: (r['month_approved'] as num).toDouble(),
+          cashInHand: (r['cash_in_hand'] as num?)?.toDouble() ?? 0,
+          handoverWaiting: (r['handover_waiting'] as num?)?.toDouble() ?? 0,
+          monthCommission: (r['month_commission'] as num?)?.toDouble() ?? 0,
         );
       });
 
@@ -135,7 +169,10 @@ class SupabaseAgentRepository implements AgentRepository {
               name: r['name'] as String,
               code: r['code'] as String,
               contributionAmount: (r['contribution_amount'] as num).toDouble(),
+              description: r['description'] as String? ?? '',
               registrationFee: (r['registration_fee'] as num).toDouble(),
+              startDate:
+                  r['start_date'] == null ? null : _date(r['start_date']),
               createdAt: DateTime.now(),
             ),
         ];
@@ -176,6 +213,7 @@ class SupabaseAgentRepository implements AgentRepository {
             'father_or_husband_name': m.fatherOrHusbandName,
             'jati': m.jati,
             'gotra': m.gotra,
+            'dob': m.dob == null ? null : _dateFormat.format(m.dob!),
             'waris_name': m.warisName,
             'waris_relation': m.warisRelation,
             'gender': m.gender.name,
@@ -185,6 +223,7 @@ class SupabaseAgentRepository implements AgentRepository {
             'village': m.village,
             'tehsil': m.tehsil,
             'district': m.district,
+            'state': m.state,
             'pincode': m.pincode,
             'join_date': _dateFormat.format(m.joinDate),
           },
@@ -202,6 +241,7 @@ class SupabaseAgentRepository implements AgentRepository {
             'village': m.village,
             'tehsil': m.tehsil,
             'district': m.district,
+            'state': m.state,
             'pincode': m.pincode,
           },
         },
@@ -338,6 +378,50 @@ class SupabaseAgentRepository implements AgentRepository {
             .toList();
       });
 
+  @override
+  Future<List<OpenCashReceipt>> fetchOpenCash() => _guard(() async {
+        final rows = await _db.rpc('agent_open_cash') as List;
+        return rows
+            .cast<Map<String, dynamic>>()
+            .map(OpenCashReceipt.fromRow)
+            .toList();
+      });
+
+  @override
+  Future<double> declareHandover({
+    List<String> paymentIds = const [],
+    String note = '',
+  }) =>
+      _guard(() async {
+        final result = await _db.rpc('agent_declare_handover', params: {
+          // Null means every open receipt; the database decides which.
+          'p_payment_ids': paymentIds.isEmpty ? null : paymentIds,
+          'p_note': note,
+        }) as Map<String, dynamic>;
+        return (result['amount'] as num).toDouble();
+      });
+
+  @override
+  Future<List<CashHandover>> fetchMyHandovers() => _guard(() async {
+        final rows = await _db.rpc('agent_handovers') as List;
+        return rows
+            .cast<Map<String, dynamic>>()
+            .map(CashHandover.fromRow)
+            .toList();
+      });
+
+  @override
+  Future<List<CommissionMonth>> fetchMyCommission({int months = 6}) =>
+      _guard(() async {
+        final rows =
+            await _db.rpc('agent_commission', params: {'p_months': months})
+                as List;
+        return rows
+            .cast<Map<String, dynamic>>()
+            .map(CommissionMonth.fromRow)
+            .toList();
+      });
+
   static ClosingGroupDues _groupFromRow(Map<String, dynamic> r) =>
       ClosingGroupDues(
         yojnaId: r['yojna_id'] as String,
@@ -367,16 +451,19 @@ class SupabaseAgentRepository implements AgentRepository {
         fatherOrHusbandName: r['father_or_husband_name'] as String? ?? '',
         jati: r['jati'] as String? ?? '',
         gotra: r['gotra'] as String? ?? '',
+        dob: r['dob'] == null ? null : _date(r['dob']),
         warisName: r['waris_name'] as String? ?? '',
         warisRelation: r['waris_relation'] as String? ?? '',
         gender: Gender.fromName(r['gender'] as String?),
         primaryPhone: r['primary_phone'] as String? ?? '',
         altPhone: r['alt_phone'] as String? ?? '',
-        // Agents never receive the Aadhaar number.
+        // Agents never receive the Aadhaar number, only the last four digits.
         aadhaar: '',
+        storedAadhaarLast4: r['aadhaar_last4'] as String? ?? '',
         village: r['village'] as String? ?? '',
         tehsil: r['tehsil'] as String? ?? '',
         district: r['district'] as String? ?? '',
+        state: r['state'] as String? ?? '',
         pincode: r['pincode'] as String? ?? '',
         joinDate: _date(r['join_date']),
         status: MemberStatus.fromName(r['status'] as String?),
@@ -468,6 +555,10 @@ class InMemoryAgentRepository implements AgentRepository {
               p.status == PaymentStatus.paid &&
               !p.date.isBefore(DateTime(now.year, now.month)))
           .fold(0, (sum, p) => sum + p.amount),
+      cashInHand: _base.cashInHandOf(me.id),
+      handoverWaiting: _base.handoverWaitingOf(me.id),
+      monthCommission:
+          _base.commissionOf(me.id, DateTime(now.year, now.month)).amount,
     );
   }
 
@@ -518,6 +609,7 @@ class InMemoryAgentRepository implements AgentRepository {
         village: member.village,
         tehsil: member.tehsil,
         district: member.district,
+        state: member.state,
         pincode: member.pincode,
       ),
     );
@@ -721,6 +813,50 @@ class InMemoryAgentRepository implements AgentRepository {
   Future<List<ClosingRequest>> fetchMyDeathReports() async {
     final me = await _me();
     return _base.allClosingRequests().where((r) => r.agentId == me.id).toList();
+  }
+
+  // ---- Cash and commission (IMPLEMENTATION_PLAN Phase 16) ------------------
+
+  @override
+  Future<List<OpenCashReceipt>> fetchOpenCash() async {
+    final me = await _me();
+    final members = {for (final m in await _base.fetchMembers()) m.id: m};
+    return [
+      for (final p in _base.openCashOf(me.id))
+        OpenCashReceipt(
+          id: p.id,
+          receiptNo: p.receiptNo,
+          memberName: members[p.memberId]?.name ?? '',
+          memberRegNo: members[p.memberId]?.regNo ?? '',
+          amount: p.amount,
+          date: p.date,
+        ),
+    ];
+  }
+
+  @override
+  Future<double> declareHandover({
+    List<String> paymentIds = const [],
+    String note = '',
+  }) async {
+    final me = await _me();
+    return _base.declareHandover(me.id, paymentIds: paymentIds, note: note);
+  }
+
+  @override
+  Future<List<CashHandover>> fetchMyHandovers() async {
+    final me = await _me();
+    return _base.handoversOf(me.id);
+  }
+
+  @override
+  Future<List<CommissionMonth>> fetchMyCommission({int months = 6}) async {
+    final me = await _me();
+    final now = DateTime.now();
+    return [
+      for (var i = 0; i < months; i++)
+        _base.commissionOf(me.id, DateTime(now.year, now.month - i)),
+    ];
   }
 }
 

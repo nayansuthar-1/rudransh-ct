@@ -24,6 +24,16 @@
   <title>Rudransh CT · Admin Panel</title>
   <link rel="manifest" href="manifest.json">
 
+  <!--
+    Cloudflare Turnstile for the public member lookup (IMPLEMENTATION_PLAN
+    Phase 15). `render=explicit` stops it drawing itself: the Flutter widget in
+    lib/features/portal/turnstile_web.dart renders it into its own element and
+    waits for this script to arrive. Harmless on every other page — nothing
+    calls it there. See docs/RUNBOOK.md §1.7 for the keys.
+  -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+          async defer></script>
+
   <style>
     html, body {
       margin: 0;

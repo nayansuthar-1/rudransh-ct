@@ -34,6 +34,8 @@ class _YojnaFormDialogState extends ConsumerState<YojnaFormDialog> {
   late final TextEditingController _claim;
   late final TextEditingController _registration;
 
+  /// Printed as योजना प्रारंभ on the membership certificate.
+  DateTime? _startDate;
   late bool _isActive;
   bool _saving = false;
 
@@ -51,6 +53,7 @@ class _YojnaFormDialogState extends ConsumerState<YojnaFormDialog> {
     _claim = TextEditingController(text: y == null ? '' : _num(y.claimAmount));
     _registration =
         TextEditingController(text: y == null ? '' : _num(y.registrationFee));
+    _startDate = y?.startDate;
     _isActive = y?.isActive ?? true;
   }
 
@@ -90,6 +93,8 @@ class _YojnaFormDialogState extends ConsumerState<YojnaFormDialog> {
             contributionAmount: parse(_contribution),
             claimAmount: parse(_claim),
             registrationFee: parse(_registration),
+            startDate: _startDate,
+            clearStartDate: _startDate == null,
             isActive: _isActive,
           ),
         );
@@ -103,6 +108,7 @@ class _YojnaFormDialogState extends ConsumerState<YojnaFormDialog> {
             contributionAmount: parse(_contribution),
             claimAmount: parse(_claim),
             registrationFee: parse(_registration),
+            startDate: _startDate,
             isActive: _isActive,
             createdAt: DateTime.now(),
           ),
@@ -198,6 +204,15 @@ class _YojnaFormDialogState extends ConsumerState<YojnaFormDialog> {
                     keyboardType: TextInputType.number,
                     inputFormatters: Fmts.amount(),
                     validator: V.amount,
+                  ),
+                ),
+                // योजना प्रारंभ on the membership certificate.
+                GridItem(
+                  AppDateField(
+                    label: 'Scheme start date',
+                    value: _startDate,
+                    firstDate: DateTime(2020),
+                    onChanged: (d) => setState(() => _startDate = d),
                   ),
                 ),
               ],

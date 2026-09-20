@@ -32,6 +32,19 @@ create function auth.uid() returns uuid language sql stable as $$
   )::uuid
 $$;
 
+-- Stand-in for Supabase Vault, which holds the Aadhaar encryption key
+-- (20260924000100_aadhaar_encryption.sql). The real thing decrypts on read; a
+-- plain table is enough here, and the test key never leaves this database.
+create schema vault;
+
+create table vault.decrypted_secrets (
+  name             text primary key,
+  decrypted_secret text not null
+);
+
+insert into vault.decrypted_secrets (name, decrypted_secret)
+values ('aadhaar_key', 'ci-only-aadhaar-key-not-a-real-secret');
+
 grant usage on schema auth, public, extensions to anon, authenticated, service_role;
 grant execute on function auth.uid() to anon, authenticated;
 

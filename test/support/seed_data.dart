@@ -84,6 +84,10 @@ class SeedData {
   static const _tehsils = ['झुंझुनूं', 'चिड़ावा', 'नवलगढ़', 'खेतड़ी', 'सूरजगढ़'];
   static const _districts = ['झुंझुनूं', 'सीकर', 'चूरू', 'नागौर'];
 
+  /// Every seeded district is in Rajasthan, so the certificate's राज्य line
+  /// matches the address above it.
+  static const _state = 'राजस्थान';
+
   static const _agentNames = [
     'रमेश कुमार सुथार',
     'विकास चौधरी',
@@ -158,6 +162,8 @@ class SeedData {
           fatherOrHusbandName: '${_pick(_fatherNames)} ${_pick(_surnames)}',
           jati: _pick(_jatis),
           gotra: _pick(_gotras),
+          dob: DateTime(1950 + _rng.nextInt(50), 1 + _rng.nextInt(12),
+              1 + _rng.nextInt(28)),
           warisName: '${_pick(_firstNames)} ${_pick(_surnames)}',
           warisRelation: _pick(_relations),
           gender: i % 7 == 0 ? Gender.female : Gender.male,
@@ -167,6 +173,7 @@ class SeedData {
           village: _pick(_villages),
           tehsil: _pick(_tehsils),
           district: _pick(_districts),
+          state: _state,
           pincode: '3330${_rng.nextInt(10)}${_rng.nextInt(10)}',
           agentId: agentList[i % agentList.length].id,
           joinDate: join,

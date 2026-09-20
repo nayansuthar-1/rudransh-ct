@@ -14,9 +14,9 @@ insert into auth.users (id, email)
 select ('00000000-0000-0000-0000-00000000c0' || lpad(g::text, 2, '0'))::uuid, 'aw' || g || '@test.local'
   from generate_series(1, 5) g;
 
-insert into public.yojnas (id, name, code, contribution_amount, registration_fee) values
-  ('00000000-0000-0000-0000-0000000e0001', 'Agent Work One', 'AWQA', 100, 50),
-  ('00000000-0000-0000-0000-0000000e0002', 'Agent Work Two', 'AWQB', 200, 50);
+insert into public.yojnas (id, name, code, description, contribution_amount, registration_fee, start_date) values
+  ('00000000-0000-0000-0000-0000000e0001', 'Agent Work One', 'AWQA', 'Payout note one', 100, 50, date '2026-07-01'),
+  ('00000000-0000-0000-0000-0000000e0002', 'Agent Work Two', 'AWQB', '', 200, 50, null);
 
 insert into public.agents (id, code, name, yojna_ids) values
   ('00000000-0000-0000-0000-0000000e0011', '', 'Agent A1', array['00000000-0000-0000-0000-0000000e0001'::uuid]),
@@ -55,12 +55,16 @@ declare
   keep uuid; drop_ uuid; r jsonb; p1 uuid; n int;
 begin
   assert (select count(*) from public.agent_yojnas()) = 1, 'A1 works on one scheme';
+  -- The certificate needs the scheme's own start date and its नोंध wording.
+  assert (select start_date from public.agent_yojnas()) = date '2026-07-01', 'agent sees the scheme start date';
+  assert (select description from public.agent_yojnas()) = 'Payout note one', 'agent sees the payout note';
   assert (select count(*) from public.agent_members()) = 1, 'A1 sees one member';
   assert (select aadhaar_last4 from public.agent_members()) = '9012', 'Aadhaar masked to last 4';
   assert (select count(*) from public.agent_members('existing one')) = 1, 'agent member search';
 
   keep := public.agent_add_member(jsonb_build_object(
-    'yojna_id', y1, 'name', 'New Keep', 'primary_phone', '9600000011', 'gender', 'female'));
+    'yojna_id', y1, 'name', 'New Keep', 'primary_phone', '9600000011', 'gender', 'female',
+    'dob', '1960-01-01', 'state', 'Gujarat'));
   drop_ := public.agent_add_member(jsonb_build_object(
     'yojna_id', y1, 'name', 'New Drop', 'primary_phone', '9600000012'));
   insert into aw values ('keep', keep), ('drop', drop_);
@@ -68,6 +72,11 @@ begin
   assert (select status from public.agent_members() where id = keep) = 'pending', 'new member is pending';
   assert (select reg_no from public.agent_members() where id = keep) is null, 'pending member has no reg no';
   assert (select count(*) from public.agent_members(p_status => 'pending')) = 2, 'status filter';
+  -- Certificate fields survive the round trip; a member added without them is blank, not null-state.
+  assert (select dob from public.agent_members() where id = keep) = date '1960-01-01', 'dob kept';
+  assert (select state from public.agent_members() where id = keep) = 'Gujarat', 'state kept';
+  assert (select state from public.agent_members() where id = drop_) = '', 'state defaults to blank';
+  assert (select dob from public.agent_members() where id = drop_) is null, 'dob may be unknown';
 
   begin
     perform public.agent_add_member(jsonb_build_object('yojna_id', y2, 'name', 'Wrong', 'primary_phone', '9600000013'));
@@ -81,7 +90,8 @@ begin
   exception when check_violation then null;
   end;
 
-  perform public.agent_update_contact(m1, jsonb_build_object('village', 'Balotra'));
+  perform public.agent_update_contact(m1, jsonb_build_object('village', 'Balotra', 'state', 'Rajasthan'));
+  assert (select state from public.agent_members() where id = m1) = 'Rajasthan', 'agent may correct the state';
   begin
     perform public.agent_update_contact(m2, jsonb_build_object('village', 'Hacked'));
     raise exception 'agent edited another agent''s member';

@@ -11,6 +11,7 @@ class Yojna {
     this.contributionAmount = 0,
     this.claimAmount = 0,
     this.registrationFee = 0,
+    this.startDate,
     this.isActive = true,
     required this.createdAt,
   });
@@ -30,6 +31,11 @@ class Yojna {
   /// Amount paid out to the nominee on a closing.
   final double claimAmount;
   final double registrationFee;
+
+  /// When the scheme actually opened, printed as `योजना प्रारंभ` on the
+  /// membership certificate. Null on older records, which fall back to
+  /// [createdAt].
+  final DateTime? startDate;
   final bool isActive;
   final DateTime createdAt;
 
@@ -41,6 +47,8 @@ class Yojna {
     double? contributionAmount,
     double? claimAmount,
     double? registrationFee,
+    DateTime? startDate,
+    bool clearStartDate = false,
     bool? isActive,
     DateTime? createdAt,
   }) {
@@ -52,6 +60,7 @@ class Yojna {
       contributionAmount: contributionAmount ?? this.contributionAmount,
       claimAmount: claimAmount ?? this.claimAmount,
       registrationFee: registrationFee ?? this.registrationFee,
+      startDate: clearStartDate ? null : (startDate ?? this.startDate),
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -65,6 +74,7 @@ class Yojna {
         'contributionAmount': contributionAmount,
         'claimAmount': claimAmount,
         'registrationFee': registrationFee,
+        'startDate': startDate?.toIso8601String(),
         'isActive': isActive,
         'createdAt': createdAt.toIso8601String(),
       };
@@ -78,6 +88,7 @@ class Yojna {
             (map['contributionAmount'] as num?)?.toDouble() ?? 0,
         claimAmount: (map['claimAmount'] as num?)?.toDouble() ?? 0,
         registrationFee: (map['registrationFee'] as num?)?.toDouble() ?? 0,
+        startDate: DateTime.tryParse(map['startDate'] as String? ?? ''),
         isActive: map['isActive'] as bool? ?? true,
         createdAt:
             DateTime.tryParse(map['createdAt'] as String? ?? '') ??

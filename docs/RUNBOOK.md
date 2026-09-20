@@ -309,6 +309,74 @@ select p.name, p.email, p.role, p.is_active, u.last_sign_in_at
  where p.role in ('owner', 'staff') order by p.role, p.name;
 ```
 
+**Move an agent's members to someone else**
+
+Do this before deactivating an agent who is leaving, otherwise their members
+have nobody collecting from them.
+
+Agents page → the agent's **⋯** menu → **Move members** → pick the agent to
+move them to. Both sides get a notification. The receiving agent must be
+active, and the two agents must be different.
+
+By hand, if the screen is unavailable:
+
+```sql
+select public.reassign_members(
+  (select id from public.agents where code = 'AG-007'),   -- from
+  (select id from public.agents where code = 'AG-003'));  -- to
+```
+
+It returns how many members moved. Pass a third argument — an array of member
+ids — to move only some of them. Money already collected keeps the agent who
+collected it, so past commission and receipts are unaffected.
+
+**Unlock a member who is locked out of the public lookup**
+
+Five wrong tries for one registration number inside 15 minutes lock that
+number. The lock is counted per registration number, not per person or device,
+so it clears itself after 15 minutes — usually the right answer is to wait.
+
+To clear it immediately (a member on the phone to the office, for example):
+
+```sql
+delete from public.lookup_attempts
+ where reg_no = 'SSY-2026-0042' and not succeeded;
+```
+
+Check first whether the tries look like a member mistyping or like someone
+guessing:
+
+```sql
+select reg_no, succeeded, created_at
+  from public.lookup_attempts
+ where created_at > now() - interval '1 hour'
+ order by created_at desc limit 50;
+```
+
+Many failures spread across different registration numbers is guessing, not a
+confused member. Leave those locked and tell the trustees.
+
+**Cash handovers** (Phase 16)
+
+An agent declares the cash they handed to the office; an admin confirms it on
+the Approvals page. Confirm only once the money is actually in hand — the
+receipts stay linked to the handover and leave the agent's "cash in hand".
+
+Rejecting one (with a reason) unlinks its receipts, so the amount goes back to
+that agent's cash in hand and they can declare it again. Use that rather than
+deleting anything.
+
+**Commission**
+
+Commission page → pick the month → **Mark paid** (owners only). Leaving the
+amount as it stands pays the calculated figure. Marking a month that was
+already paid corrects it instead of failing, and the agent is told either way.
+
+The calculated figure is recomputed on every read, so cancelling an old receipt
+changes what is owed for that month. The page then shows what was actually paid
+next to what is now owed, rather than quietly rewriting the record — settle the
+difference in the next month's payment.
+
 ---
 
 ## 3.1 Email (Brevo) — switching it on and checking it
@@ -426,3 +494,73 @@ select count(*), sum(amount) filter (where status = 'paid') from public.payments
 
 For a real disaster, create a new project, run `supabase db push`, and run the
 same script against it. Then update the Supabase secrets and redeploy.
+
+---
+
+## 6. Aadhaar encryption key
+
+The full Aadhaar number is encrypted at rest (IMPLEMENTATION_PLAN §7).
+`pgcrypto` does the encryption and **Supabase Vault** holds the key.
+
+> Not pgsodium: Supabase documents its Transparent Column Encryption but does
+> not recommend it, and the extension is being deprecated. Vault keeps its API.
+
+### Set the key, once per project
+
+Supabase → SQL Editor. Use a long random value and use **a different one for
+staging and production**:
+
+```sql
+select vault.create_secret(
+  encode(extensions.gen_random_bytes(32), 'base64'),
+  'aadhaar_key',
+  'Encrypts members.aadhaar_enc — see docs/RUNBOOK.md section 6'
+);
+```
+
+Check it is there (this prints the key, so do it in a private window):
+
+```sql
+select name, created_at from vault.decrypted_secrets where name = 'aadhaar_key';
+```
+
+**Keep a copy in the password manager.** The key is not in the repo and not in
+the nightly backup's reach — lose it and every stored Aadhaar is unreadable.
+Nothing else breaks: members keep working, and the last four digits survive
+because they are stored separately.
+
+### If the key is missing
+
+The database **refuses to store an Aadhaar** rather than writing it in the
+clear. Saving a member with an Aadhaar fails with a message pointing here;
+saving one without an Aadhaar works normally. That is the intended behaviour.
+
+### Who can read it
+
+| Role | Sees |
+| --- | --- |
+| Owner | The full number, on demand — **Show** on the member detail sheet |
+| Staff admin | `XXXX XXXX 9012`. They may *change* it, never read it |
+| Agent | `XXXX XXXX 9012` |
+| Member | Nothing; the public lookup only *checks* the last four digits |
+
+Reading the number goes through `member_aadhaar(member_id)`, which is owner
+only. `clear_member_aadhaar(member_id)` removes one outright, also owner only.
+Neither the plain number nor the ciphertext ever reaches the audit log.
+
+### Rotating the key
+
+There is no rotation helper yet. Rotating means decrypting with the old key and
+re-encrypting with the new one in a single transaction, so write one before you
+need it — the number of members is small, but the statement must not be
+interrupted:
+
+```sql
+-- Staging first. Replace <old> and <new>.
+update public.members
+   set aadhaar_enc = extensions.pgp_sym_encrypt(
+         extensions.pgp_sym_decrypt(aadhaar_enc, '<old>'), '<new>')
+ where aadhaar_enc is not null;
+```
+
+Then update the Vault secret. Take a backup first (section 5).

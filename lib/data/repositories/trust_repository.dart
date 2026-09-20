@@ -203,4 +203,42 @@ abstract class TrustRepository {
   Future<void> approveChangeRequest(String id);
 
   Future<void> rejectChangeRequest(String id, String reason);
+
+  // ---- Cash handovers and commission (IMPLEMENTATION_PLAN Phase 16) --------
+
+  /// Cash agents say they handed over, waiting for an admin to confirm it.
+  Future<List<CashHandover>> fetchPendingHandovers();
+
+  /// The office received the money.
+  Future<void> confirmHandover(String id);
+
+  /// The office did not receive it: the receipts unlink and the money goes
+  /// back to the agent's cash in hand.
+  Future<void> rejectHandover(String id, String reason);
+
+  /// Every active agent's commission for one calendar month.
+  Future<List<CommissionMonth>> fetchCommissionReport(DateTime month);
+
+  /// Owners only. [amount] null means the calculated commission. Paying a
+  /// month that was already paid corrects it.
+  Future<void> markCommissionPaid({
+    required String agentId,
+    required DateTime month,
+    double? amount,
+    String reference = '',
+  });
+
+  // ---- Aadhaar (IMPLEMENTATION_PLAN §7) -----------------------------------
+
+  /// The full number, decrypted. Owners only — the database refuses anyone
+  /// else. Returns an empty string when the member has no Aadhaar on record.
+  Future<String> fetchMemberAadhaar(String memberId);
+
+  /// Everything the trust holds about one member, for a data request.
+  /// Owners only; the Aadhaar comes back decrypted.
+  Future<Map<String, dynamic>> exportMemberData(String memberId);
+
+  /// Anonymises the member on request and keeps their receipts, which are
+  /// financial records the trust must retain. Owners only, and irreversible.
+  Future<void> eraseMemberData(String memberId, String reason);
 }

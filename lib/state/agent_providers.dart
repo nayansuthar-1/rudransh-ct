@@ -154,6 +154,28 @@ final agentDeathReportsProvider = FutureProvider<List<ClosingRequest>>((ref) {
   return ref.read(agentRepositoryProvider).fetchMyDeathReports();
 });
 
+// ---- Cash and commission (IMPLEMENTATION_PLAN Phase 16) ------------------------
+
+/// The approved cash receipts the agent still holds, for the declare form.
+final agentOpenCashProvider = FutureProvider<List<OpenCashReceipt>>((ref) {
+  watchBackendData(ref);
+  if (!_signedInAsAgent(ref)) return const [];
+  return ref.read(agentRepositoryProvider).fetchOpenCash();
+});
+
+final agentHandoversProvider = FutureProvider<List<CashHandover>>((ref) {
+  watchBackendData(ref);
+  if (!_signedInAsAgent(ref)) return const [];
+  return ref.read(agentRepositoryProvider).fetchMyHandovers();
+});
+
+/// Six months back, newest first.
+final agentCommissionProvider = FutureProvider<List<CommissionMonth>>((ref) {
+  watchBackendData(ref);
+  if (!_signedInAsAgent(ref)) return const [];
+  return ref.read(agentRepositoryProvider).fetchMyCommission();
+});
+
 /// Cloudinary in live builds; a stand-in in demo mode and tests.
 final certificateUploaderProvider = Provider<CertificateUploader>((ref) {
   if (Env.hasCloudinary) {
@@ -208,6 +230,14 @@ class AgentActions {
   /// Search for the payment form's member picker.
   Future<List<Member>> searchMembers(String text) async =>
       (await _repo.fetchMyMembers(text: text, offset: 0, limit: 8)).items;
+
+  /// Declares cash handed to the office. An empty [paymentIds] means every
+  /// open receipt. Returns the amount declared.
+  Future<double> declareHandover({
+    List<String> paymentIds = const [],
+    String note = '',
+  }) =>
+      _run((r) => r.declareHandover(paymentIds: paymentIds, note: note));
 }
 
 final agentActionsProvider = Provider<AgentActions>(AgentActions.new);

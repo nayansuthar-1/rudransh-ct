@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/l10n/strings.dart';
 import '../../core/utils/extensions.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/utils/formatters.dart';
 import '../../core/utils/validators.dart';
 import '../../data/models/models.dart';
 import '../../state/providers.dart';
@@ -49,18 +51,24 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   late final TextEditingController _village;
   late final TextEditingController _tehsil;
   late final TextEditingController _district;
+  late final TextEditingController _state;
   late final TextEditingController _pincode;
   final _copyPhone = TextEditingController();
 
   String? _yojnaId;
   String? _agentId;
   Gender _gender = Gender.male;
+  DateTime? _dob;
   String _relation = 'Son';
   MemberStatus _status = MemberStatus.active;
   DateTime _joinDate = DateTime.now();
 
   bool _saving = false;
   bool _looking = false;
+
+  /// Recorded on the member row when they are first enrolled
+  /// (IMPLEMENTATION_PLAN §7). Only asked on a new member.
+  bool _consent = false;
 
   static const _relations = [
     'Son',
@@ -90,11 +98,13 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     _village = TextEditingController(text: m?.village ?? '');
     _tehsil = TextEditingController(text: m?.tehsil ?? '');
     _district = TextEditingController(text: m?.district ?? '');
+    _state = TextEditingController(text: m?.state ?? '');
     _pincode = TextEditingController(text: m?.pincode ?? '');
 
     _yojnaId = m?.yojnaId ?? widget.presetYojnaId;
     _agentId = m?.agentId;
     _gender = m?.gender ?? Gender.male;
+    _dob = m?.dob;
     _relation = m?.warisRelation.isNotEmpty == true ? m!.warisRelation : 'Son';
     _status = m?.status ?? MemberStatus.active;
     _joinDate = m?.joinDate ?? DateTime.now();
@@ -114,6 +124,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       _village,
       _tehsil,
       _district,
+      _state,
       _pincode,
       _copyPhone,
     ]) {
@@ -147,6 +158,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       _village.text = found.village;
       _tehsil.text = found.tehsil;
       _district.text = found.district;
+      _state.text = found.state;
       _pincode.text = found.pincode;
       _agentId = found.agentId;
       _primaryPhone.text = found.primaryPhone;
@@ -158,6 +170,10 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_yojnaId == null) {
       showToast(context, S.selectProgram, error: true);
+      return;
+    }
+    if (!_isEdit && !_consent) {
+      showToast(context, S.consentRequired, error: true);
       return;
     }
 
@@ -173,6 +189,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             fatherOrHusbandName: _father.text.trim(),
             jati: _jati.text.trim(),
             gotra: _gotra.text.trim(),
+            dob: _dob,
+            clearDob: _dob == null,
             warisName: _waris.text.trim(),
             warisRelation: _relation,
             gender: _gender,
@@ -182,6 +200,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             village: _village.text.trim(),
             tehsil: _tehsil.text.trim(),
             district: _district.text.trim(),
+            state: _state.text.trim(),
             pincode: _pincode.text.trim(),
             agentId: _agentId,
             clearAgent: _agentId == null,
@@ -200,6 +219,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             fatherOrHusbandName: _father.text.trim(),
             jati: _jati.text.trim(),
             gotra: _gotra.text.trim(),
+            dob: _dob,
             warisName: _waris.text.trim(),
             warisRelation: _relation,
             gender: _gender,
@@ -209,10 +229,12 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             village: _village.text.trim(),
             tehsil: _tehsil.text.trim(),
             district: _district.text.trim(),
+            state: _state.text.trim(),
             pincode: _pincode.text.trim(),
             agentId: _agentId,
             joinDate: _joinDate,
             status: _status,
+            consentAt: DateTime.now(),
           ),
         );
       }
@@ -347,6 +369,16 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                       onChanged: (v) => setState(() => _gender = v ?? _gender),
                     ),
                   ),
+                  // Printed on the membership certificate.
+                  GridItem(
+                    AppDateField(
+                      label: S.fldDob,
+                      value: _dob,
+                      firstDate: DateTime(1920),
+                      lastDate: DateTime.now(),
+                      onChanged: (d) => setState(() => _dob = d),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -382,13 +414,21 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                   GridItem(
                     AppTextField(
                       label: S.fldAadhaar,
-                      required: true,
+                      // On an edit the number cannot be shown: it is encrypted
+                      // and only an owner can fetch it (§7). Leaving the box
+                      // empty keeps whatever is on record.
+                      required: !_isEdit,
                       controller: _aadhaar,
-                      hint: '1234 5678 9012',
+                      hint: _isEdit
+                          ? '${Fmt.aadhaarFromLast4(widget.existing!.aadhaarLast4)}'
+                              ' — leave blank to keep'
+                          : '1234 5678 9012',
                       prefixIcon: Icons.credit_card_outlined,
                       keyboardType: TextInputType.number,
                       inputFormatters: Fmts.aadhaar(),
-                      validator: V.aadhaar,
+                      validator: (v) => _isEdit && (v ?? '').trim().isEmpty
+                          ? null
+                          : V.aadhaar(v),
                     ),
                   ),
                 ],
@@ -403,6 +443,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                   GridItem(AppTextField(label: S.fldVillage, controller: _village)),
                   GridItem(AppTextField(label: S.fldTehsil, controller: _tehsil)),
                   GridItem(AppTextField(label: S.fldDistrict, controller: _district)),
+                  GridItem(AppTextField(label: S.fldState, controller: _state)),
                   GridItem(
                     AppTextField(
                       label: S.fldPincode,
@@ -456,6 +497,13 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                 ],
               ),
             ),
+            if (!_isEdit) ...[
+              const SizedBox(height: Space.lg),
+              _ConsentTile(
+                value: _consent,
+                onChanged: (v) => setState(() => _consent = v),
+              ),
+            ],
           ],
         ),
       ),
@@ -511,6 +559,38 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
           },
         ),
       ],
+    );
+  }
+}
+
+/// Consent to the trust holding the member's details (IMPLEMENTATION_PLAN §7,
+/// DPDP Act 2023). Asked once, when the member is enrolled; the time is stored
+/// on the member row.
+class _ConsentTile extends StatelessWidget {
+  const _ConsentTile({required this.value, required this.onChanged});
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    // `tileColor` rather than a wrapping DecoratedBox: a ListTile paints its
+    // ink on the nearest Material, and a coloured box in between hides it.
+    return CheckboxListTile(
+      value: value,
+      onChanged: (v) => onChanged(v ?? false),
+      controlAffinity: ListTileControlAffinity.leading,
+      tileColor: c.surfaceMuted,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Radii.panel),
+        side: BorderSide(color: c.border),
+      ),
+      title: const Text(S.consentTitle, style: TextStyle(fontSize: 14)),
+      subtitle: Text(
+        S.consentBody,
+        style: TextStyle(fontSize: 12.5, color: c.textSecondary),
+      ),
     );
   }
 }

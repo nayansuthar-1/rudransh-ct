@@ -18,8 +18,10 @@ import '../../widgets/inputs.dart';
 import '../../widgets/primitives.dart';
 import '../../widgets/responsive_table.dart';
 import '../../widgets/stat_card.dart';
+import '../certificate/certificate_action.dart';
 import '../dashboard/dashboard_page.dart' show PaymentStatusPill;
 import '../members/members_page.dart' show MemberStatusPill;
+import 'agent_cash.dart';
 import 'agent_forms.dart';
 
 // ---------------------------------------------------------------------------
@@ -69,6 +71,25 @@ class AgentHomePage extends ConsumerWidget {
               icon: Icons.verified_outlined,
               accent: StatAccent.green,
             ),
+            StatCard(
+              label: S.cashInHand,
+              value: Fmt.money(summary.cashInHand),
+              icon: Icons.account_balance_wallet_outlined,
+              accent: StatAccent.purple,
+              caption: summary.handoverWaiting == 0
+                  ? null
+                  : '${Fmt.money(summary.handoverWaiting)} waiting to be '
+                      'confirmed',
+              onTap: () => context.go(AppRoutes.agentCollections),
+            ),
+            StatCard(
+              label: S.thisMonthCommission,
+              value: Fmt.money(summary.monthCommission),
+              icon: Icons.percent_rounded,
+              accent: StatAccent.blue,
+              caption: 'So far this month',
+              onTap: () => context.go(AppRoutes.agentCollections),
+            ),
           ],
         ),
         const SizedBox(height: Space.xl),
@@ -89,10 +110,81 @@ class AgentHomePage extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: Space.xl),
+        const _RecentClosings(),
+        const SizedBox(height: Space.xl),
         Text(
           'Money you collect and members you add count in the trust totals '
           'after the office approves them.',
           style: TextStyle(color: c.textSecondary, fontSize: 13),
+        ),
+      ],
+    );
+  }
+}
+
+/// The three newest closing groups the agent's members owe for, so the home
+/// page shows what to collect next without opening the Dues tab.
+class _RecentClosings extends ConsumerWidget {
+  const _RecentClosings();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colors;
+    final groups = ref.watch(agentClosingGroupsProvider).value?.items ?? const [];
+    if (groups.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionHeader(
+          title: 'Recent closings',
+          dense: true,
+          actions: [
+            TextButton(
+              onPressed: () => context.go(AppRoutes.agentDues),
+              child: const Text(S.viewAll),
+            ),
+          ],
+        ),
+        const SizedBox(height: Space.md),
+        AppCard(
+          child: Column(
+            children: [
+              for (final (i, g) in groups.take(3).indexed) ...[
+                if (i > 0) Divider(height: 1, color: c.border),
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: Space.lg,
+                    vertical: 4,
+                  ),
+                  title: Text(
+                    '${g.closingGroup} · ${g.yojnaName}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${g.paidCount} of ${g.memberCount} paid · '
+                    '${Fmt.date(g.closingDate)}',
+                    style: TextStyle(fontSize: 13, color: c.textSecondary),
+                  ),
+                  trailing: Text(
+                    Fmt.money(g.toCollect),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: g.toCollect > 0 ? c.warning : c.textSecondary,
+                    ),
+                  ),
+                  onTap: () => context.go(
+                    '${AppRoutes.agentDuesGroup}?yojna=${g.yojnaId}'
+                    '&group=${Uri.encodeComponent(g.closingGroup)}',
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ],
     );
@@ -234,6 +326,23 @@ void _showMember(BuildContext context, Member m) {
           },
           child: const Text(S.editContact),
         ),
+        // Members enrolled by this agent carry their name as the karyakarta.
+        if (m.regNo.isNotEmpty)
+          Consumer(
+            builder: (context, ref, _) => OutlinedButton(
+              onPressed: () => printMemberCertificate(
+                context,
+                member: m,
+                yojna: ref
+                    .watch(agentYojnasProvider)
+                    .value
+                    ?.where((y) => y.id == m.yojnaId)
+                    .firstOrNull,
+                agentName: ref.watch(currentUserProvider).name,
+              ),
+              child: const Text(S.printCertificate),
+            ),
+          ),
         if (canPay)
           FilledButton(
             onPressed: () {
@@ -257,10 +366,14 @@ void _showMember(BuildContext context, Member m) {
                 .where((s) => s.isNotEmpty)
                 .join(' · '),
           ),
+          if (m.dob != null) DetailRow(label: S.fldDob, value: Fmt.date(m.dob)),
           DetailRow(label: S.phone, value: Fmt.phone(m.primaryPhone)),
           if (m.altPhone.isNotEmpty)
             DetailRow(label: S.fldAltPhone, value: Fmt.phone(m.altPhone)),
-          DetailRow(label: 'Address', value: m.address),
+          DetailRow(
+            label: 'Address',
+            value: [m.address, m.state].where((s) => s.isNotEmpty).join(', '),
+          ),
           DetailRow(label: S.joinedOn, value: Fmt.date(m.joinDate)),
         ],
       ),
@@ -296,6 +409,8 @@ class AgentCollectionsPage extends ConsumerWidget {
             ),
           ],
         ),
+        const SizedBox(height: Space.xl),
+        const AgentCashSection(),
         const SizedBox(height: Space.xl),
         Align(
           alignment: Alignment.centerLeft,

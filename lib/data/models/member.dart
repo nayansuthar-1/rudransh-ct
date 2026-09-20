@@ -38,15 +38,18 @@ class Member {
     required this.fatherOrHusbandName,
     required this.jati,
     this.gotra = '',
+    this.dob,
     required this.warisName,
     required this.warisRelation,
     this.gender = Gender.male,
     required this.primaryPhone,
     this.altPhone = '',
     required this.aadhaar,
+    this.storedAadhaarLast4 = '',
     this.village = '',
     this.tehsil = '',
     this.district = '',
+    this.state = '',
     this.pincode = '',
     this.agentId,
     required this.joinDate,
@@ -54,6 +57,7 @@ class Member {
     this.closingDate,
     this.closingGroup,
     this.reviewNote = '',
+    this.consentAt,
   });
 
   final String id;
@@ -66,16 +70,35 @@ class Member {
   final String jati;
   final String gotra;
 
+  /// Date of birth, printed on the membership certificate. Older records
+  /// predate the field, so it can be null.
+  final DateTime? dob;
+
   /// Nominee (waris).
   final String warisName;
   final String warisRelation;
   final Gender gender;
   final String primaryPhone;
   final String altPhone;
+  /// Write-only in a real build: the database encrypts it and reads come back
+  /// empty, so only [aadhaarLast4] is shown. An owner fetches the full number
+  /// on demand (IMPLEMENTATION_PLAN §7).
   final String aadhaar;
+
+  /// Four digits as the database stores them. Use [aadhaarLast4] instead;
+  /// this is empty in demo mode, where nothing is encrypted.
+  final String storedAadhaarLast4;
+
+  /// Four digits for the masked display, or empty when the member has no
+  /// Aadhaar on record.
+  String get aadhaarLast4 => storedAadhaarLast4.isNotEmpty
+      ? storedAadhaarLast4
+      : (aadhaar.length >= 4 ? aadhaar.substring(aadhaar.length - 4) : '');
+
   final String village;
   final String tehsil;
   final String district;
+  final String state;
   final String pincode;
   final String? agentId;
   final DateTime joinDate;
@@ -89,6 +112,11 @@ class Member {
 
   /// Why an admin rejected this sign-up, if they did.
   final String reviewNote;
+
+  /// When the member agreed to the trust holding their details
+  /// (IMPLEMENTATION_PLAN §7). Null for records enrolled before consent was
+  /// recorded — an honest gap rather than a back-dated tick.
+  final DateTime? consentAt;
 
   bool get isClosed => status == MemberStatus.closed;
   bool get isPending => status == MemberStatus.pending;
@@ -117,6 +145,8 @@ class Member {
     String? fatherOrHusbandName,
     String? jati,
     String? gotra,
+    DateTime? dob,
+    bool clearDob = false,
     String? warisName,
     String? warisRelation,
     Gender? gender,
@@ -126,6 +156,7 @@ class Member {
     String? village,
     String? tehsil,
     String? district,
+    String? state,
     String? pincode,
     String? agentId,
     bool clearAgent = false,
@@ -135,6 +166,7 @@ class Member {
     String? closingGroup,
     bool clearClosing = false,
     String? reviewNote,
+    DateTime? consentAt,
   }) {
     return Member(
       id: id ?? this.id,
@@ -144,15 +176,18 @@ class Member {
       fatherOrHusbandName: fatherOrHusbandName ?? this.fatherOrHusbandName,
       jati: jati ?? this.jati,
       gotra: gotra ?? this.gotra,
+      dob: clearDob ? null : (dob ?? this.dob),
       warisName: warisName ?? this.warisName,
       warisRelation: warisRelation ?? this.warisRelation,
       gender: gender ?? this.gender,
       primaryPhone: primaryPhone ?? this.primaryPhone,
       altPhone: altPhone ?? this.altPhone,
       aadhaar: aadhaar ?? this.aadhaar,
+      storedAadhaarLast4: storedAadhaarLast4,
       village: village ?? this.village,
       tehsil: tehsil ?? this.tehsil,
       district: district ?? this.district,
+      state: state ?? this.state,
       pincode: pincode ?? this.pincode,
       agentId: clearAgent ? null : (agentId ?? this.agentId),
       joinDate: joinDate ?? this.joinDate,
@@ -160,6 +195,7 @@ class Member {
       closingDate: clearClosing ? null : (closingDate ?? this.closingDate),
       closingGroup: clearClosing ? null : (closingGroup ?? this.closingGroup),
       reviewNote: reviewNote ?? this.reviewNote,
+      consentAt: consentAt ?? this.consentAt,
     );
   }
 
@@ -171,6 +207,7 @@ class Member {
         'fatherOrHusbandName': fatherOrHusbandName,
         'jati': jati,
         'gotra': gotra,
+        'dob': dob?.toIso8601String(),
         'warisName': warisName,
         'warisRelation': warisRelation,
         'gender': gender.name,
@@ -180,6 +217,7 @@ class Member {
         'village': village,
         'tehsil': tehsil,
         'district': district,
+        'state': state,
         'pincode': pincode,
         'agentId': agentId,
         'joinDate': joinDate.toIso8601String(),
@@ -197,6 +235,7 @@ class Member {
         fatherOrHusbandName: map['fatherOrHusbandName'] as String? ?? '',
         jati: map['jati'] as String? ?? '',
         gotra: map['gotra'] as String? ?? '',
+        dob: DateTime.tryParse(map['dob'] as String? ?? ''),
         warisName: map['warisName'] as String? ?? '',
         warisRelation: map['warisRelation'] as String? ?? '',
         gender: Gender.fromName(map['gender'] as String?),
@@ -206,6 +245,7 @@ class Member {
         village: map['village'] as String? ?? '',
         tehsil: map['tehsil'] as String? ?? '',
         district: map['district'] as String? ?? '',
+        state: map['state'] as String? ?? '',
         pincode: map['pincode'] as String? ?? '',
         agentId: map['agentId'] as String?,
         joinDate:

@@ -49,11 +49,15 @@ for pid in "${pids[@]}"; do
 done
 rm -f "$batch"
 
-read -r receipts distinct_receipts receipt_span < <(psql -At -F ' ' -c "
+# `tr -d '\r'`: psql writes CRLF on Windows, and a stray carriage return makes
+# every string comparison below fail while printing identical-looking values.
+query() { psql -At -F ' ' -c "$1" | tr -d '\r'; }
+
+read -r receipts distinct_receipts receipt_span < <(query "
   select count(*), count(distinct receipt_no),
          max(split_part(receipt_no, '-', 2)::int) - min(split_part(receipt_no, '-', 2)::int) + 1
     from public.payments where member_id = '$member'")
-read -r regs distinct_regs reg_span < <(psql -At -F ' ' -c "
+read -r regs distinct_regs reg_span < <(query "
   select count(*), count(distinct reg_no),
          max(split_part(reg_no, '-', 3)::int) - min(split_part(reg_no, '-', 3)::int) + 1
     from public.members where yojna_id = '$yojna' and id <> '$member'")

@@ -1174,4 +1174,303 @@ class InMemoryTrustRepository implements TrustRepository {
     );
     await _delayed(null);
   }
+
+  // ---- Cash handovers and commission (IMPLEMENTATION_PLAN Phase 16) --------
+
+  final List<CashHandover> _handovers = [];
+
+  /// Commission marked paid, keyed by agent id and the first of the month.
+  final Map<String, CommissionMonth> _payouts = {};
+
+  static String _payoutKey(String agentId, DateTime month) =>
+      '$agentId@${month.year}-${month.month}';
+
+  /// Approved cash the agent has not declared yet, oldest first. The same
+  /// rule as `cash_in_hand()`: approved, not cancelled, cash, unlinked.
+  List<Payment> openCashOf(String agentId) => (_payments
+          .where((p) =>
+              p.agentId == agentId &&
+              p.status == PaymentStatus.paid &&
+              !p.isCancelled &&
+              p.mode == PaymentMode.cash &&
+              p.cashHandoverId == null)
+          .toList()
+        ..sort((a, b) => a.date.compareTo(b.date)))
+      .toList();
+
+  double cashInHandOf(String agentId) =>
+      openCashOf(agentId).fold(0, (sum, p) => sum + p.amount);
+
+  double handoverWaitingOf(String agentId) => _handovers
+      .where((h) => h.agentId == agentId && h.status == RequestStatus.pending)
+      .fold(0, (sum, h) => sum + h.amount);
+
+  List<CashHandover> handoversOf(String agentId) =>
+      _handovers.where((h) => h.agentId == agentId).toList().reversed.toList();
+
+  /// What the agent collected in [month], before the percentage. Claim payouts
+  /// are money going out and never count.
+  double commissionBaseOf(String agentId, DateTime month) {
+    final from = DateTime(month.year, month.month);
+    final to = DateTime(month.year, month.month + 1);
+    return _payments
+        .where((p) =>
+            p.agentId == agentId &&
+            p.status == PaymentStatus.paid &&
+            !p.isCancelled &&
+            p.kind != PaymentKind.closingPayout &&
+            !p.date.isBefore(from) &&
+            p.date.isBefore(to))
+        .fold(0, (sum, p) => sum + p.amount);
+  }
+
+  CommissionMonth commissionOf(String agentId, DateTime month) {
+    final agent = _agents.firstWhere((a) => a.id == agentId);
+    final first = DateTime(month.year, month.month);
+    final collected = commissionBaseOf(agentId, first);
+    final paid = _payouts[_payoutKey(agentId, first)];
+    return CommissionMonth(
+      month: first,
+      agentId: agent.id,
+      agentCode: agent.code,
+      agentName: agent.name,
+      collected: collected,
+      percent: agent.commissionPercent,
+      // Rounded to the paisa, like `commission_of()`.
+      amount: (collected * agent.commissionPercent / 100 * 100).round() / 100,
+      paidAt: paid?.paidAt,
+      paidAmount: paid?.paidAmount,
+      reference: paid?.reference ?? '',
+    );
+  }
+
+  /// Declares cash handed to the office. An empty [paymentIds] means every
+  /// open receipt. Returns the amount declared.
+  double declareHandover(
+    String agentId, {
+    List<String> paymentIds = const [],
+    String note = '',
+  }) {
+    final open = openCashOf(agentId);
+    final chosen = paymentIds.isEmpty
+        ? open
+        : open.where((p) => paymentIds.contains(p.id)).toList();
+    if (chosen.isEmpty) {
+      throw const RepositoryException(
+        'There is no cash waiting to be handed over.',
+      );
+    }
+    if (paymentIds.isNotEmpty && chosen.length != paymentIds.toSet().length) {
+      throw const RepositoryException(
+        'One of those receipts is not yours, or is already in a handover.',
+      );
+    }
+
+    final id = 'ho-${_handovers.length + 1}';
+    final amount = chosen.fold<double>(0, (sum, p) => sum + p.amount);
+    final agent = _agents.firstWhere((a) => a.id == agentId);
+    _handovers.add(CashHandover(
+      id: id,
+      agentId: agentId,
+      agentCode: agent.code,
+      agentName: agent.name,
+      amount: amount,
+      note: note.trim(),
+      declaredAt: DateTime.now(),
+      receiptCount: chosen.length,
+    ));
+    for (final p in chosen) {
+      _payments[_indexById(_payments, p.id, (p) => p.id)] =
+          p.copyWith(cashHandoverId: id);
+    }
+    return amount;
+  }
+
+  @override
+  Future<List<CashHandover>> fetchPendingHandovers() => _delayed(
+        _handovers
+            .where((h) => h.status == RequestStatus.pending)
+            .toList(),
+      );
+
+  int _pendingHandoverIndex(String id) {
+    final i = _handovers.indexWhere(
+      (h) => h.id == id && h.status == RequestStatus.pending,
+    );
+    if (i == -1) {
+      throw const RepositoryException(
+        'This handover is no longer waiting for a decision.',
+      );
+    }
+    return i;
+  }
+
+  CashHandover _decided(
+    CashHandover h, {
+    required RequestStatus status,
+    String decisionNote = '',
+    DateTime? confirmedAt,
+  }) =>
+      CashHandover(
+        id: h.id,
+        agentId: h.agentId,
+        agentCode: h.agentCode,
+        agentName: h.agentName,
+        amount: h.amount,
+        note: h.note,
+        status: status,
+        decisionNote: decisionNote,
+        declaredAt: h.declaredAt,
+        confirmedAt: confirmedAt,
+        receiptCount: h.receiptCount,
+      );
+
+  @override
+  Future<void> confirmHandover(String id) async {
+    final i = _pendingHandoverIndex(id);
+    _handovers[i] = _decided(
+      _handovers[i],
+      status: RequestStatus.approved,
+      confirmedAt: DateTime.now(),
+    );
+    _notify(
+      NotificationKind.handoverConfirmed,
+      'Cash handover confirmed',
+      'The office received Rs ${_handovers[i].amount.toStringAsFixed(0)}.',
+      '/agent/collections',
+    );
+    await _delayed(null);
+  }
+
+  @override
+  Future<void> rejectHandover(String id, String reason) async {
+    final r = _requireReason(reason);
+    final i = _pendingHandoverIndex(id);
+    _handovers[i] = _decided(
+      _handovers[i],
+      status: RequestStatus.rejected,
+      decisionNote: r,
+    );
+    // The receipts unlink, so the money goes back to the agent's hand.
+    for (var j = 0; j < _payments.length; j++) {
+      if (_payments[j].cashHandoverId == id) {
+        _payments[j] = _payments[j].copyWith(clearHandover: true);
+      }
+    }
+    _notify(
+      NotificationKind.handoverRejected,
+      'Cash handover not confirmed',
+      r,
+      '/agent/collections',
+    );
+    await _delayed(null);
+  }
+
+  @override
+  Future<List<CommissionMonth>> fetchCommissionReport(DateTime month) {
+    final first = DateTime(month.year, month.month);
+    final rows = _agents
+        .where((a) =>
+            a.isActive || _payouts.containsKey(_payoutKey(a.id, first)))
+        .map((a) => commissionOf(a.id, first))
+        .toList()
+      ..sort((a, b) => a.agentName.compareTo(b.agentName));
+    return _delayed(rows);
+  }
+
+  @override
+  Future<Map<String, dynamic>> exportMemberData(String memberId) {
+    final i = _indexById(_members, memberId, (m) => m.id);
+    final m = _members[i];
+    return _delayed({
+      'exported_at': DateTime.now().toIso8601String(),
+      'member': m.toMap(),
+      'yojna': _yojnas
+          .where((y) => y.id == m.yojnaId)
+          .map((y) => {'name': y.name, 'code': y.code})
+          .firstOrNull,
+      'agent': _agents
+          .where((a) => a.id == m.agentId)
+          .map((a) => {'name': a.name, 'code': a.code})
+          .firstOrNull,
+      'payments': [
+        for (final p in _payments.where((p) => p.memberId == memberId))
+          p.toMap(),
+      ],
+    });
+  }
+
+  @override
+  Future<void> eraseMemberData(String memberId, String reason) async {
+    final r = _requireReason(reason);
+    final i = _indexById(_members, memberId, (m) => m.id);
+    // The same anonymising the database does: the receipts stay, the person
+    // does not.
+    _members[i] = _members[i].copyWith(
+      name: 'Erased member',
+      fatherOrHusbandName: '',
+      jati: '',
+      gotra: '',
+      clearDob: true,
+      warisName: '',
+      warisRelation: '',
+      primaryPhone: '0000000000',
+      altPhone: '',
+      aadhaar: '',
+      village: '',
+      tehsil: '',
+      district: '',
+      state: '',
+      pincode: '',
+      status: MemberStatus.inactive,
+      reviewNote: 'Erased on request: $r',
+    );
+    await _delayed(null);
+  }
+
+  /// Demo mode keeps the number in the clear, so there is nothing to decrypt.
+  @override
+  Future<String> fetchMemberAadhaar(String memberId) {
+    final found = _members.where((m) => m.id == memberId);
+    if (found.isEmpty) {
+      throw const RepositoryException('Member not found.');
+    }
+    return _delayed(found.first.aadhaar);
+  }
+
+  @override
+  Future<void> markCommissionPaid({
+    required String agentId,
+    required DateTime month,
+    double? amount,
+    String reference = '',
+  }) async {
+    final first = DateTime(month.year, month.month);
+    final now = DateTime.now();
+    if (first.isAfter(DateTime(now.year, now.month))) {
+      throw const RepositoryException('That month has not started yet.');
+    }
+    final calculated = commissionOf(agentId, first);
+    final paid = amount ?? calculated.amount;
+    if (paid < 0) {
+      throw const RepositoryException('The amount cannot be negative.');
+    }
+    _payouts[_payoutKey(agentId, first)] = CommissionMonth(
+      month: first,
+      agentId: agentId,
+      collected: calculated.collected,
+      percent: calculated.percent,
+      amount: calculated.amount,
+      paidAt: now,
+      paidAmount: paid,
+      reference: reference.trim(),
+    );
+    _notify(
+      NotificationKind.commissionPaid,
+      'Commission paid',
+      'Rs ${paid.toStringAsFixed(0)} for ${first.month}/${first.year}.',
+      '/agent/collections',
+    );
+    await _delayed(null);
+  }
 }

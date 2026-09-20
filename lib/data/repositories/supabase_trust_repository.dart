@@ -690,6 +690,87 @@ class SupabaseTrustRepository implements TrustRepository {
         }),
       );
 
+  // ---- Cash handovers and commission (IMPLEMENTATION_PLAN Phase 16) --------
+
+  @override
+  Future<List<CashHandover>> fetchPendingHandovers() => _guard(() async {
+        final rows = await _db.rpc('pending_handovers') as List;
+        return [
+          for (final r in rows.cast<Map<String, dynamic>>())
+            CashHandover.fromRow(r),
+        ];
+      });
+
+  @override
+  Future<void> confirmHandover(String id) => _guard(
+        () => _db.rpc('confirm_handover', params: {'p_id': id}),
+      );
+
+  @override
+  Future<void> rejectHandover(String id, String reason) => _guard(
+        () => _db.rpc('reject_handover', params: {
+          'p_id': id,
+          'p_reason': reason,
+        }),
+      );
+
+  @override
+  Future<List<CommissionMonth>> fetchCommissionReport(DateTime month) =>
+      _guard(() async {
+        final first = DateTime(month.year, month.month);
+        final rows = await _db.rpc('commission_report', params: {
+          'p_month': _date(first),
+        }) as List;
+        return [
+          for (final r in rows.cast<Map<String, dynamic>>())
+            // The report is for one month, which the rows do not repeat.
+            CommissionMonth.fromRow(r, month: first),
+        ];
+      });
+
+  @override
+  Future<Map<String, dynamic>> exportMemberData(String memberId) =>
+      _guard(() async {
+        final value = await _db.rpc(
+          'export_member_data',
+          params: {'p_member_id': memberId},
+        );
+        return Map<String, dynamic>.from(value as Map);
+      });
+
+  @override
+  Future<void> eraseMemberData(String memberId, String reason) => _guard(
+        () => _db.rpc('erase_member_data', params: {
+          'p_member_id': memberId,
+          'p_reason': reason,
+        }),
+      );
+
+  @override
+  Future<String> fetchMemberAadhaar(String memberId) => _guard(() async {
+        final value = await _db.rpc(
+          'member_aadhaar',
+          params: {'p_member_id': memberId},
+        );
+        return (value as String?) ?? '';
+      });
+
+  @override
+  Future<void> markCommissionPaid({
+    required String agentId,
+    required DateTime month,
+    double? amount,
+    String reference = '',
+  }) =>
+      _guard(
+        () => _db.rpc('mark_commission_paid', params: {
+          'p_agent_id': agentId,
+          'p_month': _date(DateTime(month.year, month.month)),
+          'p_amount': amount,
+          'p_reference': reference,
+        }),
+      );
+
   /// A `member_dues` row, or an `agent_dues` row with member details.
   static MemberDue memberDueFromRow(Map<String, dynamic> r) => MemberDue(
         memberId: r['member_id'] as String,
@@ -909,6 +990,7 @@ class SupabaseTrustRepository implements TrustRepository {
         'contribution_amount': y.contributionAmount,
         'claim_amount': y.claimAmount,
         'registration_fee': y.registrationFee,
+        'start_date': y.startDate == null ? null : _date(y.startDate!),
         'is_active': y.isActive,
       });
 
@@ -920,6 +1002,8 @@ class SupabaseTrustRepository implements TrustRepository {
         contributionAmount: _num(r['contribution_amount']),
         claimAmount: _num(r['claim_amount']),
         registrationFee: _num(r['registration_fee']),
+        startDate:
+            r['start_date'] == null ? null : _parseDate(r['start_date']),
         isActive: r['is_active'] as bool? ?? true,
         createdAt: _parseDate(r['created_at']),
       );
@@ -930,6 +1014,7 @@ class SupabaseTrustRepository implements TrustRepository {
         'father_or_husband_name': m.fatherOrHusbandName,
         'jati': m.jati,
         'gotra': m.gotra,
+        'dob': m.dob == null ? null : _date(m.dob!),
         'waris_name': m.warisName,
         'waris_relation': m.warisRelation,
         'gender': m.gender.name,
@@ -939,8 +1024,10 @@ class SupabaseTrustRepository implements TrustRepository {
         'village': m.village,
         'tehsil': m.tehsil,
         'district': m.district,
+        'state': m.state,
         'pincode': m.pincode,
         'agent_id': m.agentId,
+        if (m.consentAt != null) 'consent_at': m.consentAt!.toIso8601String(),
         'join_date': _date(m.joinDate),
         'status': m.status.name,
         'closing_date': m.closingDate == null ? null : _date(m.closingDate!),
@@ -955,15 +1042,20 @@ class SupabaseTrustRepository implements TrustRepository {
         fatherOrHusbandName: r['father_or_husband_name'] as String? ?? '',
         jati: r['jati'] as String? ?? '',
         gotra: r['gotra'] as String? ?? '',
+        dob: r['dob'] == null ? null : _parseDate(r['dob']),
         warisName: r['waris_name'] as String? ?? '',
         warisRelation: r['waris_relation'] as String? ?? '',
         gender: Gender.fromName(r['gender'] as String?),
         primaryPhone: r['primary_phone'] as String? ?? '',
         altPhone: r['alt_phone'] as String? ?? '',
+        // Encrypted at rest, so this comes back empty (§7); only the last
+        // four digits are readable, for the masked display.
         aadhaar: r['aadhaar'] as String? ?? '',
+        storedAadhaarLast4: r['aadhaar_last4'] as String? ?? '',
         village: r['village'] as String? ?? '',
         tehsil: r['tehsil'] as String? ?? '',
         district: r['district'] as String? ?? '',
+        state: r['state'] as String? ?? '',
         pincode: r['pincode'] as String? ?? '',
         agentId: r['agent_id'] as String?,
         joinDate: _parseDate(r['join_date']),
@@ -971,6 +1063,7 @@ class SupabaseTrustRepository implements TrustRepository {
         closingDate: r['closing_date'] == null ? null : _parseDate(r['closing_date']),
         closingGroup: r['closing_group'] as String?,
         reviewNote: r['review_note'] as String? ?? '',
+        consentAt: _parseTimestamp(r['consent_at']),
       );
 
   static Map<String, dynamic> _agentToRow(Agent a) => _withId(a.id, {

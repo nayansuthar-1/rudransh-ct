@@ -47,3 +47,40 @@ select '', id, yojna_id, 100, agent_id,
 insert into public.closing_cases (member_id, yojna_id, claim_amount, collected_amount, closing_group)
 select id, yojna_id, 100000, 25000, 'Group-1'
   from public.members order by reg_no limit 5;
+
+-- ---------------------------------------------------------------------------
+-- Logins for the Phase 17 access sweep (test/integration/role_api_test.dart)
+-- ---------------------------------------------------------------------------
+-- One login per role, so the sweep can try every door as every kind of user:
+-- both agents (each owning half the members above), one member, and a
+-- signed-in user with no profile at all.
+insert into auth.users (id, email) values
+  ('00000000-0000-0000-0000-00000000a003', 'agent.one@test.local'),
+  ('00000000-0000-0000-0000-00000000a004', 'agent.two@test.local'),
+  ('00000000-0000-0000-0000-00000000a005', 'member.one@test.local');
+
+insert into public.profiles (user_id, role, agent_id, name, email)
+select '00000000-0000-0000-0000-00000000a003', 'agent', id, 'Agent One',
+       'agent.one@test.local'
+  from public.agents order by code limit 1;
+
+insert into public.profiles (user_id, role, agent_id, name, email)
+select '00000000-0000-0000-0000-00000000a004', 'agent', id, 'Agent Two',
+       'agent.two@test.local'
+  from public.agents order by code limit 1 offset 1;
+
+-- A member belonging to Agent One, so the sweep can check that Agent Two
+-- cannot reach them and that the member sees only themselves.
+insert into public.profiles (user_id, role, member_id, name, email)
+select '00000000-0000-0000-0000-00000000a005', 'member', m.id, m.name,
+       'member.one@test.local'
+  from public.members m
+  join public.agents a on a.id = m.agent_id
+ where a.code = (select min(code) from public.agents)
+   and m.status = 'active'
+ order by m.reg_no
+ limit 1;
+
+-- The receipts above are already `cash` (the column default) and mostly Paid,
+-- so both agents have cash in hand and a commission month without any extra
+-- setup here.

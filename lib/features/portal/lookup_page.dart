@@ -15,6 +15,7 @@ import '../../state/providers.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/inputs.dart';
 import '../../widgets/primitives.dart';
+import 'turnstile.dart';
 
 /// Public membership check (IMPLEMENTATION_PLAN Phase 15).
 ///
@@ -78,10 +79,10 @@ class _LookupPageState extends ConsumerState<LookupPage> {
     }
   }
 
-  /// Turnstile renders in an HTML view on the web build; until that is wired
-  /// the field is empty and a configured deployment refuses the lookup, which
-  /// is the safe direction.
-  String get _turnstileToken => '';
+  /// Filled by the Turnstile widget on the web build, cleared when the token
+  /// expires or the check fails. Empty everywhere else, and a configured
+  /// deployment then refuses the lookup — the safe direction.
+  String _turnstileToken = '';
 
   void _reset() {
     setState(() {
@@ -202,7 +203,14 @@ class _LookupPageState extends ConsumerState<LookupPage> {
               const SizedBox(height: Space.md),
               _Notice(_error!, tone: c.danger, background: c.dangerSoft),
             ],
-            if (!Env.hasTurnstile && Env.hasSupabase) ...[
+            if (Env.hasTurnstile) ...[
+              const SizedBox(height: Space.lg),
+              TurnstileWidget(
+                siteKey: Env.turnstileSiteKey,
+                dark: Theme.of(context).brightness == Brightness.dark,
+                onToken: (token) => setState(() => _turnstileToken = token),
+              ),
+            ] else if (Env.hasSupabase) ...[
               const SizedBox(height: Space.md),
               _Notice(
                 'This check is not switched on yet. Please contact the office.',
@@ -212,7 +220,11 @@ class _LookupPageState extends ConsumerState<LookupPage> {
             ],
             const SizedBox(height: Space.lg),
             FilledButton(
-              onPressed: _busy ? null : _submit,
+              // With Turnstile on, there is no point letting someone send a
+              // lookup the Edge Function will refuse: wait for the token.
+              onPressed: _busy || (Env.hasTurnstile && _turnstileToken.isEmpty)
+                  ? null
+                  : _submit,
               child: _busy ? const ButtonSpinner() : const Text(S.lookupSubmit),
             ),
           ],

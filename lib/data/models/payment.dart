@@ -76,6 +76,7 @@ class Payment {
     this.cancelReason = '',
     this.cancelRequestedAt,
     this.cancelRequestReason = '',
+    this.cashHandoverId,
   });
 
   final String id;
@@ -115,6 +116,10 @@ class Payment {
   final DateTime? cancelRequestedAt;
   final String cancelRequestReason;
 
+  /// The cash handover this receipt was declared in (Phase 16); null while the
+  /// money is still in the agent's hand.
+  final String? cashHandoverId;
+
   bool get isCancelled => cancelledAt != null;
   bool get hasOpenCancelRequest => cancelRequestedAt != null && !isCancelled;
 
@@ -141,6 +146,8 @@ class Payment {
     DateTime? cancelRequestedAt,
     String? cancelRequestReason,
     bool clearCancelRequest = false,
+    String? cashHandoverId,
+    bool clearHandover = false,
   }) {
     return Payment(
       id: id ?? this.id,
@@ -168,6 +175,8 @@ class Payment {
       cancelRequestReason: clearCancelRequest
           ? ''
           : (cancelRequestReason ?? this.cancelRequestReason),
+      cashHandoverId:
+          clearHandover ? null : (cashHandoverId ?? this.cashHandoverId),
     );
   }
 

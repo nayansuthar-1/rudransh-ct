@@ -56,6 +56,14 @@ class Fmt {
     return 'XXXX XXXX ${digits.substring(8)}';
   }
 
+  /// The same mask built from the four digits alone, which is all a real build
+  /// has: the number is encrypted at rest (IMPLEMENTATION_PLAN §7). Returns a
+  /// dash when the member has no Aadhaar on record.
+  static String aadhaarFromLast4(String last4) {
+    final digits = last4.replaceAll(RegExp(r'\D'), '');
+    return digits.length == 4 ? 'XXXX XXXX $digits' : '—';
+  }
+
   static String initials(String name) {
     final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
     if (parts.isEmpty) return '?';

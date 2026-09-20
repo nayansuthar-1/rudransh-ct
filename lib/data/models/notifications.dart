@@ -12,6 +12,9 @@ enum NotificationKind {
   memberAssigned('member_assigned'),
   memberRemoved('member_removed'),
   duesOverdue('dues_overdue'),
+  handoverConfirmed('handover_confirmed'),
+  handoverRejected('handover_rejected'),
+  commissionPaid('commission_paid'),
   other('');
 
   const NotificationKind(this.code);
@@ -26,10 +29,13 @@ enum NotificationKind {
   bool get isBad =>
       this == NotificationKind.paymentRejected ||
       this == NotificationKind.closingRejected ||
+      this == NotificationKind.handoverRejected ||
       this == NotificationKind.duesOverdue;
 
   bool get isGood =>
       this == NotificationKind.paymentApproved ||
+      this == NotificationKind.handoverConfirmed ||
+      this == NotificationKind.commissionPaid ||
       this == NotificationKind.closingApproved;
 }
 

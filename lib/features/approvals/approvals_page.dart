@@ -80,6 +80,12 @@ class ApprovalsPage extends ConsumerWidget {
             ],
           ),
           _Section(
+            title: S.handovers,
+            children: [
+              for (final h in queue.handovers) _HandoverRow(handover: h),
+            ],
+          ),
+          _Section(
             title: S.changeRequests,
             children: [
               for (final r in queue.changeRequests) _ChangeRequestRow(request: r),
@@ -535,6 +541,61 @@ class _CreateClosingDialogState extends ConsumerState<_CreateClosingDialog> {
   }
 }
 
+
+/// Cash an agent says they handed to the office (Phase 16). Confirming means
+/// the money was received; rejecting unlinks its receipts, so the amount goes
+/// back to the agent's cash in hand.
+class _HandoverRow extends ConsumerWidget {
+  const _HandoverRow({required this.handover});
+
+  final CashHandover handover;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final h = handover;
+    final actions = ref.read(approvalActionsProvider);
+
+    return _QueueRow(
+      title: '${Fmt.money(h.amount)} · ${h.agentName}',
+      lines: [
+        [
+          h.agentCode,
+          '${h.receiptCount} ${h.receiptCount == 1 ? 'receipt' : 'receipts'}',
+          'Declared ${Fmt.date(h.declaredAt)}',
+        ].where((s) => s.isNotEmpty).join(' · '),
+        if (h.note.isNotEmpty) 'Note: ${h.note}',
+      ],
+      actions: [
+        OutlinedButton(
+          onPressed: () async {
+            final reason = await reasonDialog(
+              context,
+              title: 'Not received?',
+              message: 'The ${h.receiptCount} receipts go back to the '
+                  "agent's cash in hand, so they can hand the money over "
+                  'again. The agent sees your reason.',
+            );
+            if (reason == null || !context.mounted) return;
+            await runWithToast(
+              context,
+              () => actions.rejectHandover(h.id, reason),
+              success: 'Handover rejected',
+            );
+          },
+          child: const Text(S.reject),
+        ),
+        FilledButton(
+          onPressed: () => runWithToast(
+            context,
+            () => actions.confirmHandover(h.id),
+            success: S.handoverConfirmed,
+          ),
+          child: const Text(S.confirmHandover),
+        ),
+      ],
+    );
+  }
+}
 
 /// A member asking to fix one of their own details (Phase 15). Approving
 /// writes the member row; the member is told either way.

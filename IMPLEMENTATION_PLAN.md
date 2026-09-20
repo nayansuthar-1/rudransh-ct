@@ -28,8 +28,9 @@ Phase 17.
 | 6 | Schedule the daily overdue-dues sweep with pg_cron (`docs/RUNBOOK.md` §2.1) | Supabase → SQL editor, once per project | Every other notification is a trigger and works on its own; this one never fires, so agents are never told about stale dues |
 | 7 | ~~Run `supabase/tests/notifications_test.sql` against a real Postgres~~ **Done 18 Sep 2026** | — | It found a real bug: `my_notifications` sorted only by `created_at`, which is identical for rows written in one transaction. Fixed |
 | 8 | Cloudflare Turnstile keys + `supabase functions deploy member_lookup --no-verify-jwt` (`docs/RUNBOOK.md` §1.7) | Cloudflare + Supabase CLI | The public lookup fails closed and returns 503. The page says so, but the feature is simply unavailable until this is done |
-| 9 | Render the Turnstile widget in the web build | `lib/features/portal/lookup_page.dart` | The page sends an empty token, so a properly configured deployment refuses every lookup. Item 8 alone is not enough |
+| 9 | ~~Render the Turnstile widget in the web build~~ **Done 20 Sep 2026** | `lib/features/portal/turnstile_web.dart`, script in `web/index.html` | The widget renders on the web build and the Check button stays disabled until Cloudflare hands back a token. Compiles into `flutter build web --release`; **not yet exercised against a real site key** — that waits on item 8 |
 | 10 | `UPI_ID` and `UPI_PAYEE` repository variables | GitHub → Variables | The Pay by UPI button is hidden; members pay through their agent, which is the current behaviour anyway |
+| 11 | `supabase db push` of `20260922000100_commission.sql` to staging, then production | Supabase CLI | The agent's cash-in-hand card, the handover button and the Commission page error against a database without them. It also replaces `agent_summary()`, so the agent home breaks until it is applied |
 
 ---
 
@@ -521,23 +522,57 @@ Release 1 support window (5–19 Oct) overlaps with this. Support fixes come fir
 - [x] Tests: `supabase/tests/member_portal_test.sql` (CI, 9 check groups, run against real Postgres), `test/member_portal_test.dart` (25 checks: the lookup rules including the lock, the portal rules, both screens at 390 and 1440 px, the signed-out route)
 - [ ] Member email-OTP login for the few members who have email — the invite path exists (`invite_user`, role `member`); not yet exercised end to end
 - [ ] Turnstile keys and the Edge Function deploy (`docs/RUNBOOK.md` §1.7); `UPI_ID` / `UPI_PAYEE` variables
-- [ ] Render the Turnstile widget on the web build — the page sends an empty token today, which a configured deployment refuses
+- [x] Render the Turnstile widget on the web build (20 Sep 2026): `lib/features/portal/turnstile_web.dart` with a stub for tests and non-web builds, script in `web/index.html`, and **Check** disabled until Cloudflare returns a token. Still needs a real site key (item above) to be exercised end to end
 - [ ] **Done when:** a member finds their dues on a phone in under a minute
 
 #### Phase 16 — Commission, cash handover, change requests (28–30 Oct, Wed–Fri, 3 days)
-- [ ] Agent declares cash handover; admin confirms; "cash in hand" on the agent dashboard
-- [ ] Monthly commission report per agent; owner marks it paid
-- [ ] Admin screen for change requests: approve applies the change and writes the audit log
-- [ ] Agent dashboard complete: members, collected vs. pending, cash in hand, commission, recent closings
-- [ ] **Done when:** one month of test data gives correct commission and handover balances
+> Built 20 Sep 2026: `supabase/migrations/20260922000100_commission.sql`, `lib/features/commission/commission_page.dart`, `lib/features/agent/agent_cash.dart`. The tables (`cash_handovers`, `commission_payouts`, `payments.cash_handover_id`) already existed from Phase 10, so this phase fills them.
+> Decisions: **cash in hand** counts approved (`paid`), uncancelled, `cash` receipts not yet linked to a handover — UPI, bank and cheque never reach the agent's hand, and pending receipts stay out so a rejected one can never sit inside a declared handover. A handover is declared for **whole receipts**, not a typed amount, so the office can check the total against what it holds; the agent hands over everything (the default) or picks receipts. An admin who does not receive the money **rejects** the handover and its receipts unlink, putting the amount back in the agent's hand. **Commission** = `commission_percent` × approved, uncancelled registration and contribution receipts dated in that IST calendar month; claim payouts are money going out and never count. A month is recalculated on every read, and marking it paid stores what was actually paid, so a later correction shows as a difference rather than silently rewriting history.
+
+- [x] Agent declares cash handover (pick receipts or all, with a note); admin confirms or rejects with a reason; "cash in hand" and "waiting to be confirmed" on the agent home and Collections page
+- [x] Monthly commission report per agent (`/commission`, month switcher, owner-only **Mark paid**); agents see their own last six months on the Collections page
+- [x] Handovers join the Approvals queue beside members, payments, death reports and corrections
+- [x] ~~Admin screen for change requests~~ Built in Phase 15: corrections are already in the Approvals queue and `approve_change_request` writes the member row, which the audit trigger records
+- [x] Agent dashboard complete: members, waiting for approval, approved this month, cash in hand, this month's commission, and the three newest closing groups
+- [x] Agents are told when a handover is confirmed or refused and when commission is paid (Phase 14 bell); `NotificationKind` gains `handover_confirmed`, `handover_rejected`, `commission_paid`
+- [x] Tests: `supabase/tests/commission_test.sql` (CI, 7 check groups, run against real Postgres 18 on 20 Sep 2026), `test/commission_test.dart` (16 checks: the same money in memory, role limits, both screens at 390 and 1440 px)
+- [ ] Deploy to staging: `supabase db push`
+- [ ] **Done when:** one month of test data gives correct commission and handover balances (covered by both test files; check once on staging)
+
+#### Phase 16b — Membership certificate (20 Sep 2026, added after the client showed a printed sample)
+> Built 20 Sep 2026: `supabase/migrations/20260923000100_member_certificate.sql`, `lib/core/config/trust_info.dart`, `lib/features/certificate/`. Plan and decisions: `docs/MEMBERSHIP_CERTIFICATE_PLAN.md`.
+> Decisions: the sheet is **rendered as HTML and printed by the browser**, not built with the Dart `pdf` package — `pdf` does not shape Devanagari, and the certificate is entirely Hindi. Save-as-PDF is the browser's own. The **photo box is left blank** to paste a photo into, as the trust already does. The trust's fixed details (registration number, establishment date, president, head office) are **constants in `TrustInfo`**, not a settings table: they change once a year at most and cost nothing in the database.
+
+- [x] `members.dob` and `members.state`, the two certificate fields the record was missing; optional, so existing members are unaffected
+- [x] A4 landscape certificate, branded Rudransh, bundled Noto Sans Devanagari so it prints the same on a machine with no Hindi font
+- [x] **Print certificate** on the admin member details and the agent member details; refused while a member has no registration number
+- [x] Date of birth and state on the admin member form and the agent sign-up form; agents may correct the state with the rest of the address, date of birth stays with the office
+- [x] Tests: `test/certificate_test.dart` (19 checks: field mapping, Hindi branding, the three invocations, the two states, office and phones, asset-loaded logo, both font URLs, the arched SVG heading, nothing outside the frame, HTML escaping, blanks instead of `null`), plus new asserts in `supabase/tests/agent_work_test.sql`
+- [x] **Branding round, same day** (`20260923000200_yojna_start_date.sql`, `docs/MEMBERSHIP_CERTIFICATE_PLAN.md` §8): the client supplied the trust's own सदस्यता प्रपत्र and logo and asked for the reference sheet to be matched exactly
+  - [x] Real branding in `TrustInfo`: रुद्रांश चेरीटेबल ट्रस्ट – लाखणी, three invocations, गुजरात and राजस्थान, the Lakhani office address and the three chosen phone numbers
+  - [x] Logo as an asset (`assets/brand/rudransh_logo.jpg`), named once in `TrustInfo` and never embedded in code; blended with `mix-blend-mode` because the supplied file is a JPEG on white
+  - [x] Arched, outlined heading in Yatra One (`assets/fonts/`, SIL OFL 1.1), drawn as SVG because CSS cannot curve a baseline; the arc is shallow so Devanagari matras stay on their consonants
+  - [x] Row order corrected to the reference: `सम्बन्ध` closes the `पता` row, `मोबाईल नं.` shares a row with `वारिसदार`, the amount comes before `रु`, and `कार्यकर्ता`/`नोंध`/`अध्यक्ष` share one row
+  - [x] Corner flourishes, double crimson border, cream wash
+  - [x] `योजना प्रारंभ` became a real `yojnas.start_date` instead of the day the record was typed in; `agent_yojnas()` rebuilt to return it and the description, so agents can print a complete sheet
+  - [x] `flutter test tool/certificate_preview/preview_test.dart` writes `build/certificate_preview.html` for checking the design without starting the app
+- [x] President named (शैलेषभाई वी.लुहार); the establishment date and registration number filled with placeholders at the client's request — the registration number is deliberately shaped rather than plausible (`docs/MEMBERSHIP_CERTIFICATE_PLAN.md` §8)
+- [x] **Second review, 21 Sep 2026** (`docs/MEMBERSHIP_CERTIFICATE_PLAN.md` §9): महाराष्ट्र and the `Since` line dropped, the **tear-off receipt slip removed** so the frame fills the page, and the logo replaced with a tighter crop. `slipNote`, `slipAmount`, `agentArea` and the registration-payment plumbing went with it
+- [ ] **Replace the placeholder `संस्था रजीस्टर नं.` with the real number before any certificate reaches a member**, plus the real establishment date; a signature image and a transparent PNG logo are optional extras
+- [ ] Office types the real scheme name, start date and `नोंध` wording into the Yojna screen — they are data, not code
+- [ ] Deploy to staging: `supabase db push`
+- [ ] **Done when:** a printed certificate matches the reference sheet and the Hindi reads correctly on paper
 
 #### Phase 17 — QA and launch (2–5 Nov, Mon–Thu, 4 days)
-- [ ] **Clear section 0, "Outstanding setup"** — deferred switch-on work, including the Cloudinary GitHub variables and the dues migration. Do this first: item 1 fails silently in production
-- [ ] Access tests for each role, through the API as well as the UI (try to read another agent's members directly)
-- [ ] Layout at 390 px for the agent and member shells; Hindi text; light and dark themes
-- [ ] Two agents and an admin working at once: no duplicate reg or receipt numbers
-- [ ] Update the runbook: invite or deactivate an agent, reassign members, unlock a member lookup
-- [ ] Hindi guides: one page for agents, one for members
+> QA work done 20 Sep 2026. Everything below that is still open needs either an account nobody but the client holds (GitHub, Supabase, Cloudflare, Cloudinary) or people in a room, so it cannot be finished from the repo.
+> Found while sweeping: `test/integration/supabase_repository_test.dart` had its Hindi string literals **double-encoded through CP1252** (13 places, committed that way). Every Hindi assertion in the API job compared mojibake against real Devanagari, so those tests could never have passed. Fixed and verified against real PostgREST. Both concurrency scripts also compared psql output without stripping `\r`, which made them fail on Windows while passing in CI.
+
+- [ ] **Clear section 0, "Outstanding setup"** — deferred switch-on work, including the Cloudinary GitHub variables and the dues migration. Do this first: item 1 fails silently in production. Item 9 is now done; 1–6, 8, 10 and 11 need the client's accounts
+- [x] Access tests for each role, through the API as well as the UI: `test/integration/role_api_test.dart` (13 checks) runs every table and RPC as owner, both agents, a member, a signed-in user with no profile, and signed out. An agent reading `/members` directly gets `[]`, the two agents' member sets never intersect, and Aadhaar is absent from `agent_members`. Run against real PostgREST 16.3 + Postgres 18 on 20 Sep 2026
+- [x] Layout at 390 px for the agent and member shells; Hindi text; light and dark themes: `test/role_layout_test.dart` (15 checks) walks every agent and member page at 390 / 768 / 1440 px in both themes, plus the signed-out lookup, the Devanagari fallback font, and Hindi names actually rendering in an agent's list
+- [x] Two agents and an admin working at once: no duplicate reg or receipt numbers — `supabase/tests/concurrent_roles_test.sh` (in CI) runs both agents through `agent_add_member` / `agent_record_payment` as `authenticated` while an admin inserts directly, then approves every pending member in one statement, which is when an agent's member is given its number
+- [x] Update the runbook: invite or deactivate an agent (already there), move an agent's members, unlock a member lookup, confirm or reject a cash handover, pay commission (`docs/RUNBOOK.md` §3)
+- [x] Hindi guides: one page for agents, one for members (`docs/AGENT_GUIDE_HI.md`, `docs/MEMBER_GUIDE_HI.md`)
 - [ ] Train agents (1 hour); client signs off on staging
 - [ ] **Launch Thu 5 Nov**, before Diwali (8 Nov)
 

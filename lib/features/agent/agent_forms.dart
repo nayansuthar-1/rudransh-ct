@@ -49,18 +49,21 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
   final _village = TextEditingController();
   final _tehsil = TextEditingController();
   final _district = TextEditingController();
+  final _state = TextEditingController();
   final _pincode = TextEditingController();
 
   String? _yojnaId;
   Gender _gender = Gender.male;
   DateTime _joinDate = DateTime.now();
+  /// Printed on the membership certificate; optional at sign-up.
+  DateTime? _dob;
   bool _saving = false;
 
   @override
   void dispose() {
     for (final c in [
       _name, _father, _jati, _gotra, _waris, _warisRelation, _phone,
-      _altPhone, _aadhaar, _village, _tehsil, _district, _pincode,
+      _altPhone, _aadhaar, _village, _tehsil, _district, _state, _pincode,
     ]) {
       c.dispose();
     }
@@ -80,6 +83,7 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
               fatherOrHusbandName: _father.text.trim(),
               jati: _jati.text.trim(),
               gotra: _gotra.text.trim(),
+              dob: _dob,
               warisName: _waris.text.trim(),
               warisRelation: _warisRelation.text.trim(),
               gender: _gender,
@@ -89,6 +93,7 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
               village: _village.text.trim(),
               tehsil: _tehsil.text.trim(),
               district: _district.text.trim(),
+              state: _state.text.trim(),
               pincode: _pincode.text.trim(),
               joinDate: _joinDate,
               status: MemberStatus.pending,
@@ -188,6 +193,13 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
                         (v ?? '').trim().isEmpty ? null : V.aadhaar(v),
                   )),
                   GridItem(AppDateField(
+                    label: S.fldDob,
+                    value: _dob,
+                    firstDate: DateTime(1920),
+                    lastDate: DateTime.now(),
+                    onChanged: (d) => setState(() => _dob = d),
+                  )),
+                  GridItem(AppDateField(
                     label: S.fldJoinDate,
                     value: _joinDate,
                     lastDate: DateTime.now(),
@@ -205,6 +217,7 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
                 village: _village,
                 tehsil: _tehsil,
                 district: _district,
+                state: _state,
                 pincode: _pincode,
               ),
             ),
@@ -222,6 +235,7 @@ class _ContactFields extends StatelessWidget {
     required this.village,
     required this.tehsil,
     required this.district,
+    required this.state,
     required this.pincode,
   });
 
@@ -230,6 +244,7 @@ class _ContactFields extends StatelessWidget {
   final TextEditingController village;
   final TextEditingController tehsil;
   final TextEditingController district;
+  final TextEditingController state;
   final TextEditingController pincode;
 
   @override
@@ -254,6 +269,7 @@ class _ContactFields extends StatelessWidget {
         GridItem(AppTextField(label: S.fldVillage, controller: village)),
         GridItem(AppTextField(label: S.fldTehsil, controller: tehsil)),
         GridItem(AppTextField(label: S.fldDistrict, controller: district)),
+        GridItem(AppTextField(label: S.fldState, controller: state)),
         GridItem(AppTextField(
           label: S.fldPincode,
           controller: pincode,
@@ -292,12 +308,15 @@ class _ContactFormState extends ConsumerState<_ContactForm> {
   late final _village = TextEditingController(text: widget.member.village);
   late final _tehsil = TextEditingController(text: widget.member.tehsil);
   late final _district = TextEditingController(text: widget.member.district);
+  late final _state = TextEditingController(text: widget.member.state);
   late final _pincode = TextEditingController(text: widget.member.pincode);
   bool _saving = false;
 
   @override
   void dispose() {
-    for (final c in [_phone, _altPhone, _village, _tehsil, _district, _pincode]) {
+    for (final c in [
+      _phone, _altPhone, _village, _tehsil, _district, _state, _pincode,
+    ]) {
       c.dispose();
     }
     super.dispose();
@@ -314,6 +333,7 @@ class _ContactFormState extends ConsumerState<_ContactForm> {
               village: _village.text.trim(),
               tehsil: _tehsil.text.trim(),
               district: _district.text.trim(),
+              state: _state.text.trim(),
               pincode: _pincode.text.trim(),
             ),
           );
@@ -352,6 +372,7 @@ class _ContactFormState extends ConsumerState<_ContactForm> {
           village: _village,
           tehsil: _tehsil,
           district: _district,
+          state: _state,
           pincode: _pincode,
         ),
       ),

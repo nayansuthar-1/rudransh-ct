@@ -31,6 +31,7 @@ class AppRoutes {
   static const closing = '/closing-payments';
   static const payments = '/payments';
   static const approvals = '/approvals';
+  static const commission = '/commission';
   static const announcements = '/announcements';
 
   // Agent screens (IMPLEMENTATION_PLAN Phases 12–16).
@@ -101,6 +102,13 @@ class AppRoutes {
       sublabel: S.approvalsSub,
       icon: Icons.fact_check_outlined,
       activeIcon: Icons.fact_check,
+    ),
+    NavItem(
+      path: commission,
+      label: S.commission,
+      sublabel: S.commissionSub,
+      icon: Icons.percent_outlined,
+      activeIcon: Icons.percent_rounded,
     ),
     NavItem(
       path: announcements,

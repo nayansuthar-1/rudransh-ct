@@ -287,6 +287,7 @@ class ApprovalQueue {
     required this.cancelRequests,
     this.deathReports = const [],
     this.changeRequests = const [],
+    this.handovers = const [],
   });
 
   static const empty = ApprovalQueue(
@@ -301,12 +302,16 @@ class ApprovalQueue {
   final List<ClosingRequest> deathReports;
   final List<ChangeRequest> changeRequests;
 
+  /// Cash an agent says they handed over (IMPLEMENTATION_PLAN Phase 16).
+  final List<CashHandover> handovers;
+
   int get count =>
       members.length +
       payments.items.length +
       cancelRequests.items.length +
       deathReports.length +
-      changeRequests.length;
+      changeRequests.length +
+      handovers.length;
 }
 
 final approvalQueueProvider = FutureProvider<ApprovalQueue>((ref) async {
@@ -318,12 +323,14 @@ final approvalQueueProvider = FutureProvider<ApprovalQueue>((ref) async {
   final cancels = repo.fetchCancelRequests();
   final reports = repo.fetchPendingClosingRequests();
   final changes = repo.fetchPendingChangeRequests();
+  final handovers = repo.fetchPendingHandovers();
   return ApprovalQueue(
     members: await members,
     payments: await payments,
     cancelRequests: await cancels,
     deathReports: await reports,
     changeRequests: await changes,
+    handovers: await handovers,
   );
 });
 
@@ -369,9 +376,79 @@ class ApprovalActions {
 
   Future<void> rejectDeathReport(String id, String reason) =>
       _run((r) => r.rejectClosingRequest(id, reason));
+
+  Future<void> confirmHandover(String id) =>
+      _run((r) => r.confirmHandover(id));
+
+  /// The receipts unlink, so the money is the agent's to hand over again.
+  Future<void> rejectHandover(String id, String reason) =>
+      _run((r) => r.rejectHandover(id, reason));
 }
 
 final approvalActionsProvider = Provider<ApprovalActions>(ApprovalActions.new);
+
+// ---------------------------------------------------------------------------
+// Commission (IMPLEMENTATION_PLAN Phase 16)
+// ---------------------------------------------------------------------------
+
+/// Which month the commission report shows; the first of that month.
+class CommissionMonthNotifier extends Notifier<DateTime> {
+  @override
+  DateTime build() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month);
+  }
+
+  void set(DateTime month) => state = DateTime(month.year, month.month);
+
+  void shift(int months) =>
+      state = DateTime(state.year, state.month + months);
+
+  /// The office pays commission for months that have started.
+  bool get atLatest {
+    final now = DateTime.now();
+    return !state.isBefore(DateTime(now.year, now.month));
+  }
+}
+
+final commissionMonthProvider =
+    NotifierProvider<CommissionMonthNotifier, DateTime>(
+  CommissionMonthNotifier.new,
+);
+
+final commissionReportProvider =
+    FutureProvider<List<CommissionMonth>>((ref) async {
+  watchBackendData(ref);
+  if (!ref.watch(currentUserProvider).isAdmin) return const [];
+  return ref
+      .read(repositoryProvider)
+      .fetchCommissionReport(ref.watch(commissionMonthProvider));
+});
+
+class CommissionActions {
+  CommissionActions(this._ref);
+
+  final Ref _ref;
+
+  /// Owners only; the database refuses anyone else.
+  Future<void> markPaid({
+    required String agentId,
+    required DateTime month,
+    double? amount,
+    String reference = '',
+  }) async {
+    await _ref.read(repositoryProvider).markCommissionPaid(
+          agentId: agentId,
+          month: month,
+          amount: amount,
+          reference: reference,
+        );
+    _ref.read(dataRevisionProvider.notifier).bump();
+  }
+}
+
+final commissionActionsProvider =
+    Provider<CommissionActions>(CommissionActions.new);
 
 // ---------------------------------------------------------------------------
 // Closing cases
