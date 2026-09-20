@@ -21,7 +21,7 @@ Phase 17.
 | # | Task | Where | If forgotten |
 | --- | --- | --- | --- |
 | 1 | GitHub repository **variables** `CLOUDINARY_CLOUD_NAME` = `n9mgnr8s`, `CLOUDINARY_UPLOAD_PRESET` = `rudransh_certificates` | GitHub → Settings → Secrets and variables → Actions → **Variables** (not Secrets) | Production builds fine, but every agent reporting a death is told "Certificate upload is not set up yet". Silent: no build error |
-| 2 | `supabase db push` of `20260919000100_dues.sql` to staging, then production | Supabase CLI | The Dues tab and death reports fail against a database without the views and RPCs |
+| 2 | ~~`supabase db push` of `20260919000100_dues.sql`~~ **Applied to staging 21 Sep 2026** (verified by RPC probe); still pending on production | Supabase CLI | The Dues tab and death reports fail against a database without the views and RPCs |
 | 3 | Confirm on staging that a test closing group's dues match a manual count | Staging | Phase 13's "done when" is unverified; `dues_test.sql` covers the logic but not the deployed data |
 | 4 | Rotate the Cloudinary API secret exposed on 18 Sep 2026 (key `728129852553546`) | Cloudinary → Settings → API Keys | Nothing in the app uses it, so nothing breaks — but the pair grants full control of the media account, including deleting every certificate |
 | 5 | Delete the test assets left in `rudransh/certificates` (three 1×1 PNGs, two stub PDFs) | Cloudinary → Assets → Media Library | Harmless clutter; would confuse a later audit of uploaded certificates |
@@ -30,7 +30,13 @@ Phase 17.
 | 8 | Cloudflare Turnstile keys + `supabase functions deploy member_lookup --no-verify-jwt` (`docs/RUNBOOK.md` §1.7) | Cloudflare + Supabase CLI | The public lookup fails closed and returns 503. The page says so, but the feature is simply unavailable until this is done |
 | 9 | ~~Render the Turnstile widget in the web build~~ **Done 20 Sep 2026** | `lib/features/portal/turnstile_web.dart`, script in `web/index.html` | The widget renders on the web build and the Check button stays disabled until Cloudflare hands back a token. Compiles into `flutter build web --release`; **not yet exercised against a real site key** — that waits on item 8 |
 | 10 | `UPI_ID` and `UPI_PAYEE` repository variables | GitHub → Variables | The Pay by UPI button is hidden; members pay through their agent, which is the current behaviour anyway |
-| 11 | `supabase db push` of `20260922000100_commission.sql` to staging, then production | Supabase CLI | The agent's cash-in-hand card, the handover button and the Commission page error against a database without them. It also replaces `agent_summary()`, so the agent home breaks until it is applied |
+| 11 | ~~`supabase db push` of `20260922000100_commission.sql`~~ **Applied to staging 21 Sep 2026**; still pending on production | Supabase CLI | The agent's cash-in-hand card, the handover button and the Commission page error against a database without them. It also replaces `agent_summary()`, so the agent home breaks until it is applied |
+| 12 | **Vault `aadhaar_key` on staging and production, before `20260924000100` is pushed** | Supabase → SQL editor, once per project (`docs/RUNBOOK.md` §6) | The migration **still succeeds** and silently keeps only the last 4 digits. Every full Aadhaar is destroyed, unrecoverably, with nothing but a `raise warning`. Production holds real members |
+| 13 | `supabase db push` of the four pending migrations to staging, then about nine to production | Supabase CLI | Staging member and Yojna **saves fail today** — the app sends `dob`, `state` and `start_date` columns the database lacks. Production is missing roles, agent work, dues, notifications, the member portal and commission entirely |
+| 14 | Confirm every GitHub secret and variable in `docs/GO_LIVE_CHECKLIST.md` §5 | GitHub → Secrets and variables | If a deploy secret is missing the workflow **skips build and deploy without failing** — a green run that shipped nothing |
+
+> **Order matters.** `docs/GO_LIVE_CHECKLIST.md` is the sequenced version of
+> items 12–14 with the exact commands. Item 12 must come before item 13.
 
 ---
 
