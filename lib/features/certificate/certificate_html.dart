@@ -83,7 +83,7 @@ String _heading(String text) => '''
     <path id="arc" d="M 26,140 Q 600,62 1174,140" fill="none"/>
   </defs>
   <text text-anchor="middle" font-size="$_headingSize" paint-order="stroke"
-        stroke="#ffffff" stroke-width="9" stroke-linejoin="round" fill="#15325c">
+        stroke="#ffffff" stroke-width="9" stroke-linejoin="round" fill="#B5121B">
     <textPath href="#arc" startOffset="50%">${_esc(text)}</textPath>
   </text>
 </svg>''';
@@ -194,7 +194,7 @@ String buildCertificateHtml(CertificateData d, {required String baseUrl}) {
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
   font-family: 'CertHindi', 'Noto Sans Devanagari', sans-serif;
-  color: #15325c;
+  color: #003B78;
   background: #fff;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
@@ -286,7 +286,7 @@ html, body {
   font-size: 8.5pt;
   margin-top: 0.8mm;
 }
-.regline b { font-weight: 700; color: #c0272d; }
+.regline b { font-weight: 700; color: #B5121B; }
 .states {
   display: flex;
   justify-content: space-between;
@@ -301,7 +301,7 @@ html, body {
   height: 25mm;
   margin: -8mm auto 0;
   font-family: 'CertTitle', 'CertHindi', sans-serif;
-  filter: drop-shadow(0.5mm 0.5mm 0.4mm rgba(21, 50, 92, 0.35));
+  filter: drop-shadow(0.5mm 0.5mm 0.4mm rgba(0, 59, 120, 0.35));
 }
 .logo {
   width: 23mm;
@@ -323,7 +323,7 @@ html, body {
 .logo-fallback {
   width: 100%;
   height: 100%;
-  border: 0.4mm solid #15325c;
+  border: 0.4mm solid #003B78;
   border-radius: 50%;
 }
 /* ---------- scheme bar ---------- */
@@ -339,16 +339,16 @@ html, body {
 .head .side { flex: 1; padding-top: 2mm; }
 .head .side.right { text-align: right; }
 .head .val {
-  color: #c0272d;
+  color: #B5121B;
   font-weight: 700;
-  border-bottom: 0.3mm dotted #15325c;
+  border-bottom: 0.3mm dotted #003B78;
   padding: 0 3mm;
   min-width: 32mm;
   display: inline-block;
   text-align: center;
 }
 .cert-title {
-  background: #15325c;
+  background: #B5121B;
   color: #fff;
   border: 0.4mm solid #d4af37;
   border-radius: 2mm;
@@ -363,12 +363,12 @@ html, body {
 .photo {
   width: 32mm;
   height: 40mm;
-  border: 0.4mm solid #15325c;
+  border: 0.4mm solid #003B78;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 8pt;
-  color: #15325c;
+  color: #003B78;
   flex: none;
   background: rgba(255,255,255,0.4);
 }
@@ -386,8 +386,8 @@ html, body {
 .f .v {
   flex: 1;
   min-width: 0;
-  border-bottom: 0.3mm dotted #15325c;
-  color: #c0272d;
+  border-bottom: 0.3mm dotted #003B78;
+  color: #B5121B;
   font-weight: 700;
   font-size: 10pt;
   padding: 0 2mm;
@@ -401,8 +401,8 @@ html, body {
 .tail .left { flex: 1; min-width: 0; }
 .amount { display: flex; align-items: baseline; gap: 2mm; font-size: 10pt; font-weight: 700; }
 .amount .v {
-  border-bottom: 0.3mm dotted #15325c;
-  color: #c0272d;
+  border-bottom: 0.3mm dotted #003B78;
+  color: #B5121B;
   font-weight: 700;
   min-width: 24mm;
   text-align: center;
@@ -418,12 +418,12 @@ html, body {
 }
 .sign { text-align: center; font-size: 9.5pt; flex: none; width: 50mm; display: flex; flex-direction: column; align-items: center; }
 .sign img { height: 10mm; display: block; margin: 0 auto 0.5mm; }
-.sign .line { height: 10mm; border-bottom: 0.3mm solid #15325c; width: 100%; }
+.sign .line { height: 10mm; border-bottom: 0.3mm solid #003B78; width: 100%; }
 .sign b { display: block; font-weight: 700; margin-top: 1mm; }
 /* ---------- footer ---------- */
 .slogan {
   align-self: center;
-  background: #15325c;
+  background: #003B78;
   color: #fff;
   text-align: center;
   font-size: 10pt;
