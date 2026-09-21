@@ -84,7 +84,7 @@ class AuthController extends Notifier<AuthState> {
     state = state.copyWith(busy: true, clearError: true);
 
     if (!Env.isAdminEmail(address)) {
-      state = state.copyWith(busy: false, error: _noAccess);
+      state = state.copyWith(busy: false, error: _wrongAdminEmail);
       return;
     }
 
@@ -269,13 +269,23 @@ class AuthController extends Notifier<AuthState> {
     if (e.code == 'otp_disabled' ||
         e.code == 'user_not_found' ||
         message.contains('signups not allowed')) {
-      return _noAccess;
+      return _adminNotRegistered;
+    }
+    if (e.code == 'unexpected_failure' ||
+        message.contains('error sending magic link email')) {
+      return _emailProviderError;
     }
     return 'Could not send the code: ${e.message}';
   }
 
   static const _noAccess =
       'This email does not have access. Contact the trust office.';
+  static const _wrongAdminEmail =
+      'Use the admin email configured for this production build.';
+  static const _adminNotRegistered =
+      'This admin email is not registered in Supabase Auth.';
+  static const _emailProviderError =
+      'Supabase could not send the OTP email. Check the Supabase Auth email provider settings.';
   static const _tooManyAttempts =
       'Too many attempts. Please try again in a few minutes.';
   static const _networkError =
