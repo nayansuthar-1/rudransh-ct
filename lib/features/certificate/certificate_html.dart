@@ -96,12 +96,12 @@ String _flourish(String position, {bool flip = false, bool turn = false}) {
   return '''
 <svg class="flourish $position" viewBox="0 0 120 120" aria-hidden="true">
   <g transform="translate(${flip ? 120 : 0},${turn ? 120 : 0}) scale($sx,$sy)"
-     fill="none" stroke="#d4af37" stroke-width="2.4" stroke-linecap="round">
-    <path d="M6 42 C 6 18, 18 6, 42 6"/>
-    <path d="M14 46 C 14 24, 24 14, 46 14"/>
-    <path d="M22 40 C 30 24, 40 22, 54 22 C 46 30, 44 40, 30 46 C 24 48, 20 46, 22 40 Z"/>
-    <path d="M40 52 C 52 44, 62 44, 72 48 C 62 56, 52 58, 44 56"/>
-    <path d="M52 26 C 62 26, 70 30, 76 36"/>
+     fill="none" stroke-linecap="round">
+    <path d="M6 42 C 6 18, 18 6, 42 6" stroke="#B5121B" stroke-width="2.4"/>
+    <path d="M14 46 C 14 24, 24 14, 46 14" stroke="#B5121B" stroke-width="2.4"/>
+    <path d="M22 40 C 30 24, 40 22, 54 22 C 46 30, 44 40, 30 46 C 24 48, 20 46, 22 40 Z" stroke="#0757A5" stroke-width="2"/>
+    <path d="M40 52 C 52 44, 62 44, 72 48 C 62 56, 52 58, 44 56" stroke="#B5121B" stroke-width="2.4"/>
+    <path d="M52 26 C 62 26, 70 30, 76 36" stroke="#0757A5" stroke-width="2"/>
   </g>
 </svg>''';
 }
@@ -211,10 +211,9 @@ html, body {
   position: relative;
   flex: 1;
   min-height: 0;
-  border: 1.2mm double #15325c;
+  border: 1.2mm solid #B5121B;
   border-radius: 2mm;
-  background:
-    radial-gradient(circle at 20% 15%, #e6f0f5 0%, #d9e5ea 55%, #cddbe2 100%);
+  background: radial-gradient(ellipse at 50% 50%, #F7FCFE 0%, #EEF8FC 40%, #D9EAF3 100%);
   padding: 2.5mm 7mm 1.5mm;
   display: flex;
   flex-direction: column;
@@ -223,27 +222,42 @@ html, body {
 .cert::before {
   content: '';
   position: absolute;
-  inset: 0;
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><path d="M50 0 C60 40, 100 50, 100 50 C60 60, 50 100, 50 100 C40 60, 0 50, 0 50 C40 40, 50 0, 50 0 Z" fill="%2315325c" opacity="0.03"/></svg>');
-  background-size: 40mm 40mm;
+  inset: 1.6mm;
+  border: 0.6mm solid #0757A5;
+  border-radius: 1.4mm;
   pointer-events: none;
+  z-index: 0;
 }
 .cert::after {
   content: '';
   position: absolute;
-  inset: 1.6mm;
-  border: 0.3mm solid #d4af37;
-  border-radius: 1.4mm;
+  inset: 3mm;
+  border: 0.2mm solid rgba(7, 87, 165, 0.4);
+  border-radius: 1mm;
   pointer-events: none;
+  z-index: 0;
+}
+.geometric-bg {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(135deg, rgba(40,140,210,0.06) 0%, rgba(40,140,210,0) 35%),
+    linear-gradient(-135deg, rgba(40,140,210,0.06) 0%, rgba(40,140,210,0) 35%),
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="700" viewBox="0 0 1000 700" preserveAspectRatio="none"><polygon points="0,200 150,350 0,500" fill="rgba(40,140,210,0.04)"/><polygon points="1000,200 850,350 1000,500" fill="rgba(40,140,210,0.04)"/><path d="M450 300 C470 280, 530 280, 550 300 C570 320, 570 380, 550 400 C530 420, 470 420, 450 400 C430 380, 430 320, 450 300 Z" fill="none" stroke="rgba(40,140,210,0.05)" stroke-width="2"/></svg>');
+  background-size: 100% 100%;
+  pointer-events: none;
+  z-index: 0;
 }
 .waves {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 25mm;
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 100" preserveAspectRatio="none"><path d="M0,50 Q250,100 500,50 T1000,50 L1000,100 L0,100 Z" fill="%2315325c" opacity="0.05"/></svg>');
+  height: 45mm;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 150" preserveAspectRatio="none"><path d="M0,150 L1000,150 L1000,100 Q800,130 500,80 Q200,30 0,100 Z" fill="rgba(40,140,210,0.1)"/><path d="M0,150 L1000,150 L1000,120 Q800,145 500,110 Q200,75 0,130 Z" fill="rgba(7,87,165,0.08)"/><path d="M0,150 L1000,150 L1000,135 Q750,160 500,135 Q250,110 0,145 Z" fill="rgba(0,59,120,0.1)"/></svg>');
+  background-size: 100% 100%;
   pointer-events: none;
+  z-index: 0;
 }
 .flourish {
   position: absolute;
@@ -427,6 +441,7 @@ html, body {
 <body>
 <div class="sheet">
   <div class="cert">
+    <div class="geometric-bg"></div>
     <div class="waves"></div>
     ${_flourish('tl')}
     ${_flourish('tr', flip: true)}
