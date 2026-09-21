@@ -186,8 +186,9 @@ void main() {
     });
   }
 
-  // Tests build without Supabase defines, so this is the demo path.
-  group('demo sign-in accepts the trust email only', () {
+  // Tests build without Supabase defines, so OTP must fail closed instead of
+  // accepting a fake local code.
+  group('sign-in without Supabase configured', () {
     Future<AuthState> request(String email) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
@@ -195,14 +196,13 @@ void main() {
       return container.read(authControllerProvider);
     }
 
-    test('the trust email is sent a code, whatever the casing', () async {
+    test('the trust email cannot receive a fake local code', () async {
       final state = await request(' ${Env.adminEmail.toUpperCase()} ');
-      expect(state.stage, AuthStage.awaitingOtp);
-      expect(state.error, isNull);
-      expect(state.email, Env.adminEmail);
+      expect(state.stage, AuthStage.signedOut);
+      expect(state.error, contains('OTP email is not configured'));
     });
 
-    test('any other address is turned away with no code', () async {
+    test('any other address is turned away before OTP is requested', () async {
       final state = await request('someone.else@example.com');
       expect(state.stage, isNot(AuthStage.awaitingOtp));
       expect(state.error, isNotNull);

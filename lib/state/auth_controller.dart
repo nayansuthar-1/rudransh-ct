@@ -54,22 +54,14 @@ class AuthState {
 ///
 /// Only users invited by an owner *and* with an active profile can sign in;
 /// the profile's role decides which screens open (see `app_router.dart`).
-/// Without Supabase configuration (demo mode) the app opens straight in, as
-/// an owner unless `DEMO_ROLE` says otherwise.
+/// Without Supabase configuration the app stays signed out: OTP login must not
+/// be simulated for an admin dashboard.
 class AuthController extends Notifier<AuthState> {
-  static bool get bypassLogin => Env.demoMode;
-
   sb.GoTrueClient get _auth => sb.Supabase.instance.client.auth;
 
   @override
   AuthState build() {
-    if (bypassLogin) {
-      return AuthState(
-        stage: AuthStage.signedIn,
-        email: AppUser.guest.email,
-        user: _demoUser(AppUser.guest.email),
-      );
-    }
+    if (!Env.hasSupabase) return const AuthState();
 
     final sub = _auth.onAuthStateChange.listen(_onAuthChange);
     ref.onDispose(sub.cancel);
@@ -91,20 +83,13 @@ class AuthController extends Notifier<AuthState> {
     final address = email.trim().toLowerCase();
     state = state.copyWith(busy: true, clearError: true);
 
-    if (bypassLogin) {
-      await Future<void>.delayed(const Duration(milliseconds: 700));
-      // A demo build has no database to check against, so the trust's own
-      // address is the only one it accepts. Without this any address at all
-      // would open the panel.
-      if (!Env.isAdminEmail(address)) {
-        state = state.copyWith(busy: false, error: _noAccess);
-        return;
-      }
-      state = state.copyWith(
-        stage: AuthStage.awaitingOtp,
-        email: address,
-        busy: false,
-      );
+    if (!Env.isAdminEmail(address)) {
+      state = state.copyWith(busy: false, error: _noAccess);
+      return;
+    }
+
+    if (!Env.hasSupabase) {
+      state = state.copyWith(busy: false, error: _otpUnavailable);
       return;
     }
 
@@ -132,14 +117,9 @@ class AuthController extends Notifier<AuthState> {
       return false;
     }
 
-    if (bypassLogin) {
-      await Future<void>.delayed(const Duration(milliseconds: 700));
-      state = state.copyWith(
-        stage: AuthStage.signedIn,
-        busy: false,
-        user: _demoUser(state.email),
-      );
-      return true;
+    if (!Env.hasSupabase) {
+      state = state.copyWith(busy: false, error: _otpUnavailable);
+      return false;
     }
 
     try {
@@ -180,7 +160,7 @@ class AuthController extends Notifier<AuthState> {
 
   /// Retry after [AuthState.checkingAccess] failed (usually offline).
   Future<void> retryAccessCheck() async {
-    final user = bypassLogin ? null : _auth.currentUser;
+    final user = Env.hasSupabase ? _auth.currentUser : null;
     if (user == null) return signOut();
     state = state.copyWith(clearError: true);
     await _confirmAccess(user, initial: true);
@@ -190,7 +170,7 @@ class AuthController extends Notifier<AuthState> {
       state = state.copyWith(stage: AuthStage.signedOut, clearError: true);
 
   Future<void> signOut() async {
-    if (!bypassLogin) {
+    if (Env.hasSupabase) {
       try {
         await _auth.signOut();
       } catch (_) {
@@ -283,20 +263,6 @@ class AuthController extends Notifier<AuthState> {
     );
   }
 
-  static AppUser _demoUser(String email) {
-    final role = UserRole.fromName(Env.demoRole) ?? UserRole.owner;
-    return AppUser(
-      id: 'local-${role.name}',
-      name: role == UserRole.owner
-          ? AppUser.guest.name
-          : '${email.split('@').first.toUpperCase()} (${role.label})',
-      email: email,
-      role: role,
-      agentId: role == UserRole.agent ? 'demo-agent' : null,
-      memberId: role == UserRole.member ? 'demo-member' : null,
-    );
-  }
-
   static String _describeRequestError(sb.AuthException e) {
     if (e.statusCode == '429') return _tooManyAttempts;
     final message = e.message.toLowerCase();
@@ -314,6 +280,8 @@ class AuthController extends Notifier<AuthState> {
       'Too many attempts. Please try again in a few minutes.';
   static const _networkError =
       'Network error. Check your internet connection and try again.';
+  static const _otpUnavailable =
+      'OTP email is not configured for this build. Connect Supabase and try again.';
 }
 
 final authControllerProvider =

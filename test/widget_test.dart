@@ -6,12 +6,27 @@ import 'package:rudransh_ct/core/l10n/strings.dart';
 import 'package:rudransh_ct/core/utils/formatters.dart';
 import 'package:rudransh_ct/data/models/models.dart';
 import 'package:rudransh_ct/data/repositories/in_memory_trust_repository.dart';
+import 'package:rudransh_ct/state/auth_controller.dart';
 import 'package:rudransh_ct/state/providers.dart';
 import 'support/seed_data.dart';
 
 /// A repository with no artificial latency so tests settle quickly.
 InMemoryTrustRepository _fastRepo() =>
     seededRepository();
+
+class _AdminAuth extends AuthController {
+  @override
+  AuthState build() => const AuthState(
+        stage: AuthStage.signedIn,
+        email: 'admin@test.local',
+        user: AppUser(
+          id: 'admin-test',
+          name: 'Test Admin',
+          email: 'admin@test.local',
+          role: UserRole.owner,
+        ),
+      );
+}
 
 void main() {
   group('InMemoryTrustRepository', () {
@@ -107,7 +122,10 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [repositoryProvider.overrideWithValue(_fastRepo())],
+        overrides: [
+          repositoryProvider.overrideWithValue(_fastRepo()),
+          authControllerProvider.overrideWith(_AdminAuth.new),
+        ],
         child: const RudranshAdminApp(),
       ),
     );
@@ -126,7 +144,10 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [repositoryProvider.overrideWithValue(_fastRepo())],
+        overrides: [
+          repositoryProvider.overrideWithValue(_fastRepo()),
+          authControllerProvider.overrideWith(_AdminAuth.new),
+        ],
         child: const RudranshAdminApp(),
       ),
     );

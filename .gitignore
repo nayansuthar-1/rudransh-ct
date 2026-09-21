@@ -33,6 +33,9 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Local production build values. Do not commit real project keys.
+.env
+
 # Symbolication related
 app.*.symbols
 
