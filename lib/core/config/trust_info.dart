@@ -54,7 +54,7 @@ class TrustInfo {
 
   /// `॥ ओफिस ॥` on the सदस्यता प्रपत्र.
   static const headOfficeAddress =
-      'ठी.दक्ष कोम्प्लेक्ष, लाखणी, तह.लाखणी, जि.वाव–थराद (गुजरात)';
+      'ठी. दक्ष कॉम्प्लेक्स, लाखणी, तह. लाखणी, जि. वाव-थराद (गुजरात)';
 
   /// The three numbers the client picked for the footer: Shaileshbhai,
   /// Ganeshbhai and Kalpeshbhai. The other three on the form are deliberately

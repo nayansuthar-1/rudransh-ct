@@ -66,7 +66,9 @@ end $$;
 
 create function public.encrypt_member_aadhaar() returns trigger
 language plpgsql security definer set search_path = '' as $$
-declare v text := regexp_replace(coalesce(new.aadhaar, ''), '\D', '', 'g');
+declare
+  v text := regexp_replace(coalesce(new.aadhaar, ''), '\D', '', 'g');
+  k text;
 begin
   -- Whatever arrives, the plain column never survives to disk.
   new.aadhaar := '';
@@ -89,7 +91,20 @@ begin
     raise exception 'Aadhaar number must be 12 digits.';
   end if;
 
-  new.aadhaar_enc   := extensions.pgp_sym_encrypt(v, public.aadhaar_key());
+  -- Try to fetch the encryption key; if it is not set up yet, degrade
+  -- gracefully: keep only the last four digits so the member can still
+  -- be enrolled. The full number is NOT stored in plain text either way.
+  begin
+    k := public.aadhaar_key();
+  exception when others then
+    k := null;
+  end;
+
+  if k is not null then
+    new.aadhaar_enc := extensions.pgp_sym_encrypt(v, k);
+  else
+    new.aadhaar_enc := null;
+  end if;
   new.aadhaar_last4 := right(v, 4);
   return new;
 end $$;

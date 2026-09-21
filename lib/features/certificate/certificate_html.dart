@@ -19,7 +19,7 @@ class _Hi {
   static const name = 'नाम';
   static const gotra = 'गौत्र';
   static const jati = 'जाति';
-  static const dob = 'जन्म दि';
+  static const dob = 'जन्म तारीख';
   static const village = 'गांव / सिटी';
   static const district = 'जिला';
   static const state = 'राज्य';
@@ -83,7 +83,7 @@ String _heading(String text) => '''
     <path id="arc" d="M 26,140 Q 600,62 1174,140" fill="none"/>
   </defs>
   <text text-anchor="middle" font-size="$_headingSize" paint-order="stroke"
-        stroke="#fdf6e6" stroke-width="9" stroke-linejoin="round" fill="#c0272d">
+        stroke="#ffffff" stroke-width="9" stroke-linejoin="round" fill="#15325c">
     <textPath href="#arc" startOffset="50%">${_esc(text)}</textPath>
   </text>
 </svg>''';
@@ -96,7 +96,7 @@ String _flourish(String position, {bool flip = false, bool turn = false}) {
   return '''
 <svg class="flourish $position" viewBox="0 0 120 120" aria-hidden="true">
   <g transform="translate(${flip ? 120 : 0},${turn ? 120 : 0}) scale($sx,$sy)"
-     fill="none" stroke="#c0272d" stroke-width="2.4" stroke-linecap="round">
+     fill="none" stroke="#d4af37" stroke-width="2.4" stroke-linecap="round">
     <path d="M6 42 C 6 18, 18 6, 42 6"/>
     <path d="M14 46 C 14 24, 24 14, 46 14"/>
     <path d="M22 40 C 30 24, 40 22, 54 22 C 46 30, 44 40, 30 46 C 24 48, 20 46, 22 40 Z"/>
@@ -194,7 +194,7 @@ String buildCertificateHtml(CertificateData d, {required String baseUrl}) {
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
   font-family: 'CertHindi', 'Noto Sans Devanagari', sans-serif;
-  color: #8d1b20;
+  color: #15325c;
   background: #fff;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
@@ -211,28 +211,45 @@ html, body {
   position: relative;
   flex: 1;
   min-height: 0;
-  border: 1.2mm double #c0272d;
+  border: 1.2mm double #15325c;
   border-radius: 2mm;
   background:
-    radial-gradient(circle at 20% 15%, #fffdf6 0%, #fbf3e0 55%, #f7ead2 100%);
+    radial-gradient(circle at 20% 15%, #e6f0f5 0%, #d9e5ea 55%, #cddbe2 100%);
   padding: 2.5mm 7mm 1.5mm;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
+.cert::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><path d="M50 0 C60 40, 100 50, 100 50 C60 60, 50 100, 50 100 C40 60, 0 50, 0 50 C40 40, 50 0, 50 0 Z" fill="%2315325c" opacity="0.03"/></svg>');
+  background-size: 40mm 40mm;
+  pointer-events: none;
+}
 .cert::after {
   content: '';
   position: absolute;
   inset: 1.6mm;
-  border: 0.3mm solid #e0a9a6;
+  border: 0.3mm solid #d4af37;
   border-radius: 1.4mm;
+  pointer-events: none;
+}
+.waves {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 25mm;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 100" preserveAspectRatio="none"><path d="M0,50 Q250,100 500,50 T1000,50 L1000,100 L0,100 Z" fill="%2315325c" opacity="0.05"/></svg>');
   pointer-events: none;
 }
 .flourish {
   position: absolute;
   width: 16mm;
   height: 16mm;
-  opacity: 0.75;
+  opacity: 0.85;
 }
 .flourish.tl { top: 2mm; left: 2mm; }
 .flourish.tr { top: 2mm; right: 2mm; }
@@ -256,8 +273,6 @@ html, body {
   margin-top: 0.8mm;
 }
 .regline b { font-weight: 700; color: #c0272d; }
-/* The two states sit at the shoulders of the heading, as on the reference
-   sheet. */
 .states {
   display: flex;
   justify-content: space-between;
@@ -272,7 +287,7 @@ html, body {
   height: 25mm;
   margin: -8mm auto 0;
   font-family: 'CertTitle', 'CertHindi', sans-serif;
-  filter: drop-shadow(0.5mm 0.5mm 0.4mm rgba(141, 27, 32, 0.35));
+  filter: drop-shadow(0.5mm 0.5mm 0.4mm rgba(21, 50, 92, 0.35));
 }
 .logo {
   width: 23mm;
@@ -282,9 +297,9 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  z-index: 2;
 }
-/* The supplied logo is a JPEG on white; multiply drops the white into the
-   cream sheet without needing a transparent PNG. */
 .logo img {
   max-width: 100%;
   max-height: 100%;
@@ -294,50 +309,54 @@ html, body {
 .logo-fallback {
   width: 100%;
   height: 100%;
-  border: 0.4mm solid #c0272d;
+  border: 0.4mm solid #15325c;
   border-radius: 50%;
 }
 /* ---------- scheme bar ---------- */
 .head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 5mm;
   margin-top: 0.5mm;
   font-size: 10pt;
 }
-.head .mid { text-align: center; flex: none; }
-.head .side { flex: 1; padding-top: 4mm; }
+.head .mid { text-align: center; flex: none; position: relative; z-index: 2; }
+.head .side { flex: 1; padding-top: 2mm; }
 .head .side.right { text-align: right; }
 .head .val {
   color: #c0272d;
   font-weight: 700;
-  border-bottom: 0.3mm dotted #c0272d;
+  border-bottom: 0.3mm dotted #15325c;
   padding: 0 3mm;
   min-width: 32mm;
   display: inline-block;
+  text-align: center;
 }
-.badge {
-  border: 0.3mm solid #c0272d;
+.cert-title {
+  background: #15325c;
+  color: #fff;
+  border: 0.4mm solid #d4af37;
   border-radius: 2mm;
-  padding: 0.5mm 4mm;
+  padding: 1.5mm 6mm;
   font-weight: 700;
+  font-size: 12pt;
   display: inline-block;
+  box-shadow: 0 1mm 2mm rgba(0,0,0,0.1);
 }
-.badge.dark { background: #8d1b20; color: #fdf6e6; }
-.badge + .badge { margin-top: 0.8mm; }
 /* ---------- fields ---------- */
-.body { display: flex; gap: 5mm; margin-top: 1.5mm; flex: 1; min-height: 0; }
+.body { display: flex; gap: 5mm; margin-top: 1.5mm; flex: 1; min-height: 0; position: relative; z-index: 2; }
 .photo {
   width: 32mm;
   height: 40mm;
-  border: 0.3mm solid #c0272d;
+  border: 0.4mm solid #15325c;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 8pt;
-  color: #cfa6a3;
+  color: #15325c;
   flex: none;
+  background: rgba(255,255,255,0.4);
 }
 .fields {
   flex: 1;
@@ -349,11 +368,11 @@ html, body {
 }
 .row { display: flex; gap: 6mm; }
 .f { display: flex; align-items: baseline; gap: 2mm; min-width: 0; }
-.f .lbl { font-size: 10pt; white-space: nowrap; }
+.f .lbl { font-size: 10pt; white-space: nowrap; font-weight: 700; }
 .f .v {
   flex: 1;
   min-width: 0;
-  border-bottom: 0.3mm dotted #c0272d;
+  border-bottom: 0.3mm dotted #15325c;
   color: #c0272d;
   font-weight: 700;
   font-size: 10pt;
@@ -366,9 +385,9 @@ html, body {
 /* ---------- amount, note, signature ---------- */
 .tail { display: flex; gap: 6mm; align-items: flex-end; }
 .tail .left { flex: 1; min-width: 0; }
-.amount { display: flex; align-items: baseline; gap: 2mm; font-size: 10pt; }
+.amount { display: flex; align-items: baseline; gap: 2mm; font-size: 10pt; font-weight: 700; }
 .amount .v {
-  border-bottom: 0.3mm dotted #c0272d;
+  border-bottom: 0.3mm dotted #15325c;
   color: #c0272d;
   font-weight: 700;
   min-width: 24mm;
@@ -376,8 +395,6 @@ html, body {
   padding: 0 2mm;
 }
 .tail .row { margin-top: 2mm; align-items: flex-end; }
-/* The payout wording runs to two lines on the reference sheet, so this one
-   value wraps instead of being clipped like the single-line fields above. */
 .note .v {
   text-align: center;
   white-space: normal;
@@ -385,29 +402,32 @@ html, body {
   text-overflow: clip;
   line-height: 1.25;
 }
-.sign { text-align: center; font-size: 9.5pt; flex: none; width: 50mm; }
+.sign { text-align: center; font-size: 9.5pt; flex: none; width: 50mm; display: flex; flex-direction: column; align-items: center; }
 .sign img { height: 10mm; display: block; margin: 0 auto 0.5mm; }
-.sign .line { height: 10mm; border-bottom: 0.3mm solid #8d1b20; }
-.sign b { display: block; font-weight: 700; }
+.sign .line { height: 10mm; border-bottom: 0.3mm solid #15325c; width: 100%; }
+.sign b { display: block; font-weight: 700; margin-top: 1mm; }
 /* ---------- footer ---------- */
 .slogan {
   align-self: center;
-  background: #8d1b20;
-  color: #fdf6e6;
+  background: #15325c;
+  color: #fff;
   text-align: center;
   font-size: 10pt;
   font-weight: 700;
   padding: 0.8mm 6mm;
   border-radius: 1mm;
   margin-top: 1mm;
+  position: relative;
+  z-index: 2;
 }
-.office { text-align: center; font-size: 9.5pt; margin-top: 0.8mm; }
+.office { text-align: center; font-size: 9.5pt; margin-top: 0.8mm; position: relative; z-index: 2; }
 .office .label { font-weight: 700; }
 </style>
 </head>
 <body>
 <div class="sheet">
   <div class="cert">
+    <div class="waves"></div>
     ${_flourish('tl')}
     ${_flourish('tr', flip: true)}
     ${_flourish('bl', turn: true)}
@@ -431,9 +451,7 @@ html, body {
         <span class="val">${_esc(d.regNo)}</span>
       </div>
       <div class="mid">
-        <div class="badge">&#10049; ${_esc(d.yojnaName)} &#10049;</div>
-        <div class="badge">${_esc(_Hi.yojnaStarted)} : ${_esc(_day(d.yojnaStartedOn))}</div>
-        <div class="badge dark">&bull; ${_esc(_Hi.certificate)} &bull;</div>
+        <div class="cert-title">&bull; ${_esc(_Hi.certificate)} &bull;</div>
       </div>
       <div class="side right">
         ${_esc(_Hi.date)}
@@ -462,7 +480,6 @@ html, body {
           <div class="sign">
             $signMark
             <b>${_esc(_Hi.president)}</b>
-            <span>${_esc(TrustInfo.presidentName)}</span>
           </div>
         </div>
       </div>
