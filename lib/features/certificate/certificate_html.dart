@@ -88,20 +88,32 @@ String _heading(String text) => '''
   </text>
 </svg>''';
 
-/// A corner flourish. [flip] mirrors it horizontally, [turn] vertically, so one
-/// drawing serves all four corners of the frame.
-String _flourish(String position, {bool flip = false, bool turn = false}) {
+/// Premium ornamental corner motif. [flip] mirrors horizontally, [turn]
+/// vertically, so one drawing serves all four corners. This is a richer,
+/// more traditional Indian-inspired design than the original simple curves.
+String _cornerMotif(String position, {bool flip = false, bool turn = false}) {
   final sx = flip ? -1 : 1;
   final sy = turn ? -1 : 1;
   return '''
-<svg class="flourish $position" viewBox="0 0 120 120" aria-hidden="true">
-  <g transform="translate(${flip ? 120 : 0},${turn ? 120 : 0}) scale($sx,$sy)"
-     fill="none" stroke-linecap="round">
-    <path d="M6 42 C 6 18, 18 6, 42 6" stroke="#B5121B" stroke-width="2.4"/>
-    <path d="M14 46 C 14 24, 24 14, 46 14" stroke="#B5121B" stroke-width="2.4"/>
-    <path d="M22 40 C 30 24, 40 22, 54 22 C 46 30, 44 40, 30 46 C 24 48, 20 46, 22 40 Z" stroke="#0757A5" stroke-width="2"/>
-    <path d="M40 52 C 52 44, 62 44, 72 48 C 62 56, 52 58, 44 56" stroke="#B5121B" stroke-width="2.4"/>
-    <path d="M52 26 C 62 26, 70 30, 76 36" stroke="#0757A5" stroke-width="2"/>
+<svg class="corner $position" viewBox="0 0 160 160" aria-hidden="true">
+  <g transform="translate(${flip ? 160 : 0},${turn ? 160 : 0}) scale($sx,$sy)"
+     fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Outer arch pair -->
+    <path d="M4 50 C 4 16, 16 4, 50 4" stroke="#0A3D6B" stroke-width="2.2"/>
+    <path d="M8 54 C 8 22, 22 8, 54 8" stroke="#0757A5" stroke-width="1.4" stroke-dasharray="0.6 2.4"/>
+    <path d="M12 52 C 12 24, 24 12, 52 12" stroke="#0A3D6B" stroke-width="2.2"/>
+    <!-- Lotus petal motif -->
+    <path d="M20 48 C 28 28, 44 20, 56 20 C 48 32, 42 44, 28 52 C 22 55, 18 52, 20 48 Z"
+          fill="rgba(7,87,165,0.06)" stroke="#0757A5" stroke-width="1.6"/>
+    <path d="M32 54 C 38 42, 48 36, 60 34 C 54 44, 48 52, 38 58 C 34 60, 30 58, 32 54 Z"
+          fill="rgba(181,18,27,0.04)" stroke="#B5121B" stroke-width="1.4"/>
+    <!-- Inner floral curl -->
+    <path d="M44 60 C 56 50, 66 48, 78 52 C 68 60, 58 64, 48 62" stroke="#0757A5" stroke-width="1.6"/>
+    <path d="M58 24 C 68 22, 78 26, 86 34" stroke="#B5121B" stroke-width="1.4"/>
+    <!-- Dot accents -->
+    <circle cx="50" cy="6" r="1.6" fill="#0757A5"/>
+    <circle cx="6" cy="50" r="1.6" fill="#0757A5"/>
+    <circle cx="26" cy="26" r="1.2" fill="#B5121B"/>
   </g>
 </svg>''';
 }
@@ -191,129 +203,176 @@ String buildCertificateHtml(CertificateData d, {required String baseUrl}) {
   src: url('$display') format('truetype');
   font-weight: 400;
 }
-@page { size: A4 landscape; margin: 4mm; }
+@page { size: A4 landscape; margin: 3mm; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
   font-family: 'CertHindi', 'Noto Sans Devanagari', sans-serif;
-  color: #003B78;
+  color: #0A3D6B;
   background: #fff;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
 .sheet {
-  width: 289mm;
-  height: 202mm;
+  width: 291mm;
+  height: 204mm;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
 }
-/* ---------- certificate frame ---------- */
+
+/* ═══════════════════════════════════════════════════════════════
+   PREMIUM MULTI-LAYER BORDER FRAME
+   ═══════════════════════════════════════════════════════════════ */
 .cert {
   position: relative;
   flex: 1;
   min-height: 0;
-  border: 1.2mm solid #0757A5;
-  border-radius: 2mm;
-  background: radial-gradient(ellipse at 50% 50%, #F7FCFE 0%, #EEF8FC 40%, #D9EAF3 100%);
-  padding: 2.5mm 7mm 1.5mm;
+  border: 1.6mm solid #0A3D6B;
+  border-radius: 1.5mm;
+  background: #EBF4FA;
+  padding: 5mm 8mm 3mm;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
+/* Second border — thin navy */
 .cert::before {
   content: '';
   position: absolute;
-  inset: 1.6mm;
-  border: 0.6mm solid #0757A5;
-  border-radius: 1.4mm;
-  pointer-events: none;
-  z-index: 0;
-}
-.cert::after {
-  content: '';
-  position: absolute;
-  inset: 3mm;
-  border: 0.2mm solid rgba(7, 87, 165, 0.4);
+  inset: 2.2mm;
+  border: 0.35mm solid #0A3D6B;
   border-radius: 1mm;
   pointer-events: none;
   z-index: 0;
 }
-.geometric-bg {
+/* Third border — hairline decorative */
+.cert::after {
+  content: '';
+  position: absolute;
+  inset: 3.4mm;
+  border: 0.8mm solid rgba(7, 87, 165, 0.18);
+  border-radius: 0.8mm;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SUBTLE WATERMARK / GEOMETRIC BACKGROUND
+   ═══════════════════════════════════════════════════════════════ */
+.watermark {
   position: absolute;
   inset: 0;
-  background-image: 
-    linear-gradient(135deg, rgba(40,140,210,0.06) 0%, rgba(40,140,210,0) 35%),
-    linear-gradient(-135deg, rgba(40,140,210,0.06) 0%, rgba(40,140,210,0) 35%),
-    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="700" viewBox="0 0 1000 700" preserveAspectRatio="none"><polygon points="0,200 150,350 0,500" fill="rgba(40,140,210,0.04)"/><polygon points="1000,200 850,350 1000,500" fill="rgba(40,140,210,0.04)"/><path d="M450 300 C470 280, 530 280, 550 300 C570 320, 570 380, 550 400 C530 420, 470 420, 450 400 C430 380, 430 320, 450 300 Z" fill="none" stroke="rgba(40,140,210,0.05)" stroke-width="2"/></svg>');
-  background-size: 100% 100%;
+  /* Subtle repeating geometric — very faint diamond / mandala lattice */
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cpath d='M40 8 L72 40 L40 72 L8 40 Z' fill='none' stroke='%230757A5' stroke-width='0.3' opacity='0.08'/%3E%3Ccircle cx='40' cy='40' r='6' fill='none' stroke='%230757A5' stroke-width='0.25' opacity='0.06'/%3E%3C/svg%3E");
+  background-size: 18mm 18mm;
   pointer-events: none;
   z-index: 0;
 }
+
+/* Radial powder-blue glow behind centre content */
+.glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 38%, rgba(215,235,248,0.7) 0%, rgba(235,244,250,0.0) 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Extremely soft wave at the bottom */
 .waves {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 45mm;
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 150" preserveAspectRatio="none"><path d="M0,150 L1000,150 L1000,100 Q800,130 500,80 Q200,30 0,100 Z" fill="rgba(40,140,210,0.1)"/><path d="M0,150 L1000,150 L1000,120 Q800,145 500,110 Q200,75 0,130 Z" fill="rgba(7,87,165,0.08)"/><path d="M0,150 L1000,150 L1000,135 Q750,160 500,135 Q250,110 0,145 Z" fill="rgba(0,59,120,0.1)"/></svg>');
+  bottom: 0; left: 0; right: 0;
+  height: 38mm;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 150' preserveAspectRatio='none'%3E%3Cpath d='M0,150 L1200,150 L1200,105 Q950,135 600,85 Q250,35 0,105 Z' fill='rgba(10,61,107,0.045)'/%3E%3Cpath d='M0,150 L1200,150 L1200,125 Q900,148 600,115 Q300,82 0,135 Z' fill='rgba(7,87,165,0.035)'/%3E%3C/svg%3E");
   background-size: 100% 100%;
   pointer-events: none;
   z-index: 0;
 }
-.flourish {
+
+/* ═══════════════════════════════════════════════════════════════
+   CORNER MOTIFS
+   ═══════════════════════════════════════════════════════════════ */
+.corner {
   position: absolute;
-  width: 16mm;
-  height: 16mm;
-  opacity: 0.85;
+  width: 22mm;
+  height: 22mm;
+  opacity: 0.9;
+  z-index: 1;
 }
-.flourish.tl { top: 2mm; left: 2mm; }
-.flourish.tr { top: 2mm; right: 2mm; }
-.flourish.bl { bottom: 2mm; left: 2mm; }
-.flourish.br { bottom: 2mm; right: 2mm; }
-/* ---------- masthead ---------- */
+.corner.tl { top: 3mm;    left: 3mm; }
+.corner.tr { top: 3mm;    right: 3mm; }
+.corner.bl { bottom: 3mm; left: 3mm; }
+.corner.br { bottom: 3mm; right: 3mm; }
+
+/* ═══════════════════════════════════════════════════════════════
+   MASTHEAD — invocations, registration, states
+   ═══════════════════════════════════════════════════════════════ */
 .invocations {
   display: flex;
   justify-content: space-between;
   font-size: 8.5pt;
-  padding: 0 6mm;
+  padding: 0 8mm;
   position: relative;
   z-index: 1;
+  color: #B5121B;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 .invocations.one { justify-content: center; }
+
 .regline {
   display: flex;
   justify-content: center;
-  gap: 18mm;
-  font-size: 8.5pt;
-  margin-top: 0.8mm;
+  gap: 22mm;
+  font-size: 8pt;
+  margin-top: 1mm;
+  position: relative;
+  z-index: 1;
+  color: #0A3D6B;
+  letter-spacing: 0.01em;
 }
 .regline b { font-weight: 700; color: #B5121B; }
+
 .states {
   display: flex;
   justify-content: space-between;
-  font-size: 12.5pt;
+  font-size: 12pt;
   font-weight: 700;
-  padding: 0 6mm;
+  padding: 0 8mm;
   margin-top: 1mm;
+  position: relative;
+  z-index: 1;
+  color: #0A3D6B;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   TRUST NAME (arched SVG) & LOGO
+   ═══════════════════════════════════════════════════════════════ */
 .title {
   display: block;
-  width: 172mm;
-  height: 25mm;
+  width: 178mm;
+  height: 26mm;
   margin: -8mm auto 0;
   font-family: 'CertTitle', 'CertHindi', sans-serif;
-  filter: drop-shadow(0.5mm 0.5mm 0.4mm rgba(0, 59, 120, 0.35));
+  filter: drop-shadow(0.4mm 0.6mm 0.6mm rgba(10, 61, 107, 0.25));
+  position: relative;
+  z-index: 2;
 }
 .logo {
-  width: 23mm;
-  height: 23mm;
-  margin: 0.5mm auto 0;
+  width: 24mm;
+  height: 24mm;
+  margin: 0mm auto 0;
   flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   z-index: 2;
+  /* Subtle circular halo around the logo */
+  background: radial-gradient(circle, rgba(255,255,255,0.9) 40%, rgba(215,235,248,0.3) 100%);
+  border-radius: 50%;
+  padding: 1mm;
 }
 .logo img {
   max-width: 100%;
@@ -324,91 +383,157 @@ html, body {
 .logo-fallback {
   width: 100%;
   height: 100%;
-  border: 0.4mm solid #003B78;
+  border: 0.4mm solid #0A3D6B;
   border-radius: 50%;
 }
-/* ---------- scheme bar ---------- */
+
+/* ═══════════════════════════════════════════════════════════════
+   SCHEME BAR — membership no · प्रमाण पत्र badge · date
+   ═══════════════════════════════════════════════════════════════ */
 .head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 5mm;
-  margin-top: 0.5mm;
+  margin-top: 1mm;
   font-size: 10pt;
+  position: relative;
+  z-index: 2;
 }
-.head .mid { text-align: center; flex: none; position: relative; z-index: 2; }
-.head .side { flex: 1; padding-top: 2mm; }
+.head .mid { text-align: center; flex: none; }
+.head .side { flex: 1; padding-top: 1mm; font-weight: 600; }
 .head .side.right { text-align: right; }
 .head .val {
   color: #B5121B;
   font-weight: 700;
-  border-bottom: 0.3mm dotted #003B78;
-  padding: 0 3mm;
-  min-width: 32mm;
+  border-bottom: 0.3mm dotted #4A7FAF;
+  padding: 0 4mm;
+  min-width: 34mm;
   display: inline-block;
   text-align: center;
 }
+
+/* ── Premium ribbon badge for the certificate title ── */
 .cert-title {
-  background: #003B78;
-  color: #fff;
-  border: 0.4mm solid #d4af37;
-  border-radius: 2mm;
-  padding: 1.5mm 6mm;
-  font-weight: 700;
-  font-size: 12pt;
   display: inline-block;
-  box-shadow: 0 1mm 2mm rgba(0,0,0,0.1);
+  position: relative;
+  background: linear-gradient(180deg, #0F4C81 0%, #0A3D6B 100%);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13pt;
+  padding: 2mm 10mm;
+  border-radius: 0.8mm;
+  letter-spacing: 0.06em;
+  box-shadow:
+    0 1mm 3mm rgba(10,61,107,0.25),
+    inset 0 0.4mm 0 rgba(255,255,255,0.12);
+  border: 0.3mm solid rgba(212,175,55,0.5);
 }
-/* ---------- fields ---------- */
-.body { display: flex; gap: 5mm; margin-top: 1.5mm; flex: 1; min-height: 0; position: relative; z-index: 2; }
+/* Small ribbon tails */
+.cert-title::before,
+.cert-title::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 5mm;
+  height: 0;
+  border-top: 3.5mm solid #0A3D6B;
+  border-bottom: 3.5mm solid #0A3D6B;
+  transform: translateY(-50%);
+}
+.cert-title::before {
+  right: 100%;
+  border-left: 2.5mm solid transparent;
+  border-right: none;
+}
+.cert-title::after {
+  left: 100%;
+  border-right: 2.5mm solid transparent;
+  border-left: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   BODY — fields + photo
+   ═══════════════════════════════════════════════════════════════ */
+.body {
+  display: flex;
+  gap: 5mm;
+  margin-top: 2mm;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  z-index: 2;
+}
+
+/* ── Photo frame (premium) ── */
 .photo {
   width: 32mm;
   height: 40mm;
-  border: 0.4mm solid #003B78;
+  border: 0.5mm solid #0A3D6B;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 8pt;
-  color: #003B78;
+  color: #4A7FAF;
   flex: none;
-  background: rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.6);
   overflow: hidden;
+  box-shadow:
+    0 0 0 0.3mm rgba(7,87,165,0.12),
+    0 0.5mm 2mm rgba(10,61,107,0.08);
 }
 .photo img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
+
+/* ── Field rows ── */
 .fields {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 1.5mm;
+  gap: 2mm;
 }
-.row { display: flex; gap: 6mm; }
-.f { display: flex; align-items: baseline; gap: 2mm; min-width: 0; }
-.f .lbl { font-size: 10pt; white-space: nowrap; font-weight: 700; }
+.row { display: flex; gap: 5mm; }
+.f { display: flex; align-items: baseline; gap: 1.5mm; min-width: 0; }
+.f .lbl {
+  font-size: 10pt;
+  white-space: nowrap;
+  font-weight: 700;
+  color: #0A3D6B;
+}
 .f .v {
   flex: 1;
   min-width: 0;
-  border-bottom: 0.3mm dotted #003B78;
+  border-bottom: 0.3mm dotted #4A7FAF;
   color: #B5121B;
   font-weight: 700;
   font-size: 10pt;
   padding: 0 2mm;
-  min-height: 5mm;
+  min-height: 5.5mm;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  line-height: 1.5;
 }
-/* ---------- amount, note, signature ---------- */
+
+/* ═══════════════════════════════════════════════════════════════
+   TAIL — amount, karyakarta/note, signature
+   ═══════════════════════════════════════════════════════════════ */
 .tail { display: flex; gap: 6mm; align-items: flex-end; }
 .tail .left { flex: 1; min-width: 0; }
-.amount { display: flex; align-items: baseline; gap: 2mm; font-size: 10pt; font-weight: 700; }
+.amount {
+  display: flex;
+  align-items: baseline;
+  gap: 2mm;
+  font-size: 10pt;
+  font-weight: 700;
+}
 .amount .v {
-  border-bottom: 0.3mm dotted #003B78;
+  border-bottom: 0.3mm dotted #4A7FAF;
   color: #B5121B;
   font-weight: 700;
   min-width: 24mm;
@@ -423,50 +548,97 @@ html, body {
   text-overflow: clip;
   line-height: 1.25;
 }
-.sign { text-align: center; font-size: 9.5pt; flex: none; width: 50mm; display: flex; flex-direction: column; align-items: center; }
+
+/* ── Signature block ── */
+.sign {
+  text-align: center;
+  font-size: 9.5pt;
+  flex: none;
+  width: 50mm;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
 .sign img { height: 10mm; display: block; margin: 0 auto 0.5mm; }
-.sign .line { height: 10mm; border-bottom: 0.3mm solid #003B78; width: 100%; }
-.sign b { display: block; font-weight: 700; margin-top: 1mm; }
-/* ---------- footer ---------- */
+.sign .line { height: 10mm; border-bottom: 0.3mm solid #0A3D6B; width: 100%; }
+.sign b { display: block; font-weight: 700; margin-top: 1mm; color: #0A3D6B; }
+
+/* ═══════════════════════════════════════════════════════════════
+   FOOTER — slogan ribbon + head office
+   ═══════════════════════════════════════════════════════════════ */
 .slogan {
   align-self: center;
-  background: #003B78;
+  position: relative;
+  z-index: 2;
+  margin-top: 1.5mm;
+  /* Ribbon background */
+  background: linear-gradient(180deg, #0F4C81 0%, #0A3D6B 100%);
   color: #fff;
   text-align: center;
-  font-size: 10pt;
+  font-size: 9.5pt;
   font-weight: 700;
-  padding: 0.8mm 6mm;
-  border-radius: 1mm;
+  padding: 1mm 12mm;
+  border-radius: 0.6mm;
+  letter-spacing: 0.03em;
+  box-shadow: 0 0.8mm 2mm rgba(10,61,107,0.18);
+}
+.office {
+  text-align: center;
+  font-size: 9pt;
   margin-top: 1mm;
   position: relative;
   z-index: 2;
+  color: #0A3D6B;
 }
-.office { text-align: center; font-size: 9.5pt; margin-top: 0.8mm; position: relative; z-index: 2; }
 .office .label { font-weight: 700; }
+
+/* ── Decorative thin rule above footer ── */
+.footer-rule {
+  width: 70%;
+  margin: 1.5mm auto 0;
+  border: none;
+  border-top: 0.2mm solid rgba(7,87,165,0.2);
+  position: relative;
+  z-index: 2;
+}
 </style>
 </head>
 <body>
 <div class="sheet">
   <div class="cert">
-    <div class="geometric-bg"></div>
+    <!-- Background layers -->
+    <div class="watermark"></div>
+    <div class="glow"></div>
     <div class="waves"></div>
-    ${_flourish('tl')}
-    ${_flourish('tr', flip: true)}
-    ${_flourish('bl', turn: true)}
-    ${_flourish('br', flip: true, turn: true)}
 
+    <!-- Ornamental corners -->
+    ${_cornerMotif('tl')}
+    ${_cornerMotif('tr', flip: true)}
+    ${_cornerMotif('bl', turn: true)}
+    ${_cornerMotif('br', flip: true, turn: true)}
+
+    <!-- Invocations -->
     <div class="$invocationClass">$invocations</div>
+
+    <!-- Registration line -->
     <div class="regline">
       <span>${_esc(_Hi.established)} : <b>${_esc(TrustInfo.establishedOn)}</b></span>
       <span>${_esc(_Hi.registration)} <b>${_esc(TrustInfo.registrationNo)}</b></span>
     </div>
+
+    <!-- State names -->
     <div class="states">
       <span>${_esc(TrustInfo.leftState)}</span>
       <span>${_esc(TrustInfo.rightState)}</span>
     </div>
+
+    <!-- Trust name (arched) -->
     ${_heading(TrustInfo.heading)}
+
+    <!-- Logo -->
     <div class="logo">$logoMark</div>
 
+    <!-- Membership No · Certificate Title · Date -->
     <div class="head">
       <div class="side">
         ${_esc(_Hi.membershipNo)}
@@ -481,6 +653,7 @@ html, body {
       </div>
     </div>
 
+    <!-- Body: fields + photo -->
     <div class="body">
       <div class="fields">
         $rows
@@ -507,6 +680,8 @@ html, body {
       <div class="photo">$memberPhoto</div>
     </div>
 
+    <!-- Footer -->
+    <hr class="footer-rule">
     <div class="slogan">${_esc(TrustInfo.slogan)}</div>
     <div class="office">
       <div class="label">${_esc(_Hi.headOffice)}</div>
