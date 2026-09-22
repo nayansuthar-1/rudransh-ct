@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -57,6 +58,7 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
   DateTime _joinDate = DateTime.now();
   /// Printed on the membership certificate; optional at sign-up.
   DateTime? _dob;
+  String _photoUrl = '';
   bool _saving = false;
 
   @override
@@ -97,6 +99,7 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
               pincode: _pincode.text.trim(),
               joinDate: _joinDate,
               status: MemberStatus.pending,
+              photoUrl: _photoUrl,
             ),
           );
       if (!mounted) return;
@@ -149,6 +152,9 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
                       onChanged: (v) => setState(() => _yojnaId = v),
                       validator: (v) => v == null ? S.required : null,
                     ),
+                  ),
+                  GridItem(
+                    _photoPicker(),
                   ),
                   GridItem(AppTextField(
                     label: S.fldName,
@@ -224,6 +230,69 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _photoPicker() {
+    final c = context.colors;
+    final hasPhoto = _photoUrl.isNotEmpty;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const FieldLabel('Member Photo'),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: () async {
+            final file = await FilePicker.pickFile(
+              type: FileType.image,
+            );
+            if (file != null) {
+              final bytes = await file.readAsBytes();
+              final b64 = base64Encode(bytes);
+              setState(() {
+                _photoUrl = 'data:image/jpeg;base64,\$b64';
+              });
+            }
+          },
+          borderRadius: BorderRadius.circular(Radii.panel),
+          child: Container(
+            height: 120,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: hasPhoto ? c.primary.withOpacity(0.5) : c.border,
+                width: 1,
+              ),
+              borderRadius: BorderRadius.circular(Radii.panel),
+              color: c.surface,
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: hasPhoto
+                ? Image.memory(
+                    base64Decode(_photoUrl.split(',').last),
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Center(child: Icon(Icons.broken_image)),
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add_a_photo, color: c.textFaded, size: 28),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Upload Photo',
+                        style: TextStyle(
+                          color: c.textFaded,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ],
     );
   }
 }

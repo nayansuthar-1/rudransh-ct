@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
       throw new HttpError(409, "This person already has app access.");
     }
 
-    const siteUrl = Deno.env.get("SITE_URL") ?? "https://rudransh-ct.pages.dev";
+    const siteUrl = Deno.env.get("SITE_URL") ?? "https://rudransh-green.vercel.app";
     const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(
       input.email,
       { redirectTo: siteUrl, data: { role: input.role, invited_by: callerId } },

@@ -201,9 +201,12 @@ class StatGrid extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    for (var i = 0; i < rows[r].length; i++) ...[
+                    for (var i = 0; i < columns; i++) ...[
                       if (i > 0) const SizedBox(width: Space.md),
-                      Expanded(child: rows[r][i]),
+                      if (i < rows[r].length)
+                        Expanded(child: rows[r][i])
+                      else
+                        const Expanded(child: SizedBox.shrink()),
                     ],
                   ],
                 ),
