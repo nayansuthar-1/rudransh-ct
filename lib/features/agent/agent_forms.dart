@@ -251,7 +251,7 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
               final bytes = await file.readAsBytes();
               final b64 = base64Encode(bytes);
               setState(() {
-                _photoUrl = 'data:image/jpeg;base64,\$b64';
+                _photoUrl = 'data:image/jpeg;base64,$b64';
               });
             }
           },
@@ -261,7 +261,7 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
             width: double.infinity,
             decoration: BoxDecoration(
               border: Border.all(
-                color: hasPhoto ? c.primary.withOpacity(0.5) : c.border,
+                color: hasPhoto ? c.brand.withValues(alpha: 0.5) : c.border,
                 width: 1,
               ),
               borderRadius: BorderRadius.circular(Radii.panel),
@@ -278,12 +278,12 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
                 : Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.add_a_photo, color: c.textFaded, size: 28),
+                      Icon(Icons.add_a_photo, color: c.textMuted, size: 28),
                       const SizedBox(height: 8),
                       Text(
                         'Upload Photo',
                         style: TextStyle(
-                          color: c.textFaded,
+                          color: c.textMuted,
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                         ),

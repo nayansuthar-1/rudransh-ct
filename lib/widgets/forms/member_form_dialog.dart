@@ -589,7 +589,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
               final bytes = await file.readAsBytes();
               final b64 = base64Encode(bytes);
               setState(() {
-                _photoUrl = 'data:image/jpeg;base64,\$b64';
+                _photoUrl = 'data:image/jpeg;base64,$b64';
               });
             }
           },

@@ -184,7 +184,7 @@ String buildCertificateHtml(CertificateData d, {required String baseUrl}) {
       : '<img src="$signature" alt="">';
   final memberPhoto = d.photoUrl.isNotEmpty
       ? '<img src="${_esc(d.photoUrl)}" alt="">'
-      : '${_esc(_Hi.photo)}';
+      : _esc(_Hi.photo);
 
   final rows = [
     _row([
