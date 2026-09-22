@@ -58,6 +58,7 @@ class Member {
     this.closingGroup,
     this.reviewNote = '',
     this.consentAt,
+    this.photoUrl = '',
   });
 
   final String id;
@@ -118,6 +119,8 @@ class Member {
   /// recorded — an honest gap rather than a back-dated tick.
   final DateTime? consentAt;
 
+  final String photoUrl;
+
   bool get isClosed => status == MemberStatus.closed;
   bool get isPending => status == MemberStatus.pending;
 
@@ -167,6 +170,7 @@ class Member {
     bool clearClosing = false,
     String? reviewNote,
     DateTime? consentAt,
+    String? photoUrl,
   }) {
     return Member(
       id: id ?? this.id,
@@ -196,6 +200,7 @@ class Member {
       closingGroup: clearClosing ? null : (closingGroup ?? this.closingGroup),
       reviewNote: reviewNote ?? this.reviewNote,
       consentAt: consentAt ?? this.consentAt,
+      photoUrl: photoUrl ?? this.photoUrl,
     );
   }
 
@@ -225,6 +230,7 @@ class Member {
         'closingDate': closingDate?.toIso8601String(),
         'closingGroup': closingGroup,
         'reviewNote': reviewNote,
+        'photoUrl': photoUrl,
       };
 
   factory Member.fromMap(Map<String, dynamic> map) => Member(
@@ -255,6 +261,7 @@ class Member {
         closingDate: DateTime.tryParse(map['closingDate'] as String? ?? ''),
         closingGroup: map['closingGroup'] as String?,
         reviewNote: map['reviewNote'] as String? ?? '',
+        photoUrl: map['photoUrl'] as String? ?? '',
       );
 
   @override

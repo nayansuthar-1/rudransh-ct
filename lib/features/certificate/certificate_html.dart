@@ -144,9 +144,10 @@ String buildCertificateHtml(CertificateData d, {required String baseUrl}) {
   final signMark = signature.isEmpty
       ? '<div class="line"></div>'
       : '<img src="$signature" alt="">';
+  final memberPhoto = d.photoUrl.isNotEmpty
+      ? '<img src="${_esc(d.photoUrl)}" alt="">'
+      : '${_esc(_Hi.photo)}';
 
-  // The reference sheet's row order: सम्बन्ध closes the पता line, and
-  // मोबाईल नं. shares its row with वारिसदार.
   final rows = [
     _row([
       _field(_Hi.name, d.fullName, grow: 5),
@@ -155,17 +156,17 @@ String buildCertificateHtml(CertificateData d, {required String baseUrl}) {
     ]),
     _row([
       _field(_Hi.dob, _day(d.dob)),
-      _field(_Hi.village, d.village),
-      _field(_Hi.district, d.district),
-      _field(_Hi.state, d.state),
+      _field(_Hi.phone, d.phone, grow: 2),
+      _field(_Hi.village, d.village, grow: 3),
     ]),
     _row([
+      _field(_Hi.district, d.district, grow: 3),
+      _field(_Hi.state, d.state, grow: 3),
       _field(_Hi.address, d.address, grow: 5),
-      _field(_Hi.relation, d.warisRelation, grow: 2),
     ]),
     _row([
-      _field(_Hi.phone, d.phone, grow: 3),
       _field(_Hi.waris, d.warisName, grow: 4),
+      _field(_Hi.relation, d.warisRelation, grow: 2),
     ]),
   ].join('\n        ');
 
@@ -211,7 +212,7 @@ html, body {
   position: relative;
   flex: 1;
   min-height: 0;
-  border: 1.2mm solid #B5121B;
+  border: 1.2mm solid #0757A5;
   border-radius: 2mm;
   background: radial-gradient(ellipse at 50% 50%, #F7FCFE 0%, #EEF8FC 40%, #D9EAF3 100%);
   padding: 2.5mm 7mm 1.5mm;
@@ -348,7 +349,7 @@ html, body {
   text-align: center;
 }
 .cert-title {
-  background: #B5121B;
+  background: #003B78;
   color: #fff;
   border: 0.4mm solid #d4af37;
   border-radius: 2mm;
@@ -371,6 +372,12 @@ html, body {
   color: #003B78;
   flex: none;
   background: rgba(255,255,255,0.4);
+  overflow: hidden;
+}
+.photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .fields {
   flex: 1;
@@ -475,7 +482,6 @@ html, body {
     </div>
 
     <div class="body">
-      <div class="photo">${_esc(_Hi.photo)}</div>
       <div class="fields">
         $rows
         <div class="tail">
@@ -498,6 +504,7 @@ html, body {
           </div>
         </div>
       </div>
+      <div class="photo">$memberPhoto</div>
     </div>
 
     <div class="slogan">${_esc(TrustInfo.slogan)}</div>

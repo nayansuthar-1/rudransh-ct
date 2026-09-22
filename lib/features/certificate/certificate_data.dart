@@ -29,6 +29,7 @@ class CertificateData {
     this.warisName = '',
     this.warisRelation = '',
     this.agentName = '',
+    this.photoUrl = '',
   });
 
   /// Pulls the certificate together for one member. Anything unknown is left
@@ -63,6 +64,7 @@ class CertificateData {
       warisName: member.warisName,
       warisRelation: member.warisRelation,
       agentName: agentName.isNotEmpty ? agentName : (agent?.name ?? ''),
+      photoUrl: member.photoUrl,
     );
   }
 
@@ -98,6 +100,8 @@ class CertificateData {
 
   /// `कार्यकर्ता` — the agent who enrolled the member.
   final String agentName;
+
+  final String photoUrl;
 
   /// Name as the certificate writes it: the member's own name followed by
   /// their father's or husband's, as on the sample.

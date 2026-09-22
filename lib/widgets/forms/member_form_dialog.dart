@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -62,6 +64,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   String _relation = 'Son';
   MemberStatus _status = MemberStatus.active;
   DateTime _joinDate = DateTime.now();
+  String _photoUrl = '';
 
   bool _saving = false;
   bool _looking = false;
@@ -108,6 +111,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     _relation = m?.warisRelation.isNotEmpty == true ? m!.warisRelation : 'Son';
     _status = m?.status ?? MemberStatus.active;
     _joinDate = m?.joinDate ?? DateTime.now();
+    _photoUrl = m?.photoUrl ?? '';
   }
 
   @override
@@ -206,6 +210,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             clearAgent: _agentId == null,
             joinDate: _joinDate,
             status: _status,
+            photoUrl: _photoUrl,
           ),
         );
       } else {
@@ -235,6 +240,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             joinDate: _joinDate,
             status: _status,
             consentAt: DateTime.now(),
+            photoUrl: _photoUrl,
           ),
         );
       }
@@ -301,6 +307,9 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
               title: S.personalInfo,
               child: FormGrid(
                 items: [
+                  GridItem(
+                    _photoPicker(),
+                  ),
                   GridItem(
                     AppTextField(
                       label: S.fldName,
@@ -558,6 +567,75 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             );
           },
         ),
+      ],
+    );
+  }
+
+  Widget _photoPicker() {
+    final c = context.colors;
+    final hasPhoto = _photoUrl.isNotEmpty;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const FieldLabel('Member Photo'),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: () async {
+            final file = await FilePicker.pickFile(
+              type: FileType.image,
+            );
+            if (file != null) {
+              final bytes = await file.readAsBytes();
+              final b64 = base64Encode(bytes);
+              setState(() {
+                _photoUrl = 'data:image/jpeg;base64,\$b64';
+              });
+            }
+          },
+          borderRadius: BorderRadius.circular(Radii.panel),
+          child: Container(
+            height: 120,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              border: Border.all(color: c.border),
+              borderRadius: BorderRadius.circular(Radii.panel),
+              color: c.surfaceMuted,
+            ),
+            child: hasPhoto
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(Radii.panel),
+                    child: Image.memory(
+                      base64Decode(_photoUrl.split(',').last),
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add_a_photo, color: c.textSecondary, size: 32),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Tap to add photo',
+                        style: TextStyle(color: c.textSecondary, fontSize: 13),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+        if (hasPhoto)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () => setState(() => _photoUrl = ''),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text('Remove', style: TextStyle(fontSize: 12)),
+            ),
+          ),
       ],
     );
   }
