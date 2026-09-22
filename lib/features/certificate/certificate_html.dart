@@ -88,32 +88,120 @@ String _heading(String text) => '''
   </text>
 </svg>''';
 
-/// Premium ornamental corner motif. [flip] mirrors horizontally, [turn]
-/// vertically, so one drawing serves all four corners. This is a richer,
-/// more traditional Indian-inspired design than the original simple curves.
+/// Premium ornamental corner motif matching the reference certificate's
+/// traditional Indian flowing vine/scroll design. [flip] mirrors horizontally,
+/// [turn] vertically, so one drawing serves all four corners.
+///
+/// The design features: flowing S-curves extending from the corner along both
+/// edges (L-shaped), large spiral scrolls at the endpoints, secondary vine
+/// branches with leaf/petal shapes, small circular scroll accents, and dot
+/// details — all in a delicate, single-color line-art style.
 String _cornerMotif(String position, {bool flip = false, bool turn = false}) {
   final sx = flip ? -1 : 1;
   final sy = turn ? -1 : 1;
   return '''
-<svg class="corner $position" viewBox="0 0 160 160" aria-hidden="true">
-  <g transform="translate(${flip ? 160 : 0},${turn ? 160 : 0}) scale($sx,$sy)"
-     fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <!-- Outer arch pair -->
-    <path d="M4 50 C 4 16, 16 4, 50 4" stroke="#0A3D6B" stroke-width="2.2"/>
-    <path d="M8 54 C 8 22, 22 8, 54 8" stroke="#0757A5" stroke-width="1.4" stroke-dasharray="0.6 2.4"/>
-    <path d="M12 52 C 12 24, 24 12, 52 12" stroke="#0A3D6B" stroke-width="2.2"/>
-    <!-- Lotus petal motif -->
-    <path d="M20 48 C 28 28, 44 20, 56 20 C 48 32, 42 44, 28 52 C 22 55, 18 52, 20 48 Z"
-          fill="rgba(7,87,165,0.06)" stroke="#0757A5" stroke-width="1.6"/>
-    <path d="M32 54 C 38 42, 48 36, 60 34 C 54 44, 48 52, 38 58 C 34 60, 30 58, 32 54 Z"
-          fill="rgba(181,18,27,0.04)" stroke="#B5121B" stroke-width="1.4"/>
-    <!-- Inner floral curl -->
-    <path d="M44 60 C 56 50, 66 48, 78 52 C 68 60, 58 64, 48 62" stroke="#0757A5" stroke-width="1.6"/>
-    <path d="M58 24 C 68 22, 78 26, 86 34" stroke="#B5121B" stroke-width="1.4"/>
-    <!-- Dot accents -->
-    <circle cx="50" cy="6" r="1.6" fill="#0757A5"/>
-    <circle cx="6" cy="50" r="1.6" fill="#0757A5"/>
-    <circle cx="26" cy="26" r="1.2" fill="#B5121B"/>
+<svg class="corner $position" viewBox="0 0 360 360" aria-hidden="true">
+  <g transform="translate(${flip ? 360 : 0},${turn ? 360 : 0}) scale($sx,$sy)"
+     fill="none" stroke="#3B8DC5" stroke-linecap="round" stroke-linejoin="round">
+
+    <!-- ══ MAIN STRUCTURAL VINE ══ -->
+    <!-- Primary flowing curve: top edge → corner → left edge -->
+    <path d="M348,10 C290,10 230,18 180,38 C130,58 90,92 60,138
+             C38,172 22,215 14,265 C10,290 10,320 10,348"
+          stroke-width="2.2"/>
+    <!-- Parallel companion line (slightly inset, thinner) -->
+    <path d="M320,16 C270,18 218,30 172,50 C126,70 92,102 68,148
+             C48,185 34,228 26,275 C22,300 20,325 18,340"
+          stroke-width="1.0" opacity="0.45"/>
+
+    <!-- ══ TOP-END SCROLL (large spiral) ══ -->
+    <path d="M348,10 C355,22 352,40 340,50 C328,60 312,56 305,44
+             C298,32 304,18 318,12 C328,8 340,10 346,16"
+          stroke-width="2"/>
+    <!-- Inner spiral detail -->
+    <path d="M325,32 C318,24 320,16 330,14" stroke-width="1.2"/>
+
+    <!-- ══ LEFT-END SCROLL (large spiral) ══ -->
+    <path d="M10,348 C22,354 40,350 50,338 C60,326 56,310 44,303
+             C32,296 18,302 12,316 C8,326 10,338 16,345"
+          stroke-width="2"/>
+    <!-- Inner spiral detail -->
+    <path d="M32,323 C24,316 16,318 14,328" stroke-width="1.2"/>
+
+    <!-- ══ BRANCH 1 — upper vine with scroll & leaves ══ -->
+    <path d="M260,20 C248,36 232,48 215,52 C200,55 190,48 194,38
+             C198,28 212,24 225,30"
+          stroke-width="1.8"/>
+    <!-- Leaf pair on branch 1 -->
+    <path d="M238,30 C232,20 222,16 214,20 C222,26 230,30 236,35"
+          stroke-width="1.2" fill="rgba(59,141,197,0.05)"/>
+    <path d="M242,38 C238,28 230,22 222,24 C228,30 234,36 240,42"
+          stroke-width="1.0" fill="rgba(59,141,197,0.04)"/>
+
+    <!-- ══ BRANCH 2 — mid-upper vine with scroll & leaves ══ -->
+    <path d="M148,55 C132,72 112,84 96,82 C84,80 80,70 86,62
+             C92,54 106,52 115,60"
+          stroke-width="1.8"/>
+    <!-- Leaf pair on branch 2 -->
+    <path d="M122,62 C114,50 102,45 92,50 C100,56 110,60 118,66"
+          stroke-width="1.2" fill="rgba(59,141,197,0.05)"/>
+    <path d="M130,70 C124,60 114,54 106,56 C112,62 120,68 128,74"
+          stroke-width="1.0" fill="rgba(59,141,197,0.04)"/>
+
+    <!-- ══ BRANCH 3 — mid-lower vine with scroll & leaves ══ -->
+    <path d="M55,148 C40,168 30,192 32,210 C34,222 42,226 50,218
+             C58,210 56,194 46,186"
+          stroke-width="1.8"/>
+    <!-- Leaf pair on branch 3 -->
+    <path d="M46,196 C38,186 28,182 22,188 C28,194 36,198 44,200"
+          stroke-width="1.2" fill="rgba(59,141,197,0.05)"/>
+    <path d="M50,206 C44,198 36,192 28,194 C34,200 40,206 48,210"
+          stroke-width="1.0" fill="rgba(59,141,197,0.04)"/>
+
+    <!-- ══ BRANCH 4 — lower vine with scroll ══ -->
+    <path d="M20,260 C32,248 46,240 56,244 C62,246 64,254 58,260
+             C52,266 40,264 36,256"
+          stroke-width="1.6"/>
+    <!-- Leaf on branch 4 -->
+    <path d="M48,248 C42,240 34,238 28,242 C34,248 40,250 46,252"
+          stroke-width="1.0" fill="rgba(59,141,197,0.04)"/>
+
+    <!-- ══ SMALL DECORATIVE CURLS ══ -->
+    <!-- Upper accent curl -->
+    <path d="M295,16 C288,26 278,30 270,28 C276,22 284,18 292,18"
+          stroke-width="1.2"/>
+    <!-- Side accent curl -->
+    <path d="M16,295 C26,288 30,278 28,270 C22,276 18,284 18,292"
+          stroke-width="1.2"/>
+    <!-- Tiny curl near the corner -->
+    <path d="M82,100 C74,110 62,114 56,108 C60,102 70,98 80,100"
+          stroke-width="1.0"/>
+    <!-- Upper-mid small curl -->
+    <path d="M195,42 C190,50 182,52 178,48 C182,44 188,42 194,44"
+          stroke-width="1.0"/>
+    <!-- Lower-mid small curl -->
+    <path d="M42,195 C50,190 52,182 48,178 C44,182 42,188 44,194"
+          stroke-width="1.0"/>
+
+    <!-- ══ DOT ACCENTS ══ -->
+    <circle cx="310" cy="14" r="2.2" fill="#3B8DC5"/>
+    <circle cx="14" cy="310" r="2.2" fill="#3B8DC5"/>
+    <circle cx="275" cy="24" r="1.6" fill="#3B8DC5"/>
+    <circle cx="24" cy="275" r="1.6" fill="#3B8DC5"/>
+    <circle cx="220" cy="40" r="1.5" fill="#3B8DC5" opacity="0.7"/>
+    <circle cx="40" cy="220" r="1.5" fill="#3B8DC5" opacity="0.7"/>
+    <circle cx="160" cy="54" r="1.3" fill="#3B8DC5" opacity="0.6"/>
+    <circle cx="54" cy="160" r="1.3" fill="#3B8DC5" opacity="0.6"/>
+    <circle cx="100" cy="85" r="1.2" fill="#3B8DC5" opacity="0.5"/>
+    <circle cx="85" cy="100" r="1.2" fill="#3B8DC5" opacity="0.5"/>
+    <circle cx="68" cy="130" r="1.0" fill="#3B8DC5" opacity="0.45"/>
+    <circle cx="130" cy="68" r="1.0" fill="#3B8DC5" opacity="0.45"/>
+
+    <!-- ══ FINE TENDRIL WISPS ══ -->
+    <path d="M340,14 C332,8 325,12 328,20" stroke-width="0.8" opacity="0.5"/>
+    <path d="M14,340 C8,332 12,325 20,328" stroke-width="0.8" opacity="0.5"/>
+    <path d="M108,68 C102,62 96,64 98,72" stroke-width="0.8" opacity="0.4"/>
+    <path d="M68,108 C62,102 64,96 72,98" stroke-width="0.8" opacity="0.4"/>
   </g>
 </svg>''';
 }
@@ -295,15 +383,15 @@ html, body {
    ═══════════════════════════════════════════════════════════════ */
 .corner {
   position: absolute;
-  width: 22mm;
-  height: 22mm;
-  opacity: 0.9;
+  width: 36mm;
+  height: 36mm;
+  opacity: 0.92;
   z-index: 1;
 }
-.corner.tl { top: 3mm;    left: 3mm; }
-.corner.tr { top: 3mm;    right: 3mm; }
-.corner.bl { bottom: 3mm; left: 3mm; }
-.corner.br { bottom: 3mm; right: 3mm; }
+.corner.tl { top: 2.5mm;    left: 2.5mm; }
+.corner.tr { top: 2.5mm;    right: 2.5mm; }
+.corner.bl { bottom: 2.5mm; left: 2.5mm; }
+.corner.br { bottom: 2.5mm; right: 2.5mm; }
 
 /* ═══════════════════════════════════════════════════════════════
    MASTHEAD — invocations, registration, states
