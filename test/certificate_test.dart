@@ -154,7 +154,6 @@ void main() {
 
     test('signs off with the president and the registration details', () {
       expect(html, contains('अध्यक्ष'));
-      expect(html, contains('शैलेषभाई वी.लुहार'));
       expect(html, contains('संस्था स्थापना : <b>01-07-2026</b>'));
       // A placeholder the office must replace, shaped so it cannot be mistaken
       // for the trust's real registration number.

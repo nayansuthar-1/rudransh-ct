@@ -180,9 +180,6 @@ String buildCertificateHtml(CertificateData d, {required String baseUrl}) {
     ]),
   ].join('\n        ');
 
-  final schemeOrCert =
-      d.yojnaName.isNotEmpty ? d.yojnaName : _Hi.certificate;
-
   return '''<!DOCTYPE html>
 <html lang="hi">
 <head>
@@ -598,7 +595,6 @@ html, body {
 .sign img { height: 10mm; display: block; margin: 0 auto 0.5mm; }
 .sign .line { height: 10mm; border-bottom: 0.35mm solid #0A3D6B; width: 100%; }
 .sign b { display: block; font-weight: 700; margin-top: 1mm; color: #0A3D6B; }
-.sign .sign-name { font-size: 8.5pt; font-weight: 600; color: #0A3D6B; margin-top: 0.5mm; }
 
 /* ═══════════════════════════════════════════════════════════════
    FOOTER — slogan ribbon
@@ -666,7 +662,7 @@ html, body {
         <div class="brand-subtitle">${_esc(TrustInfo.place)}-गुजरात</div>
         <div class="header-address">${_esc(_Hi.headOffice)} :- ${_esc(TrustInfo.headOfficeAddress)}</div>
         <div class="header-phones">M : ${_esc(phones)}</div>
-        <div class="cert-title">&bull; ${_esc(schemeOrCert)} &bull;</div>
+        <div class="cert-title">&bull; ${_esc(_Hi.certificate)} &bull;</div>
       </div>
       <div class="header-logo logo">$logoMark</div>
     </div>
@@ -704,7 +700,6 @@ html, body {
           <div class="sign">
             $signMark
             <b>${_esc(_Hi.president)}</b>
-            ${TrustInfo.presidentName.isNotEmpty ? '<div class="sign-name">${_esc(TrustInfo.presidentName)}</div>' : ''}
           </div>
         </div>
       </div>
