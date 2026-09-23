@@ -20,9 +20,9 @@ import 'turnstile.dart';
 /// Public membership check (IMPLEMENTATION_PLAN Phase 15).
 ///
 /// Reachable without signing in, which is the point: most members have no
-/// email and will never have a login. Registration number and phone are
-/// required; the last four Aadhaar digits are checked when the office has
-/// them on record.
+/// email and will never have a login. A member gives a phone number on their
+/// record and the last four digits of their Aadhaar, and sees every
+/// membership held under them.
 class LookupPage extends ConsumerStatefulWidget {
   const LookupPage({super.key});
 
@@ -32,18 +32,16 @@ class LookupPage extends ConsumerStatefulWidget {
 
 class _LookupPageState extends ConsumerState<LookupPage> {
   final _formKey = GlobalKey<FormState>();
-  final _regNo = TextEditingController();
   final _phone = TextEditingController();
   final _aadhaar = TextEditingController();
 
   bool _busy = false;
   String? _error;
-  MemberLookup? _found;
+  List<MemberLookup> _found = const [];
   bool _searched = false;
 
   @override
   void dispose() {
-    _regNo.dispose();
     _phone.dispose();
     _aadhaar.dispose();
     super.dispose();
@@ -57,7 +55,6 @@ class _LookupPageState extends ConsumerState<LookupPage> {
     });
     try {
       final result = await ref.read(lookupRepositoryProvider).find(
-            regNo: _regNo.text,
             phone: _phone.text,
             aadhaar4: _aadhaar.text,
             // The widget below hands back a token on a real deployment; in
@@ -86,10 +83,9 @@ class _LookupPageState extends ConsumerState<LookupPage> {
 
   void _reset() {
     setState(() {
-      _found = null;
+      _found = const [];
       _searched = false;
       _error = null;
-      _regNo.clear();
       _phone.clear();
       _aadhaar.clear();
     });
@@ -119,9 +115,16 @@ class _LookupPageState extends ConsumerState<LookupPage> {
                         ),
                   ),
                   const SizedBox(height: Space.xl),
-                  if (_found != null)
-                    _Result(_found!, onAgain: _reset)
-                  else
+                  if (_found.isNotEmpty) ...[
+                    for (final m in _found) ...[
+                      _Result(m),
+                      const SizedBox(height: Space.md),
+                    ],
+                    OutlinedButton(
+                      onPressed: _reset,
+                      child: const Text(S.lookupAgain),
+                    ),
+                  ] else
                     _form(context),
                   const SizedBox(height: Space.xl),
                   TextButton(
@@ -160,19 +163,10 @@ class _LookupPageState extends ConsumerState<LookupPage> {
             ),
             const SizedBox(height: Space.lg),
             AppTextField(
-              label: S.lookupRegNo,
-              controller: _regNo,
-              required: true,
-              autofocus: true,
-              textInputAction: TextInputAction.next,
-              validator: (v) =>
-                  (v ?? '').trim().isEmpty ? 'Enter your registration number.' : null,
-            ),
-            const SizedBox(height: Space.md),
-            AppTextField(
               label: S.lookupPhone,
               controller: _phone,
               required: true,
+              autofocus: true,
               keyboardType: TextInputType.phone,
               inputFormatters: [
                 FilteringTextInputFormatter.digitsOnly,
@@ -187,15 +181,18 @@ class _LookupPageState extends ConsumerState<LookupPage> {
             AppTextField(
               label: S.lookupAadhaar,
               controller: _aadhaar,
-              hint: S.lookupAadhaarHint,
+              required: true,
               keyboardType: TextInputType.number,
               inputFormatters: [
                 FilteringTextInputFormatter.digitsOnly,
                 LengthLimitingTextInputFormatter(4),
               ],
+              validator: (v) => (v ?? '').trim().length != 4
+                  ? 'Enter the last 4 digits of your Aadhaar.'
+                  : null,
               onSubmitted: (_) => _submit(),
             ),
-            if (_searched && _found == null) ...[
+            if (_searched && _found.isEmpty) ...[
               const SizedBox(height: Space.md),
               _Notice(S.lookupNotFound, tone: c.warning, background: c.warningSoft),
             ],
@@ -235,10 +232,9 @@ class _LookupPageState extends ConsumerState<LookupPage> {
 }
 
 class _Result extends StatelessWidget {
-  const _Result(this.member, {required this.onAgain});
+  const _Result(this.member);
 
   final MemberLookup member;
-  final VoidCallback onAgain;
 
   @override
   Widget build(BuildContext context) {
@@ -284,8 +280,6 @@ class _Result extends StatelessWidget {
               tone: c.warning,
               background: c.warningSoft,
             ),
-          const SizedBox(height: Space.lg),
-          OutlinedButton(onPressed: onAgain, child: const Text(S.lookupAgain)),
         ],
       ),
     );

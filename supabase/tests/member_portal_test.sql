@@ -50,18 +50,14 @@ insert into public.profiles (user_id, role, agent_id, member_id) values
 do $$
 declare r record; n integer;
 begin
-  -- Reg no + phone + last four Aadhaar digits.
-  select * into r from public.member_lookup(
-    (select reg_no from public.members where id = '00000000-0000-0000-0000-0000000b0021'),
-    '9400000001', '9012');
+  -- Phone + last four Aadhaar digits; no registration number.
+  select * into r from public.member_lookup('9400000001', '9012');
   assert r.name = 'Portal P1', 'lookup found the member';
   assert r.dues_count = 1, 'one closing group owed: ' || r.dues_count;
   assert r.dues_amount = 100, 'owed amount: ' || r.dues_amount;
 
   -- The alternate phone works too.
-  select count(*) into n from public.member_lookup(
-    (select reg_no from public.members where id = '00000000-0000-0000-0000-0000000b0021'),
-    '9400000091', '9012');
+  select count(*) into n from public.member_lookup('9400000091', '9012');
   assert n = 1, 'the alternate phone is accepted';
 
   -- Only a summary: nothing here carries Aadhaar or an address.
@@ -70,60 +66,74 @@ begin
      where table_schema = 'public' and table_name = 'member_lookup'
   ), 'lookup is a function, not a table';
 
-  -- Wrong Aadhaar, right everything else.
-  select count(*) into n from public.member_lookup(
-    (select reg_no from public.members where id = '00000000-0000-0000-0000-0000000b0021'),
-    '9400000001', '0000');
+  -- Wrong Aadhaar, right phone.
+  select count(*) into n from public.member_lookup('9400000001', '0000');
   assert n = 0, 'a wrong Aadhaar finds nothing';
 
   -- Wrong phone.
-  select count(*) into n from public.member_lookup(
-    (select reg_no from public.members where id = '00000000-0000-0000-0000-0000000b0021'),
-    '9999999999', '9012');
+  select count(*) into n from public.member_lookup('9999999999', '9012');
   assert n = 0, 'a wrong phone finds nothing';
 
-  -- A member with no Aadhaar on file is found on reg no + phone.
-  select count(*) into n from public.member_lookup(
-    (select reg_no from public.members where id = '00000000-0000-0000-0000-0000000b0022'),
-    '9400000002', '1234');
-  assert n = 1, 'a member without Aadhaar is found on the phone alone';
+  -- With no registration number to go on, the phone alone must not be
+  -- enough: a member with no Aadhaar on file is not found.
+  select count(*) into n from public.member_lookup('9400000002', '1234');
+  assert n = 0, 'a member without Aadhaar is not found on the phone alone';
 
   -- Both halves are required.
   begin
-    perform public.member_lookup('', '9400000001', '9012');
-    raise exception 'an empty registration number was accepted';
+    perform public.member_lookup('', '9012');
+    raise exception 'an empty phone was accepted';
   exception when raise_exception then
-    if sqlerrm not like 'Enter the registration%' then raise; end if;
+    if sqlerrm not like 'Enter the 10-digit%' then raise; end if;
+  end;
+  begin
+    perform public.member_lookup('9400000001', '');
+    raise exception 'empty Aadhaar digits were accepted';
+  exception when raise_exception then
+    if sqlerrm not like 'Enter the last 4%' then raise; end if;
   end;
 
   raise notice 'lookup match checks passed';
 end $$;
 
--- Five wrong tries lock the number for the window.
+-- Every membership under the phone comes back.
 do $$
-declare
-  v_reg text := (select reg_no from public.members where id = '00000000-0000-0000-0000-0000000b0022');
-  n integer;
+declare n integer;
 begin
-  -- Two failures already: the wrong-Aadhaar and wrong-phone tries above were
-  -- against P1, so P2 starts clean.
+  insert into public.members
+    (id, yojna_id, name, primary_phone, aadhaar, agent_id, join_date, status) values
+    ('00000000-0000-0000-0000-0000000b0024', '00000000-0000-0000-0000-0000000b0001',
+     'Portal P1 again', '9400000001', '123456789012',
+     '00000000-0000-0000-0000-0000000b0011', current_date - 100, 'active');
+
+  select count(*) into n from public.member_lookup('9400000001', '9012');
+  assert n = 2, 'both memberships under the phone: ' || n;
+
+  delete from public.members where id = '00000000-0000-0000-0000-0000000b0024';
+  raise notice 'lookup multi-membership check passed';
+end $$;
+
+-- Five wrong tries lock the phone for the window.
+do $$
+declare n integer;
+begin
+  -- The wrong-Aadhaar and wrong-phone tries above were against other phones,
+  -- so this one starts clean.
   for i in 1..5 loop
-    perform public.member_lookup(v_reg, '9999999999', '0000');
+    perform public.member_lookup('9400000003', '0000');
   end loop;
-  assert public.lookup_locked(v_reg), 'five wrong tries lock the number';
+  assert public.lookup_locked('9400000003'), 'five wrong tries lock the phone';
 
   begin
-    perform public.member_lookup(v_reg, '9400000002', '1234');
-    raise exception 'a locked number still answered';
+    perform public.member_lookup('9400000003', '1234');
+    raise exception 'a locked phone still answered';
   exception when raise_exception then
     if sqlerrm not like 'Too many wrong tries%' then raise; end if;
   end;
 
-  -- Another member is unaffected.
-  select count(*) into n from public.member_lookup(
-    (select reg_no from public.members where id = '00000000-0000-0000-0000-0000000b0021'),
-    '9400000001', '9012');
-  assert n = 1, 'the lock is per registration number';
+  -- Another phone is unaffected.
+  select count(*) into n from public.member_lookup('9400000001', '9012');
+  assert n = 1, 'the lock is per phone number';
 
   raise notice 'lookup throttle checks passed';
 end $$;
@@ -132,13 +142,13 @@ end $$;
 do $$
 begin
   assert not has_function_privilege('anon',
-    'public.member_lookup(text, text, text)', 'execute'),
+    'public.member_lookup(text, text)', 'execute'),
     'anon can call the lookup directly';
   assert not has_function_privilege('authenticated',
-    'public.member_lookup(text, text, text)', 'execute'),
+    'public.member_lookup(text, text)', 'execute'),
     'a signed-in user can call the lookup directly';
   assert has_function_privilege('service_role',
-    'public.member_lookup(text, text, text)', 'execute'),
+    'public.member_lookup(text, text)', 'execute'),
     'the Edge Function cannot call the lookup';
   raise notice 'lookup access checks passed';
 end $$;

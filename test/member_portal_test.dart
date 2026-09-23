@@ -33,58 +33,88 @@ void main() {
       );
     });
 
-    Future<MemberLookup?> find({
-      String? regNo,
-      String? phone,
-      String aadhaar4 = '',
-    }) =>
+    String last4(Member m) => m.aadhaar.substring(m.aadhaar.length - 4);
+
+    Future<List<MemberLookup>> find({String? phone, String? aadhaar4}) =>
         lookup.find(
-          regNo: regNo ?? member.regNo,
           phone: phone ?? member.primaryPhone,
-          aadhaar4: aadhaar4.isEmpty
-              ? member.aadhaar.substring(member.aadhaar.length - 4)
-              : aadhaar4,
+          aadhaar4: aadhaar4 ?? last4(member),
           turnstileToken: 'test',
         );
 
-    test('the right details find the member', () async {
+    test('the phone and last four Aadhaar digits find the member', () async {
       final found = await find();
-      expect(found, isNotNull);
-      expect(found!.name, member.name);
-      expect(found.regNo, member.regNo);
+      expect(found, hasLength(1));
+      expect(found.single.name, member.name);
+      expect(found.single.regNo, member.regNo);
+    });
+
+    test('the alternate phone works too', () async {
+      final withAlt = member.copyWith(altPhone: '9400000091');
+      final alt = InMemoryLookupRepository(
+        () => [withAlt],
+        () => repo.yojnasView,
+        repo.allDues,
+      );
+      final found = await alt.find(
+        phone: '9400000091',
+        aadhaar4: last4(member),
+        turnstileToken: 'test',
+      );
+      expect(found, hasLength(1));
     });
 
     test('a wrong Aadhaar finds nothing', () async {
-      expect(await find(aadhaar4: '0000'), isNull);
+      expect(await find(aadhaar4: '0000'), isEmpty);
     });
 
     test('a wrong phone finds nothing', () async {
-      expect(await find(phone: '9999999999'), isNull);
+      expect(await find(phone: '9999999999'), isEmpty);
     });
 
-    test('a member with no Aadhaar on record matches on the phone', () async {
-      final noAadhaar = repo.membersView
-          .firstWhere((m) => m.aadhaar.isEmpty, orElse: () => member);
-      if (noAadhaar.aadhaar.isNotEmpty) return; // the fixture always fills it
-      final found = await lookup.find(
-        regNo: noAadhaar.regNo,
-        phone: noAadhaar.primaryPhone,
+    test('a member with no Aadhaar on record is not found on the phone alone',
+        () async {
+      final noAadhaar = member.copyWith(aadhaar: '');
+      final bare = InMemoryLookupRepository(
+        () => [noAadhaar],
+        () => repo.yojnasView,
+        repo.allDues,
+      );
+      final found = await bare.find(
+        phone: member.primaryPhone,
         aadhaar4: '1234',
         turnstileToken: 'test',
       );
-      expect(found, isNotNull);
+      expect(found, isEmpty);
     });
 
-    test('both halves are required', () async {
-      expect(
-        () => find(regNo: '   '),
-        throwsA(isA<RepositoryException>()),
+    test('every membership under the phone comes back', () async {
+      final second = member.copyWith(
+        id: 'second',
+        regNo: '${member.regNo}-2',
+        joinDate: member.joinDate.add(const Duration(days: 30)),
       );
+      final both = InMemoryLookupRepository(
+        () => [second, member],
+        () => repo.yojnasView,
+        repo.allDues,
+      );
+      final found = await both.find(
+        phone: member.primaryPhone,
+        aadhaar4: last4(member),
+        turnstileToken: 'test',
+      );
+      expect(found.map((m) => m.regNo), [member.regNo, second.regNo]);
     });
 
-    test('five wrong tries lock that number', () async {
+    test('both details are required', () async {
+      expect(() => find(phone: '   '), throwsA(isA<RepositoryException>()));
+      expect(() => find(aadhaar4: ''), throwsA(isA<RepositoryException>()));
+    });
+
+    test('five wrong tries lock that phone', () async {
       for (var i = 0; i < 5; i++) {
-        expect(await find(aadhaar4: '0000'), isNull);
+        expect(await find(aadhaar4: '0000'), isEmpty);
       }
       expect(
         () => find(),
@@ -96,22 +126,22 @@ void main() {
       );
     });
 
-    test('the lock is per registration number', () async {
+    test('the lock is per phone number', () async {
       for (var i = 0; i < 5; i++) {
         await find(aadhaar4: '0000');
       }
       final other = repo.membersView.firstWhere(
-        (m) => m.id != member.id && m.status == MemberStatus.active,
+        (m) =>
+            m.primaryPhone != member.primaryPhone &&
+            m.status == MemberStatus.active &&
+            m.aadhaar.isNotEmpty,
       );
       final found = await lookup.find(
-        regNo: other.regNo,
         phone: other.primaryPhone,
-        aadhaar4: other.aadhaar.isEmpty
-            ? ''
-            : other.aadhaar.substring(other.aadhaar.length - 4),
+        aadhaar4: last4(other),
         turnstileToken: 'test',
       );
-      expect(found, isNotNull, reason: 'another member is unaffected');
+      expect(found, isNotEmpty, reason: 'another phone is unaffected');
     });
   });
 
@@ -331,10 +361,9 @@ void main() {
       await tester.pumpAndSettle();
 
       final fields = find.byType(TextFormField);
-      await tester.enterText(fields.at(0), member.regNo);
-      await tester.enterText(fields.at(1), member.primaryPhone);
+      await tester.enterText(fields.at(0), member.primaryPhone);
       await tester.enterText(
-        fields.at(2),
+        fields.at(1),
         member.aadhaar.substring(member.aadhaar.length - 4),
       );
       await tester.tap(find.widgetWithText(FilledButton, S.lookupSubmit));
@@ -359,8 +388,8 @@ void main() {
       await tester.pumpAndSettle();
 
       final fields = find.byType(TextFormField);
-      await tester.enterText(fields.at(0), member.regNo);
-      await tester.enterText(fields.at(1), '9999999999');
+      await tester.enterText(fields.at(0), '9999999999');
+      await tester.enterText(fields.at(1), '1234');
       await tester.tap(find.widgetWithText(FilledButton, S.lookupSubmit));
       await tester.pumpAndSettle();
 

@@ -1,16 +1,21 @@
 // Public membership lookup (IMPLEMENTATION_PLAN Phase 15). No login.
 //
-// POST { reg_no, phone, aadhaar4, turnstile_token }
+// POST { phone, aadhaar4, turnstile_token }
 // → 200 { found: false }
-//   200 { found: true, member: { reg_no, name, yojna_name, status,
-//                                join_date, contribution_amount,
-//                                dues_count, dues_amount } }
+//   200 { found: true, members: [{ reg_no, name, yojna_name, status,
+//                                  join_date, contribution_amount,
+//                                  dues_count, dues_amount }, ...],
+//         member: <the first of members> }
 //   or 4xx/5xx { error: "<readable message>" }
+//
+// One phone can hold more than one membership, so every match comes back.
+// `member` repeats the first for a page built before the lookup dropped the
+// registration number.
 //
 // The database function `member_lookup` is granted to the service role only,
 // so this function is the single way in and Turnstile is always checked first.
-// It also records the attempt and locks a registration number after five wrong
-// tries in 15 minutes.
+// It also records the attempt and locks a phone number after five wrong tries
+// in 15 minutes.
 //
 // Deploy: supabase functions deploy member_lookup --no-verify-jwt
 //   (--no-verify-jwt: the caller is signed out by definition)
@@ -39,7 +44,6 @@ function json(body: unknown, status = 200): Response {
 }
 
 interface Input {
-  reg_no: string;
   phone: string;
   aadhaar4: string;
   turnstile_token: string;
@@ -56,13 +60,15 @@ async function readInput(req: Request): Promise<Input> {
     typeof body[key] === "string" ? (body[key] as string).trim() : "";
 
   const input: Input = {
-    reg_no: text("reg_no"),
     phone: text("phone").replace(/\D/g, ""),
     aadhaar4: text("aadhaar4").replace(/\D/g, ""),
     turnstile_token: text("turnstile_token"),
   };
-  if (!input.reg_no || !input.phone) {
-    throw new HttpError(400, "Enter the registration number and phone number.");
+  if (!/^\d{10}$/.test(input.phone)) {
+    throw new HttpError(400, "Enter the 10-digit phone number.");
+  }
+  if (!/^\d{4}$/.test(input.aadhaar4)) {
+    throw new HttpError(400, "Enter the last 4 digits of your Aadhaar.");
   }
   return input;
 }
@@ -119,7 +125,6 @@ Deno.serve(async (req) => {
     );
 
     const { data, error } = await admin.rpc("member_lookup", {
-      p_reg_no: input.reg_no,
       p_phone: input.phone,
       p_aadhaar4: input.aadhaar4,
     });
@@ -133,7 +138,7 @@ Deno.serve(async (req) => {
 
     const rows = (data ?? []) as unknown[];
     if (rows.length === 0) return json({ found: false });
-    return json({ found: true, member: rows[0] });
+    return json({ found: true, members: rows, member: rows[0] });
   } catch (e) {
     if (e instanceof HttpError) return json({ error: e.message }, e.status);
     console.error("member_lookup:", e);

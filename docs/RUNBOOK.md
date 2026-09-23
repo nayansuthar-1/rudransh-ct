@@ -151,9 +151,11 @@ rename the preset and update the variable.
 ### 1.7 Public member lookup (Turnstile) and UPI
 
 Most members have no email and never will, so `/lookup` answers without a
-login: registration number + phone + the last four Aadhaar digits. Cloudflare
-Turnstile keeps bots from walking through registration numbers, and the
-database locks a number after five wrong tries in fifteen minutes.
+login: a phone number on the member's record + the last four Aadhaar digits
+(no registration number, since 24 Sep 2026). A member with no Aadhaar on record
+cannot use it and has to ask the office. Cloudflare Turnstile keeps bots from
+walking through phone numbers, and the database locks a phone number after five
+wrong tries in fifteen minutes.
 
 1. Cloudflare dashboard → **Turnstile** → Add site:
    - Domain: the Pages domain (`rudransh-ct.pages.dev`)
@@ -332,15 +334,15 @@ collected it, so past commission and receipts are unaffected.
 
 **Unlock a member who is locked out of the public lookup**
 
-Five wrong tries for one registration number inside 15 minutes lock that
-number. The lock is counted per registration number, not per person or device,
-so it clears itself after 15 minutes — usually the right answer is to wait.
+Five wrong tries for one phone number inside 15 minutes lock that number. The
+lock is counted per phone number, not per person or device, so it clears itself
+after 15 minutes — usually the right answer is to wait.
 
 To clear it immediately (a member on the phone to the office, for example):
 
 ```sql
 delete from public.lookup_attempts
- where reg_no = 'SSY-2026-0042' and not succeeded;
+ where phone = '9876543210' and not succeeded;
 ```
 
 Check first whether the tries look like a member mistyping or like someone

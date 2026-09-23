@@ -58,14 +58,13 @@ class S {
   // Member portal (Phase 15)
   static const lookupTitle = 'Check your membership';
   static const lookupSub =
-      'Enter your registration number and phone number to see your standing.';
+      'Enter your phone number and the last 4 digits of your Aadhaar to see your standing.';
   static const lookupRegNo = 'Registration number';
   static const lookupPhone = 'Phone number';
   static const lookupAadhaar = 'Last 4 digits of Aadhaar';
-  static const lookupAadhaarHint = 'Leave blank if none is on record';
   static const lookupSubmit = 'Check';
   static const lookupNotFound =
-      'No membership matches those details. Check the registration number and phone, or ask the office.';
+      'No membership matches those details. Check the phone number and Aadhaar digits, or ask the office.';
   static const lookupAgain = 'Check another';
   static const myMembership = 'My membership';
   static const myMembershipSub = 'Your record with the trust';

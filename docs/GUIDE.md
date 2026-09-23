@@ -163,7 +163,7 @@ Everything uses free plans. All accounts belong to the trust's own email, rudran
 The main rule: **agents and members suggest, the office approves.** Money and nominee details never change without an admin.
 
 - **Agents — work from the field on a phone.** Add new members and record collections (both wait for approval), see who still owes money for each closing, send WhatsApp reminders and receipts, report a death with the certificate, see cash in hand and commission.
-- **Members — check their own account.** Look up their membership with registration number, phone and last 4 Aadhaar digits. See receipts, dues and announcements, pay by the trust's UPI QR code and enter the UTR, and ask for corrections.
+- **Members — check their own account.** Look up their membership with their phone number and the last 4 digits of their Aadhaar. See receipts, dues and announcements, pay by the trust's UPI QR code and enter the UTR, and ask for corrections.
 - **Office — stays in control.** An approval list with a count, an Invite to app button for agents, moving members between agents, cash handover and commission tracking, announcements, and a bell for alerts.
 - **Privacy — Aadhaar stays hidden.** Agents and members never see a full Aadhaar number. This is enforced inside the database, not just hidden on screen.
 

@@ -9,10 +9,11 @@ import 'trust_repository.dart' show RepositoryException;
 /// `member_lookup` Edge Function checks Cloudflare Turnstile first and is the
 /// only caller of the database function.
 abstract class LookupRepository {
-  /// Returns null when nothing matches. A wrong guess still counts towards
-  /// the lock, so the caller should not retry automatically.
-  Future<MemberLookup?> find({
-    required String regNo,
+  /// Every membership held under [phone] whose Aadhaar ends in [aadhaar4] —
+  /// one person may be in more than one Yojna. Empty when nothing matches. A
+  /// wrong guess still counts towards the lock, so the caller should not
+  /// retry automatically.
+  Future<List<MemberLookup>> find({
     required String phone,
     required String aadhaar4,
     required String turnstileToken,
@@ -25,15 +26,13 @@ class EdgeLookupRepository implements LookupRepository {
   final SupabaseClient _client;
 
   @override
-  Future<MemberLookup?> find({
-    required String regNo,
+  Future<List<MemberLookup>> find({
     required String phone,
     required String aadhaar4,
     required String turnstileToken,
   }) async {
     try {
       final res = await _client.functions.invoke('member_lookup', body: {
-        'reg_no': regNo,
         'phone': phone,
         'aadhaar4': aadhaar4,
         'turnstile_token': turnstileToken,
@@ -42,10 +41,12 @@ class EdgeLookupRepository implements LookupRepository {
       if (data is! Map) {
         throw const RepositoryException('Could not check the records. Try again.');
       }
-      if (data['found'] != true) return null;
-      return MemberLookup.fromRow(
-        Map<String, dynamic>.from(data['member'] as Map),
-      );
+      if (data['found'] != true) return const [];
+      final rows = data['members'] as List? ?? [data['member']];
+      return [
+        for (final r in rows)
+          MemberLookup.fromRow(Map<String, dynamic>.from(r as Map)),
+      ];
     } on FunctionException catch (e) {
       final details = e.details;
       final message = details is Map ? details['error'] as String? : null;
@@ -68,60 +69,66 @@ class InMemoryLookupRepository implements LookupRepository {
   final _failures = <String, List<DateTime>>{};
 
   @override
-  Future<MemberLookup?> find({
-    required String regNo,
+  Future<List<MemberLookup>> find({
     required String phone,
     required String aadhaar4,
     required String turnstileToken,
   }) async {
-    final reg = regNo.trim().toUpperCase();
     final digits = phone.replaceAll(RegExp(r'\D'), '');
     final last4 = aadhaar4.replaceAll(RegExp(r'\D'), '');
-    if (reg.isEmpty || digits.isEmpty) {
+    if (digits.length != 10) {
+      throw const RepositoryException('Enter the 10-digit phone number.');
+    }
+    if (last4.length != 4) {
       throw const RepositoryException(
-        'Enter the registration number and phone number.',
+        'Enter the last 4 digits of your Aadhaar.',
       );
     }
-    if (_locked(reg)) {
+    if (_locked(digits)) {
       throw const RepositoryException(
         'Too many wrong tries. Try again after 15 minutes.',
       );
     }
 
-    final match = _members().where((m) {
-      if (m.regNo.toUpperCase() != reg) return false;
+    // A member with no Aadhaar on record never matches: the phone alone is
+    // not enough to show anyone's standing.
+    final matches = _members().where((m) {
       if (m.primaryPhone != digits && m.altPhone != digits) return false;
-      // Aadhaar is optional on a member record; when it is absent the
-      // registration number and phone are the whole check.
-      if (m.aadhaar.isEmpty) return true;
       return m.aadhaar.length >= 4 &&
           m.aadhaar.substring(m.aadhaar.length - 4) == last4;
-    }).firstOrNull;
+    }).toList()
+      ..sort((a, b) => a.joinDate.compareTo(b.joinDate));
 
-    if (match == null) {
-      _failures.putIfAbsent(reg, () => []).add(DateTime.now());
-      return null;
+    if (matches.isEmpty) {
+      _failures.putIfAbsent(digits, () => []).add(DateTime.now());
+      return const [];
     }
 
-    final yojna = _yojnas().firstWhere((y) => y.id == match.yojnaId);
-    final owed = _dues().where((d) => d.memberId == match.id && d.due > 0);
+    return [
+      for (final m in matches) _summary(m),
+    ];
+  }
+
+  MemberLookup _summary(Member m) {
+    final yojna = _yojnas().firstWhere((y) => y.id == m.yojnaId);
+    final owed = _dues().where((d) => d.memberId == m.id && d.due > 0);
     return MemberLookup(
-      regNo: match.regNo,
-      name: match.name,
+      regNo: m.regNo,
+      name: m.name,
       yojnaName: yojna.name,
-      status: match.status,
-      joinDate: match.joinDate,
+      status: m.status,
+      joinDate: m.joinDate,
       contributionAmount: yojna.contributionAmount,
       duesCount: owed.length,
       duesAmount: owed.fold<double>(0, (sum, d) => sum + d.due),
     );
   }
 
-  bool _locked(String reg) {
+  bool _locked(String phone) {
     final cutoff = DateTime.now().subtract(const Duration(minutes: 15));
     final recent =
-        (_failures[reg] ?? const []).where((t) => t.isAfter(cutoff)).toList();
-    _failures[reg] = recent;
+        (_failures[phone] ?? const []).where((t) => t.isAfter(cutoff)).toList();
+    _failures[phone] = recent;
     return recent.length >= 5;
   }
 }

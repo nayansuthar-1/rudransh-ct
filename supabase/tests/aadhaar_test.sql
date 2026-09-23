@@ -205,21 +205,16 @@ begin
    where id in ('00000000-0000-0000-0000-0000000b0021',
                 '00000000-0000-0000-0000-0000000b0022');
 
-  select count(*) into n from public.member_lookup(
-    (select reg_no from public.members where id = '00000000-0000-0000-0000-0000000b0021'),
-    '9500000031', '7777');
+  select count(*) into n from public.member_lookup('9500000031', '7777');
   assert n = 1, 'the right last four digits find the member';
 
-  select count(*) into n from public.member_lookup(
-    (select reg_no from public.members where id = '00000000-0000-0000-0000-0000000b0021'),
-    '9500000031', '0000');
+  select count(*) into n from public.member_lookup('9500000031', '0000');
   assert n = 0, 'the wrong last four digits find nothing';
 
-  -- A member whose Aadhaar was never recorded is matched on reg no and phone.
-  select count(*) into n from public.member_lookup(
-    (select reg_no from public.members where id = '00000000-0000-0000-0000-0000000b0022'),
-    '9500000022', '');
-  assert n = 1, 'a member with no Aadhaar is still found';
+  -- A member whose Aadhaar was never recorded has nothing to match: the
+  -- phone alone does not find them.
+  select count(*) into n from public.member_lookup('9500000022', '1234');
+  assert n = 0, 'a member with no Aadhaar is not found on the phone alone';
   raise notice 'lookup checks passed';
 end $$;
 
