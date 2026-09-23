@@ -3,7 +3,10 @@
 alter table public.members
   add column if not exists photo_url text not null default '';
 
--- Drop and recreate agent_members with photo_url column
+-- Drop and recreate agent_members with photo_url column. Its body follows the
+-- 20260924000100 version: the plain aadhaar column is always empty now, so the
+-- last four digits come from aadhaar_last4. Recreating the function drops its
+-- grants, so they are given again at the bottom.
 drop function if exists public.agent_members(text, public.member_status);
 
 create function public.agent_members(
@@ -25,7 +28,7 @@ begin
   return query
   select m.id, m.yojna_id, m.reg_no, m.name, m.father_or_husband_name,
          m.jati, m.gotra, m.dob, m.waris_name, m.waris_relation, m.gender,
-         m.primary_phone, m.alt_phone, right(m.aadhaar, 4), m.village, m.tehsil,
+         m.primary_phone, m.alt_phone, m.aadhaar_last4, m.village, m.tehsil,
          m.district, m.state, m.pincode, m.join_date, m.status,
          m.closing_date, m.closing_group, m.review_note, m.photo_url
     from public.members m
@@ -77,6 +80,9 @@ begin
   ) returning id into new_id;
   return new_id;
 end $$;
+
+revoke all on function public.agent_members(text, public.member_status)
+from public, anon;
 
 grant execute on function public.agent_members(text, public.member_status) to authenticated;
 grant execute on function public.agent_add_member(jsonb) to authenticated;

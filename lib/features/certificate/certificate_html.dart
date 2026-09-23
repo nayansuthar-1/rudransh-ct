@@ -107,26 +107,33 @@ String _art(String baseUrl) {
 }
 
 /// One label with its dotted line and the member's value written on it.
-/// [width] is the line's length in points; null lets it take the rest of the
-/// row. [unit] follows the line, as `रुपये` does on the reference.
+/// [width] is the line's length in points. A [hug] line is only that long at
+/// the least: it runs on under a longer value, up to the end of the row.
+/// [unit] follows the line, as `रुपये` does on the reference.
 class _Field {
-  const _Field(this.label, this.value, {this.width, this.unit = ''});
+  const _Field(
+    this.label,
+    this.value, {
+    required this.width,
+    this.hug = false,
+    this.unit = '',
+  });
   final String label;
   final String value;
-  final double? width;
+  final double width;
+  final bool hug;
   final String unit;
 }
 
 String _fieldHtml(_Field f) {
-  final grow = f.width == null;
-  final width =
-      grow ? '' : ' style="width:${f.width!.toStringAsFixed(2)}pt"';
+  final width = '${f.hug ? 'min-width' : 'width'}:'
+      '${f.width.toStringAsFixed(2)}pt';
   // A zero-width space keeps a baseline on an empty line.
   final value = f.value.isEmpty ? '&#8203;' : _esc(f.value);
   final unit = f.unit.isEmpty ? '' : '<span class="l">${_esc(f.unit)}</span>';
-  return '<div class="f${grow ? ' grow' : ''}">'
+  return '<div class="f${f.hug ? ' hug' : ''}">'
       '<span class="l">${_esc(f.label)}</span>'
-      '<div class="ln"$width><span class="v">$value</span></div>'
+      '<div class="ln" style="$width"><span class="v">$value</span></div>'
       '$unit</div>';
 }
 
@@ -155,8 +162,9 @@ String buildCertificateHtml(CertificateData d, {required String baseUrl}) {
       ? '<img src="${_esc(d.photoUrl)}" alt="">'
       : '<span>फोटो</span>';
 
-  // Rows 0–5 are the reference's own fields, labels and line lengths. The
-  // सम्बन्ध and नोंध rows are ours, in the same style.
+  // Rows 0–5 are the reference's own fields and line lengths, with its
+  // मायरा wording dropped from सहयोग राशि. The सम्बन्ध and नोंध rows are
+  // ours, in the same style; the नोंध line runs only as far as its note.
   final rows = [
     _rowHtml(0, spread: true, [
       _Field('सदस्यता क्रमांक:', d.regNo, width: 90),
@@ -181,14 +189,13 @@ String buildCertificateHtml(CertificateData d, {required String baseUrl}) {
     ]),
     _rowHtml(5, [
       _Field('वारिसदार:', d.warisName, width: 160),
-      _Field('प्रत्येक मायरा पर सहयोग राशि:', amount,
-          width: 70, unit: 'रुपये'),
+      _Field('सहयोग राशि:', amount, width: 70, unit: 'रुपये'),
     ]),
     _rowHtml(6, [
       _Field('सम्बन्ध :', d.warisRelation, width: 160),
     ]),
     _rowHtml(7, [
-      _Field('नोंध:', d.payoutNote.trim()),
+      _Field('नोंध:', d.payoutNote.trim(), width: 160, hug: true),
     ]),
   ].join('\n  ');
 
@@ -317,10 +324,10 @@ html, body {
 .f { display: flex; align-items: baseline; flex: none; }
 .f + .f { margin-left: 12pt; }
 .row.spread .f + .f { margin-left: 0; }
-.f.grow { flex: 1 1 0; min-width: 0; }
+.f.hug { flex: 0 1 auto; min-width: 0; }
 .l { font-size: 9.5pt; font-weight: 400; }
 .ln { position: relative; margin-left: 4pt; flex: none; }
-.f.grow .ln { flex: 1 1 0; min-width: 0; }
+.f.hug .ln { flex: 0 1 auto; }
 .ln::after, .sig .rule {
   content: '';
   position: absolute;

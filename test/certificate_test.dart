@@ -126,7 +126,9 @@ void main() {
       expect(html, contains('Son'));
       expect(html, contains('Hemtaji Nagaji'));
       expect(html, contains('01-06-2026')); // दिनांक
-      expect(html, contains('>200/-<')); // प्रत्येक सहयोग
+      expect(html, contains('>सहयोग राशि:</span>'));
+      expect(html, isNot(contains('प्रत्येक मायरा पर')));
+      expect(html, contains('>200/-<')); // सहयोग राशि
       expect(html, contains('तीन महीने तक रु 25000')); // नोंध
     });
 
@@ -180,7 +182,8 @@ void main() {
       expect(note, greaterThan(relation));
       expect(
         html,
-        contains('>नोंध:</span><div class="ln"><span class="v">'
+        contains('>नोंध:</span><div class="ln" style="min-width:160.00pt">'
+            '<span class="v">'
             'तीन महीने तक रु 25000'),
       );
     });
