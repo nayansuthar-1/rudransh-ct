@@ -16,6 +16,12 @@ import 'package:rudransh_ct/features/certificate/certificate_html.dart';
 
 const _out = 'build/certificate_preview.html';
 
+String _mime(String path) => switch (path.split('.').last) {
+      'ttf' => 'font/ttf',
+      'png' => 'image/png',
+      _ => 'image/jpeg',
+    };
+
 String _dataUri(String path, String mime) =>
     'data:$mime;base64,${base64Encode(File(path).readAsBytesSync())}';
 
@@ -73,22 +79,13 @@ void main() {
       baseUrl: 'PREVIEW/',
     );
 
-    // The shipped page loads these from the app's asset URLs. Inlining them
-    // here is only so the preview renders correctly straight off the disk,
-    // where a browser refuses to fetch fonts over file://.
-    const fonts = 'PREVIEW/assets/assets/fonts';
+    // The shipped page loads its fonts and images from the app's asset URLs.
+    // Inlining them here is only so the preview renders correctly straight
+    // off the disk, where a browser refuses to fetch fonts over file://.
     html = html
-        .replaceAll(
-          "url('$fonts/NotoSansDevanagari-Regular.ttf')",
-          "url('${_dataUri('assets/fonts/NotoSansDevanagari-Regular.ttf', 'font/ttf')}')",
-        )
-        .replaceAll(
-          "url('$fonts/NotoSansDevanagari-SemiBold.ttf')",
-          "url('${_dataUri('assets/fonts/NotoSansDevanagari-SemiBold.ttf', 'font/ttf')}')",
-        )
-        .replaceAll(
-          'PREVIEW/assets/assets/brand/certificate_bg.png',
-          _dataUri('assets/brand/certificate_bg.png', 'image/png'),
+        .replaceAllMapped(
+          RegExp(r'PREVIEW/assets/(assets/[\w/.-]+)'),
+          (m) => _dataUri(m[1]!, _mime(m[1]!)),
         )
         // The preview should not fire the print dialog on open.
         .replaceAll('window.print();', '/* print on demand */');

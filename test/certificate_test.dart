@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rudransh_ct/core/config/trust_info.dart';
 import 'package:rudransh_ct/data/models/models.dart';
 import 'package:rudransh_ct/features/certificate/certificate_data.dart';
 import 'package:rudransh_ct/features/certificate/certificate_html.dart';
@@ -124,27 +125,54 @@ void main() {
       expect(html, contains('Son'));
       expect(html, contains('Hemtaji Nagaji'));
       expect(html, contains('01-06-2026')); // दिनांक
-      expect(html, contains('>200<')); // प्रत्येक सहयोग
+      expect(html, contains('>200/-<')); // प्रत्येक सहयोग
       expect(html, contains('तीन महीने तक रु 25000')); // नोंध
     });
 
-    test('draws the certificate template as the background', () {
+    test('draws the reference frame with the trust header over it', () {
       expect(
         html,
-        contains('src="https://trust.test/assets/assets/brand/'
-            'certificate_bg.png"'),
+        contains('href="https://trust.test/assets/assets/brand/'
+            'certificate_frame.jpg"'),
       );
+      expect(html, contains(TrustInfo.certificateName));
+      expect(html, contains('${TrustInfo.place} - ${TrustInfo.state}'));
+      expect(html, contains(TrustInfo.headOfficeAddress));
+      expect(html, contains(TrustInfo.headOfficePhones.first));
+      expect(html, contains(TrustInfo.slogan));
+      for (final line in TrustInfo.invocations) {
+        expect(html, contains(line));
+      }
       expect(html, isNot(contains('data:image')));
     });
 
-    test('keeps the template aspect ratio so the image is not stretched', () {
-      expect(html, contains('width: 297.0mm'));
-      expect(html, contains('height: 209.55mm'));
+    test('sets Latin runs in the header in the Latin face', () {
+      expect(
+        html,
+        contains('<tspan class="lat">${TrustInfo.establishedOn}</tspan>'),
+      );
     });
 
-    test('places the name on its line, clear of the नाम label', () {
-      // The नाम line runs from x=189 on the 1654px template.
-      expect(html, contains('left:11.427%'));
+    test('lays the reference page out and scales it to A4 landscape', () {
+      expect(html, contains('width: 595.275574pt'));
+      expect(html, contains('width: 297mm'));
+      expect(html, contains('height: 209.31mm'));
+    });
+
+    test('writes the name on the नाम line', () {
+      expect(
+        html,
+        contains('नाम:</span><div class="ln" style="width:150.00pt">'
+            '<span class="v">Punamabhai Sonabhai</span>'),
+      );
+    });
+
+    test('the agent signs as कार्यकर्ता', () {
+      expect(
+        html,
+        contains('<div class="name">Hemtaji Nagaji</div><div class="rule">'
+            '</div><div class="role">कार्यकर्ता</div>'),
+      );
     });
 
     test('shows the member photo inside the फोटो box', () {
@@ -163,7 +191,7 @@ void main() {
         html,
         contains(
           "url('https://trust.test/assets/assets/fonts/"
-          "NotoSansDevanagari-SemiBold.ttf')",
+          "NotoSansDevanagari-Bold.ttf')",
         ),
       );
     });

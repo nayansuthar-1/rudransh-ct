@@ -17,22 +17,19 @@ class TrustInfo {
   static const place = 'लाखणी';
   static const nameEnglish = 'Rudransh Charitable Trust';
 
-  /// Heading as the certificate writes it: `रुद्रांश चेरीटेबल ट्रस्ट – लाखणी`.
-  static String get heading =>
-      place.isEmpty ? nameHindi : '$nameHindi – $place';
+  /// The certificate's big heading. It is spelled as the client's approved
+  /// certificate design (`final.png`) writes it, which differs from the
+  /// सदस्यता प्रपत्र spelling in [nameHindi] that the receipt uses.
+  static const certificateName = 'रुद्रांश चैरिटेबल ट्रस्ट';
 
-  /// Printed at the shoulders of the heading. The सदस्यता प्रपत्र also names
-  /// महाराष्ट्र, but the client asked for the certificate to carry only these
-  /// two, as the reference sheet does.
-  static const leftState = 'गुजरात';
-  static const rightState = 'राजस्थान';
+  /// Follows [place] under the certificate heading: `लाखणी - गुजरात`.
+  static const state = 'गुजरात';
 
-  /// Across the top of the sheet, as the reference certificate has them —
-  /// three, spread left, centre and right. One entry here centres instead.
+  /// Across the top of the certificate: the first at the left shoulder, the
+  /// last at the right, as the approved design has them.
   static const invocations = <String>[
     '॥ श्री गणेशाय नमः ॥',
-    '॥ श्री हनुमते नमः ॥',
-    '॥ श्री कुलदेवी मातायै नमः ॥',
+    '॥ श्री कुलदेवी मातायें नमः ॥',
   ];
 
   // TODO(client): the real establishment date. Placeholder: the day the
@@ -72,9 +69,10 @@ class TrustInfo {
   /// Replacing the logo means dropping a new file in `assets/brand/` — the
   /// image is never embedded in code.
   ///
-  /// The supplied logo is a JPEG on a white background, so the certificate
-  /// blends it into the cream sheet. A transparent PNG would look cleaner.
-  static const certificateBgAsset = 'assets/brand/certificate_bg.png';
+  /// The certificate frame is the reference certificate's own sheet — border,
+  /// corner flourishes, dotted ground — with its header wiped, so the trust's
+  /// header is drawn over it (lib/features/certificate/certificate_html.dart).
+  static const certificateFrameAsset = 'assets/brand/certificate_frame.jpg';
   static const logoAsset = 'assets/brand/rudransh_logo.png';
   static const shivaAsset = 'assets/brand/shiva.png';
 

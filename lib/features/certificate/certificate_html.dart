@@ -20,72 +20,170 @@ String _assetUrl(String base, String path) {
   return '$base${sep}assets/$path';
 }
 
-/// Size of the template image (`final.png` → [TrustInfo.certificateBgAsset]).
-/// Every coordinate below is in the pixels of this image.
-const _imgW = 1654;
-const _imgH = 1167;
+// The design copies the reference certificate
+// (KALPESH_KUMAR_R707604_Certificate.pdf), measured off the PDF itself:
+//
+// * The sheet is the reference's A5 landscape page, 595.28 × 419.53pt, and
+//   every body position below is in those points. It is scaled up whole to
+//   fill A4 landscape, which has the same proportions.
+// * The header lives in the pixel space of the frame image, 2559 × 1659.
+//   The reference stretches that image onto the page, so its header is 8.7%
+//   taller than drawn; laying ours out in the same space stretches it the
+//   same way.
 
-/// The sheet keeps the template's own aspect ratio, so the image is never
-/// stretched: 297mm wide, and 297 × 1167 / 1654 ≈ 209.55mm tall.
-const _sheetWmm = 297.0;
-const _sheetHmm = _sheetWmm * _imgH / _imgW;
+/// The reference page, in points.
+const _sheetW = 595.275574;
+const _sheetH = 419.527557;
 
-String _pct(num v, int of) => '${(v * 100 / of).toStringAsFixed(3)}%';
+/// A4 landscape is 297mm = 841.89pt wide.
+const _scale = 841.889764 / _sheetW;
 
-/// One value written onto a printed line: from [x1] to [x2], sitting on the
-/// line at [lineY]. Positions are measured from the template image.
-String _field(String value, {required int x1, required int x2, required int lineY}) {
-  const gap = 5; // a few pixels clear of the line, as handwriting would sit
-  return '<div class="v" style="left:${_pct(x1, _imgW)};'
-      'width:${_pct(x2 - x1, _imgW)};'
-      'bottom:${_pct(_imgH - lineY + gap, _imgH)};">${_esc(value)}</div>';
+/// The frame image, in pixels.
+const _artW = 2559;
+const _artH = 1659;
+
+/// Baseline of the first body row, and the distance between rows.
+const _row1 = 175.23;
+const _rowPitch = 24.008;
+
+/// Wraps each run of Latin letters and digits — `01-07-2026`, `F/0000/B.K.,`
+/// — in a tspan for the Latin face, as the reference sets `C-3,` in Arial
+/// Bold inside a Yatra One line.
+String _mixed(String s) {
+  final latin = RegExp(r'[A-Za-z0-9][A-Za-z0-9./,\-]*');
+  final out = StringBuffer();
+  var at = 0;
+  for (final m in latin.allMatches(s)) {
+    out
+      ..write(_esc(s.substring(at, m.start)))
+      ..write('<tspan class="lat">${_esc(m.group(0)!)}</tspan>');
+    at = m.end;
+  }
+  out.write(_esc(s.substring(at)));
+  return out.toString();
+}
+
+/// The frame, the two images and the trust's header, drawn in the frame
+/// image's pixel space. Sizes, baselines and colours are matched to the
+/// reference header.
+String _art(String baseUrl) {
+  final frame = _assetUrl(baseUrl, TrustInfo.certificateFrameAsset);
+  final shiva = _assetUrl(baseUrl, TrustInfo.shivaAsset);
+  final logo = _assetUrl(baseUrl, TrustInfo.logoAsset);
+
+  final inv = TrustInfo.invocations;
+  final left = inv.isEmpty ? '' : inv.first;
+  final right = inv.length < 2 ? '' : inv.last;
+
+  final established =
+      'स्थापना: ${TrustInfo.establishedOn}  |  संस्था रजिस्टर नं.: '
+      '${TrustInfo.registrationNo}';
+  final phones = 'Mobile: ${TrustInfo.headOfficePhones.join(' / ')}';
+
+  return '''
+<svg class="art" viewBox="0 0 $_artW $_artH" preserveAspectRatio="none">
+  <defs>
+    <linearGradient id="heading-fill" gradientUnits="userSpaceOnUse" x1="0" y1="193" x2="0" y2="234">
+      <stop offset="0" stop-color="#1e1856"/>
+      <stop offset="1" stop-color="#e31e27"/>
+    </linearGradient>
+  </defs>
+  <image href="$frame" x="0" y="0" width="$_artW" height="$_artH" preserveAspectRatio="none"/>
+  ${TrustInfo.hasShiva ? '<image href="$shiva" x="214.7" y="166" width="375.5" height="375.5" preserveAspectRatio="none"/>' : ''}
+  ${TrustInfo.hasLogo ? '<image href="$logo" x="1964.4" y="157.9" width="354.2" height="354.2" preserveAspectRatio="none"/>' : ''}
+  <text class="inv" transform="translate(327 0) scale(0.9 1)" y="145">${_esc(left)}</text>
+  <text class="inv" transform="translate(2227 0) scale(0.9 1)" y="145" text-anchor="end">${_esc(right)}</text>
+  <text class="heading" transform="translate(1279.5 0) scale(0.897 1)" y="251" text-anchor="middle">${_esc(TrustInfo.certificateName)}</text>
+  <text class="place" x="1279.5" y="325" text-anchor="middle">${_esc('${TrustInfo.place} - ${TrustInfo.state}')}</text>
+  <text class="line" x="1279.5" y="389" text-anchor="middle">${_mixed(established)}</text>
+  <text class="line" x="1279.5" y="439" text-anchor="middle">${_mixed(TrustInfo.headOfficeAddress)}</text>
+  <text class="phones" x="1279.5" y="499" text-anchor="middle">${_esc(phones)}</text>
+</svg>''';
+}
+
+/// One label with its dotted line and the member's value written on it.
+/// [width] is the line's length in points; null lets it take the rest of the
+/// row. [unit] follows the line, as `रुपये` does on the reference.
+class _Field {
+  const _Field(this.label, this.value, {this.width, this.unit = ''});
+  final String label;
+  final String value;
+  final double? width;
+  final String unit;
+}
+
+String _fieldHtml(_Field f) {
+  final grow = f.width == null;
+  final width =
+      grow ? '' : ' style="width:${f.width!.toStringAsFixed(2)}pt"';
+  // A zero-width space keeps a baseline on an empty line.
+  final value = f.value.isEmpty ? '&#8203;' : _esc(f.value);
+  final unit = f.unit.isEmpty ? '' : '<span class="l">${_esc(f.unit)}</span>';
+  return '<div class="f${grow ? ' grow' : ''}">'
+      '<span class="l">${_esc(f.label)}</span>'
+      '<div class="ln"$width><span class="v">$value</span></div>'
+      '$unit</div>';
+}
+
+/// A row of fields whose labels sit on the baseline of row [index].
+String _rowHtml(int index, List<_Field> fields, {bool spread = false}) {
+  // Values are the tallest thing on a row, 10pt with 0.896em above the
+  // baseline, so the row box starts that far above it.
+  final top = _row1 + index * _rowPitch - 8.96;
+  return '<div class="row${spread ? ' spread' : ''}" '
+      'style="top:${top.toStringAsFixed(2)}pt">'
+      '${fields.map(_fieldHtml).join()}</div>';
 }
 
 /// Builds the printable membership certificate as one self-contained HTML
-/// page: a single A4 landscape sheet with the certificate template image as
-/// the background, and each member value written on its line.
-///
-/// Everything printed on the template — heading, invocations, labels, logos —
-/// comes from the image itself, so the sheet matches it pixel for pixel. Only
-/// the member's own details are laid over it.
+/// page: a single A4 landscape sheet laid out as the reference certificate,
+/// carrying the trust's details and the member's.
 ///
 /// [baseUrl] is the app's own base URL, used to reach the bundled assets.
 String buildCertificateHtml(CertificateData d, {required String baseUrl}) {
-  final bgImage = _assetUrl(baseUrl, TrustInfo.certificateBgAsset);
   final fonts = _assetUrl(baseUrl, 'assets/fonts');
 
   final amount =
-      d.contributionAmount > 0 ? _money.format(d.contributionAmount) : '';
+      d.contributionAmount > 0 ? '${_money.format(d.contributionAmount)}/-' : '';
 
-  final memberPhoto = d.photoUrl.isNotEmpty
+  final photo = d.photoUrl.isNotEmpty
       ? '<img src="${_esc(d.photoUrl)}" alt="">'
-      : '';
+      : '<span>फोटो</span>';
 
-  // Line coordinates measured on the 1654×1167 template. The two top-row
-  // labels (सदस्यता क्रमांक, दिनांक) have no printed line, so they use the
-  // line their text would sit on.
-  final fields = [
-    _field(d.regNo, x1: 258, x2: 640, lineY: 439), // सदस्यता क्रमांक
-    _field(_day(d.issuedOn), x1: 1125, x2: 1300, lineY: 439), // दिनांक
-    _field(d.fullName, x1: 189, x2: 619, lineY: 504), // नाम
-    _field(d.gotra, x1: 785, x2: 1215, lineY: 504), // गोत्र
-    _field(d.jati, x1: 189, x2: 489, lineY: 559), // जाति
-    _field(_day(d.dob), x1: 855, x2: 1215, lineY: 559), // जन्म तारीख
-    _field(d.phone, x1: 249, x2: 585, lineY: 614), // मोबाइल नं.
-    _field(d.village, x1: 860, x2: 1215, lineY: 614), // गाँव / सिटी
-    _field(d.district, x1: 194, x2: 585, lineY: 669), // जिला
-    _field(d.state, x1: 795, x2: 1216, lineY: 669), // राज्य
-    _field(d.address, x1: 184, x2: 659, lineY: 724), // पता
-    _field(d.warisName, x1: 835, x2: 1216, lineY: 724), // वारिसदार
-    _field(d.warisRelation, x1: 229, x2: 659, lineY: 779), // सम्बन्ध
-    _field(amount, x1: 870, x2: 1215, lineY: 779), // प्रत्येक सहयोग
-    _field(d.agentName, x1: 229, x2: 659, lineY: 834), // कार्यकर्ता
-    _field(d.payoutNote, x1: 190, x2: 663, lineY: 889), // नोंध
+  final rows = [
+    _rowHtml(0, spread: true, [
+      _Field('सदस्यता क्रमांक:', d.regNo, width: 90),
+      _Field('दिनांक:', _day(d.issuedOn), width: 62.74),
+    ]),
+    _rowHtml(1, [
+      _Field('नाम:', d.fullName, width: 150),
+      _Field('गोत्र:', d.gotra),
+    ]),
+    _rowHtml(2, [
+      _Field('जाति:', d.jati, width: 90),
+      _Field('जन्म तारीख :', _day(d.dob), width: 90),
+      _Field('मोबाइल नं.:', d.phone),
+    ]),
+    _rowHtml(3, [
+      _Field('गाँव / सिटी:', d.village, width: 110),
+      _Field('जिला:', d.district, width: 90),
+      _Field('राज्य:', d.state),
+    ]),
+    _rowHtml(4, [
+      _Field('पता:', d.address),
+      _Field('वारिसदार:', d.warisName, width: 110),
+    ]),
+    _rowHtml(5, [
+      _Field('सम्बन्ध :', d.warisRelation, width: 110),
+      _Field('प्रत्येक सहयोग:', amount, width: 70, unit: 'रुपये'),
+    ]),
   ].join('\n  ');
 
-  // Inside the फोटो box's 3px border: x 1309–1507, y 453–651.
-  final photoStyle = 'left:${_pct(1309, _imgW)};top:${_pct(453, _imgH)};'
-      'width:${_pct(1507 - 1309, _imgW)};height:${_pct(651 - 453, _imgH)};';
+  // The नोंध sits where the reference prints its payout rule. With nothing
+  // to say it keeps a dotted line to write on, as every other field does.
+  final note = d.payoutNote.trim().isEmpty
+      ? 'नोंध: <span class="blank"></span>'
+      : 'नोंध: ${_esc(d.payoutNote.trim())}';
 
   return '''<!DOCTYPE html>
 <html lang="hi">
@@ -95,13 +193,22 @@ String buildCertificateHtml(CertificateData d, {required String baseUrl}) {
 <style>
 @font-face {
   font-family: 'Noto Sans Devanagari';
-  src: url('$fonts/NotoSansDevanagari-SemiBold.ttf') format('truetype');
-  font-weight: 600;
+  src: url('$fonts/NotoSansDevanagari-Regular.ttf') format('truetype');
+  font-weight: 400;
 }
 @font-face {
   font-family: 'Noto Sans Devanagari';
-  src: url('$fonts/NotoSansDevanagari-Regular.ttf') format('truetype');
-  font-weight: 400;
+  src: url('$fonts/NotoSansDevanagari-Bold.ttf') format('truetype');
+  font-weight: 700;
+}
+@font-face {
+  font-family: 'Yatra One';
+  src: url('$fonts/YatraOne-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Arimo';
+  src: url('$fonts/Arimo-Bold.ttf') format('truetype');
+  font-weight: 700;
 }
 @page { size: A4 landscape; margin: 0; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -112,59 +219,183 @@ html, body {
 }
 .page {
   position: relative;
-  width: ${_sheetWmm}mm;
-  height: ${_sheetHmm.toStringAsFixed(2)}mm;
+  width: 297mm;
+  height: ${(_sheetH * _scale / 72 * 25.4).toStringAsFixed(2)}mm;
   overflow: hidden;
   margin: 0 auto;
 }
-.page > img.bg {
+.sheet {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 0;
-}
-/* A member value, written on its line. */
-.v {
-  position: absolute;
-  z-index: 1;
-  padding: 0 1mm;
+  left: 0;
+  top: 0;
+  width: ${_sheetW}pt;
+  height: ${_sheetH}pt;
+  transform: scale(${_scale.toStringAsFixed(6)});
+  transform-origin: 0 0;
   font-family: 'Noto Sans Devanagari', 'Nirmala UI', 'Mangal', sans-serif;
-  font-size: 11.5pt;
-  font-weight: 600;
-  line-height: 1.2;
-  color: #1c1a4e;
-  white-space: nowrap;
-  overflow: hidden;
+  color: #000;
+  line-height: normal;
 }
+
+/* Frame and header, in the frame image's pixels. */
+.art { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+.art text { font-family: 'Yatra One', 'Noto Sans Devanagari', sans-serif; }
+.art .inv { font-size: 40.8px; fill: #e31e27; }
+.art .heading {
+  font-size: 129.2px;
+  fill: url(#heading-fill);
+  stroke: #fff;
+  stroke-width: 13px;
+  stroke-linejoin: round;
+  paint-order: stroke;
+}
+.art .place { font-size: 63px; fill: #070705; }
+.art .line { font-size: 40.7px; letter-spacing: -1px; fill: #070705; }
+.art .lat, .art .phones { font-family: 'Arimo', Arial, sans-serif; font-weight: 700; }
+.art .phones { font-size: 41.3px; letter-spacing: -0.7px; fill: #070705; }
+
+.title {
+  position: absolute;
+  top: 133.47pt;
+  left: ${(_sheetW / 2).toStringAsFixed(2)}pt;
+  transform: translateX(-50%);
+  height: 21.42pt;
+  padding: 5pt 14pt 0;
+  border-radius: 10.71pt;
+  background: #1a0f5e;
+  color: #fff;
+  font-size: 11pt;
+  font-weight: 700;
+  letter-spacing: 0.4pt;
+  white-space: nowrap;
+}
+
 .photo {
   position: absolute;
-  z-index: 1;
+  left: 475.28pt;
+  top: 150pt;
+  width: 80pt;
+  height: 80pt;
+  border: 2pt solid #333;
+  border-radius: 3pt;
+  background: #fff;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.photo img {
+.photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo span { font-size: 12pt; font-weight: 700; color: #777; }
+
+/* A row of fields: 9.5pt labels, then a 1pt dotted line with the 10pt bold
+   value written 5pt in and 1.38pt above the label's baseline. */
+.row {
+  position: absolute;
+  left: 38pt;
+  width: 402pt;
+  display: flex;
+  align-items: baseline;
+  white-space: nowrap;
+}
+.row.spread { width: 424.28pt; justify-content: space-between; }
+.f { display: flex; align-items: baseline; flex: none; }
+.f + .f { margin-left: 12pt; }
+.row.spread .f + .f { margin-left: 0; }
+.f.grow { flex: 1 1 0; min-width: 0; }
+.l { font-size: 9.5pt; font-weight: 400; }
+.ln { position: relative; margin-left: 4pt; flex: none; }
+.f.grow .ln { flex: 1 1 0; min-width: 0; }
+.ln::after, .blank::after, .sig .rule {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1pt;
+  background: repeating-linear-gradient(to right, #000 0 1pt, transparent 1pt 2.2pt);
+}
+.ln::after { top: 13.66pt; }
+.v {
   display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  position: relative;
+  top: -1.38pt;
+  padding-left: 5pt;
+  font-size: 10pt;
+  font-weight: 700;
 }
+
+.note {
+  position: absolute;
+  left: 28pt;
+  width: 539.28pt;
+  top: 318.06pt;
+  font-size: 8.5pt;
+  line-height: 11.9pt;
+  text-align: center;
+}
+.note .blank {
+  display: inline-block;
+  position: relative;
+  width: 250pt;
+  height: 11.9pt;
+  vertical-align: top;
+}
+.note .blank::after { top: 9pt; }
+
+.slogan {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  top: ${(388.55 - 0.896 * 11).toStringAsFixed(2)}pt;
+  text-align: center;
+  font-size: 11pt;
+  font-weight: 700;
+  color: #1a0f5e;
+}
+
+/* Signatures: the name over a dotted line, the role under it. */
+.sig { position: absolute; top: 0; height: 100%; text-align: center; font-weight: 700; }
+.sig .name { position: absolute; left: 0; right: 0; top: ${(363.94 - 0.896 * 9.5 + 0.25).toStringAsFixed(2)}pt; font-size: 9.5pt; white-space: nowrap; }
+.sig .rule { top: 374.49pt; }
+.sig .role { position: absolute; left: 0; right: 0; top: ${(388.55 - 0.896 * 9 - 0.19).toStringAsFixed(2)}pt; font-size: 9pt; }
 </style>
 </head>
 <body>
-<div class="page">
-  <img class="bg" src="$bgImage" alt="">
-  $fields
-  <div class="photo" style="$photoStyle">$memberPhoto</div>
-</div>
+<div class="page"><div class="sheet">
+  ${_art(baseUrl)}
+  <div class="title">प्रमाण पत्र</div>
+  <div class="photo">$photo</div>
+  $rows
+  <div class="note">$note</div>
+  <div class="sig" style="left:77.09pt;width:155.49pt">
+    <div class="name">${_esc(d.agentName)}</div><div class="rule"></div><div class="role">कार्यकर्ता</div>
+  </div>
+  <div class="slogan">${_esc(TrustInfo.slogan)}</div>
+  <div class="sig" style="left:370.44pt;width:140pt">
+    <div class="name"></div><div class="rule"></div><div class="role">अध्यक्ष</div>
+  </div>
+</div></div>
 <script>
-// A value too long for its line is shrunk to fit rather than cut off.
+// A value too long for its line is shrunk to fit rather than run over.
+function fit(el, room, size, min) {
+  while (el.scrollWidth > room() && size > min) {
+    size -= 0.25;
+    el.style.fontSize = size + 'pt';
+  }
+}
 function fitValues() {
   document.querySelectorAll('.v').forEach(function (el) {
-    var size = 11.5;
-    while (el.scrollWidth > el.clientWidth && size > 6) {
-      size -= 0.5;
-      el.style.fontSize = size + 'pt';
-    }
+    fit(el, function () { return el.parentNode.clientWidth; }, 10, 6);
+  });
+  // The नोंध may take two lines, as the reference's rule does; past that
+  // it would run into the signatures.
+  var note = document.querySelector('.note');
+  var noteSize = 8.5;
+  while (note.offsetHeight > 32 && noteSize > 6) {
+    noteSize -= 0.25;
+    note.style.fontSize = noteSize + 'pt';
+  }
+  document.querySelectorAll('.sig .name').forEach(function (el) {
+    fit(el, function () { return el.clientWidth; }, 9.5, 6);
   });
 }
 window.addEventListener('load', function () {
