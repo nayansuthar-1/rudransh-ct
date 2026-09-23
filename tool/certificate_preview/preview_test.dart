@@ -83,16 +83,12 @@ void main() {
           "url('${_dataUri('assets/fonts/NotoSansDevanagari-Regular.ttf', 'font/ttf')}')",
         )
         .replaceAll(
-          "url('$fonts/NotoSansDevanagari-Bold.ttf')",
-          "url('${_dataUri('assets/fonts/NotoSansDevanagari-Bold.ttf', 'font/ttf')}')",
+          "url('$fonts/NotoSansDevanagari-SemiBold.ttf')",
+          "url('${_dataUri('assets/fonts/NotoSansDevanagari-SemiBold.ttf', 'font/ttf')}')",
         )
         .replaceAll(
-          "url('$fonts/YatraOne-Regular.ttf')",
-          "url('${_dataUri('assets/fonts/YatraOne-Regular.ttf', 'font/ttf')}')",
-        )
-        .replaceAll(
-          'PREVIEW/assets/assets/brand/rudransh_logo.jpg',
-          _dataUri('assets/brand/rudransh_logo.jpg', 'image/jpeg'),
+          'PREVIEW/assets/assets/brand/certificate_bg.png',
+          _dataUri('assets/brand/certificate_bg.png', 'image/png'),
         )
         // The preview should not fire the print dialog on open.
         .replaceAll('window.print();', '/* print on demand */');
