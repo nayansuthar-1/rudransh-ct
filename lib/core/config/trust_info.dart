@@ -74,6 +74,7 @@ class TrustInfo {
   ///
   /// The supplied logo is a JPEG on a white background, so the certificate
   /// blends it into the cream sheet. A transparent PNG would look cleaner.
+  static const certificateBgAsset = 'assets/brand/certificate_bg.png';
   static const logoAsset = 'assets/brand/rudransh_logo.png';
   static const shivaAsset = 'assets/brand/shiva.png';
 
