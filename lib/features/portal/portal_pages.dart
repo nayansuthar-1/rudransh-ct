@@ -12,6 +12,7 @@ import '../../state/auth_controller.dart';
 import '../../state/providers.dart';
 import '../../widgets/app_shell.dart';
 import '../../widgets/primitives.dart';
+import '../certificate/certificate_action.dart';
 import 'member_pages.dart';
 
 /// Member landing page. Dues, receipts and announcements arrive in Phase 15.
@@ -145,6 +146,36 @@ class _MembershipCard extends ConsumerWidget {
           ),
           if (m.agentName.isNotEmpty)
             DetailRow(label: 'Your agent', value: m.agentName),
+          if (m.regNo.isNotEmpty) ...[
+            const SizedBox(height: Space.md),
+            OutlinedButton.icon(
+              onPressed: () => printMemberCertificate(
+                context,
+                member: Member(
+                  id: m.memberId,
+                  yojnaId: m.yojnaId,
+                  regNo: m.regNo,
+                  name: m.name,
+                  fatherOrHusbandName: m.fatherOrHusbandName,
+                  jati: '',
+                  warisName: m.warisName,
+                  warisRelation: m.warisRelation,
+                  primaryPhone: m.primaryPhone,
+                  altPhone: m.altPhone,
+                  aadhaar: '',
+                  village: m.village,
+                  tehsil: m.tehsil,
+                  district: m.district,
+                  pincode: m.pincode,
+                  joinDate: m.joinDate,
+                  status: m.status,
+                ),
+                agentName: m.agentName,
+              ),
+              icon: const Icon(Icons.print_outlined, size: 17),
+              label: const Text(S.printCertificate),
+            ),
+          ],
         ],
       ),
     );

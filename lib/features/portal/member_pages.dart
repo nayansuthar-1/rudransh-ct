@@ -13,6 +13,7 @@ import '../../widgets/app_dialog.dart';
 import '../../widgets/app_shell.dart';
 import '../../widgets/inputs.dart';
 import '../../widgets/primitives.dart';
+import '../receipt/receipt_action.dart';
 
 /// What the member owes, and how to pay it (IMPLEMENTATION_PLAN Phase 15).
 class MemberDuesPage extends ConsumerWidget {
@@ -134,6 +135,76 @@ class MemberPaymentsPage extends ConsumerWidget {
       children: [
         const SectionHeader(title: S.myPayments, subtitle: S.myPaymentsSub),
         const SizedBox(height: Space.xl),
+        if (items != null && items.isNotEmpty) ...[
+          Builder(builder: (context) {
+            final totalPaid = items
+                .where((p) => p.status == PaymentStatus.paid)
+                .fold<double>(0, (sum, p) => sum + p.amount);
+            final paidCount =
+                items.where((p) => p.status == PaymentStatus.paid).length;
+            final text = Theme.of(context).textTheme;
+            return AppCard(
+              padding: const EdgeInsets.symmetric(
+                horizontal: Space.lg,
+                vertical: Space.md,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Total Contributed',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: context.colors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          Fmt.money(totalPaid),
+                          style: text.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: context.colors.brand,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    height: 36,
+                    width: 1,
+                    color: context.colors.border,
+                  ),
+                  const SizedBox(width: Space.lg),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Approved Receipts',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: context.colors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '$paidCount issued',
+                          style: text.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+          const SizedBox(height: Space.md),
+        ],
         if (items == null && async.hasError)
           AppCard(
             child: ErrorStateView(
@@ -167,13 +238,13 @@ class MemberPaymentsPage extends ConsumerWidget {
   }
 }
 
-class _PaymentRow extends StatelessWidget {
+class _PaymentRow extends ConsumerWidget {
   const _PaymentRow(this.payment);
 
   final Payment payment;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     final text = Theme.of(context).textTheme;
     final cancelled = payment.isCancelled;
@@ -227,6 +298,42 @@ class _PaymentRow extends StatelessWidget {
               ),
             ],
           ),
+          if (!cancelled && payment.receiptNo.isNotEmpty) ...[
+            const SizedBox(width: Space.sm),
+            IconButton(
+              icon: const Icon(Icons.print_outlined, size: 20),
+              tooltip: 'Print receipt',
+              onPressed: () {
+                final membership = ref.read(myMembershipProvider).value;
+                printPaymentReceipt(
+                  context,
+                  payment: payment,
+                  member: membership != null
+                      ? Member(
+                          id: membership.memberId,
+                          yojnaId: membership.yojnaId,
+                          regNo: membership.regNo,
+                          name: membership.name,
+                          fatherOrHusbandName: membership.fatherOrHusbandName,
+                          jati: '',
+                          warisName: membership.warisName,
+                          warisRelation: membership.warisRelation,
+                          primaryPhone: membership.primaryPhone,
+                          altPhone: membership.altPhone,
+                          aadhaar: '',
+                          village: membership.village,
+                          tehsil: membership.tehsil,
+                          district: membership.district,
+                          pincode: membership.pincode,
+                          joinDate: membership.joinDate,
+                          status: membership.status,
+                        )
+                      : null,
+                  yojnaName: membership?.yojnaName ?? '',
+                );
+              },
+            ),
+          ],
         ],
       ),
     );

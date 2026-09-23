@@ -471,6 +471,7 @@ class SupabaseAgentRepository implements AgentRepository {
             r['closing_date'] == null ? null : _date(r['closing_date']),
         closingGroup: r['closing_group'] as String?,
         reviewNote: r['review_note'] as String? ?? '',
+        photoUrl: r['photo_url'] as String? ?? '',
       );
 
   static Payment _paymentFromRow(Map<String, dynamic> r) => Payment(

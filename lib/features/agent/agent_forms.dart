@@ -17,6 +17,7 @@ import '../../state/agent_providers.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/inputs.dart';
 import '../../widgets/primitives.dart';
+import '../receipt/receipt_action.dart';
 
 // ---------------------------------------------------------------------------
 // Add member
@@ -813,6 +814,15 @@ Future<void> showReceiptSaved(
           OutlinedButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Close'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => printPaymentReceipt(
+              dialogContext,
+              payment: payment,
+              member: member,
+            ),
+            icon: const Icon(Icons.print_outlined, size: 17),
+            label: const Text('Print receipt'),
           ),
           FilledButton.icon(
             onPressed: () => sendOnWhatsApp(

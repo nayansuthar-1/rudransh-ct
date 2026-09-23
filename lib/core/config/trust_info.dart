@@ -74,7 +74,8 @@ class TrustInfo {
   ///
   /// The supplied logo is a JPEG on a white background, so the certificate
   /// blends it into the cream sheet. A transparent PNG would look cleaner.
-  static const logoAsset = 'assets/brand/rudransh_logo.jpg';
+  static const logoAsset = 'assets/brand/rudransh_logo.png';
+  static const shivaAsset = 'assets/brand/shiva.png';
 
   // TODO(client): drop a signature image in `assets/brand/` and name it here.
   static const signatureAsset = '';
@@ -83,5 +84,6 @@ class TrustInfo {
   static const headingFontAsset = 'assets/fonts/YatraOne-Regular.ttf';
 
   static bool get hasLogo => logoAsset.isNotEmpty;
+  static bool get hasShiva => shivaAsset.isNotEmpty;
   static bool get hasSignature => signatureAsset.isNotEmpty;
 }

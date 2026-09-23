@@ -18,6 +18,7 @@ import '../../widgets/primitives.dart';
 import '../../widgets/responsive_table.dart';
 import '../../widgets/stat_card.dart';
 import '../dashboard/dashboard_page.dart' show PaymentStatusPill;
+import '../receipt/receipt_action.dart';
 
 class PaymentsPage extends ConsumerWidget {
   const PaymentsPage({super.key});
@@ -292,6 +293,14 @@ class _PaymentActions extends ConsumerWidget {
         switch (value) {
           case 0:
             _showReceipt(context, ref, payment, member);
+          case 5:
+            printPaymentReceipt(
+              context,
+              payment: payment,
+              memberRef: member,
+              yojna: ref.read(yojnaByIdProvider)[payment.yojnaId],
+              agent: ref.read(agentByIdProvider)[payment.agentId],
+            );
           case 1:
             showPaymentFormDialog(context, existing: payment);
           case 2:
@@ -333,6 +342,7 @@ class _PaymentActions extends ConsumerWidget {
       },
       itemBuilder: (context) => [
         const PopupMenuItem(value: 0, child: Text('View receipt')),
+        const PopupMenuItem(value: 5, child: Text('Print receipt')),
         const PopupMenuItem(value: 1, child: Text(S.edit)),
         if (payment.status != PaymentStatus.paid && !payment.isCancelled)
           const PopupMenuItem(value: 2, child: Text(S.markPaid)),
@@ -366,6 +376,17 @@ void _showReceipt(
         OutlinedButton(
           onPressed: () => Navigator.of(dialogContext).pop(),
           child: const Text('Close'),
+        ),
+        OutlinedButton.icon(
+          onPressed: () => printPaymentReceipt(
+            context,
+            payment: p,
+            memberRef: member,
+            yojna: yojna,
+            agent: agent,
+          ),
+          icon: const Icon(Icons.print_outlined, size: 16),
+          label: const Text('Print receipt'),
         ),
       ],
       child: Column(

@@ -19,6 +19,7 @@ import '../../widgets/primitives.dart';
 import '../../widgets/responsive_table.dart';
 import '../../widgets/stat_card.dart';
 import '../certificate/certificate_action.dart';
+import '../receipt/receipt_action.dart';
 import '../dashboard/dashboard_page.dart' show PaymentStatusPill;
 import '../members/members_page.dart' show MemberStatusPill;
 import 'agent_cash.dart';
@@ -527,7 +528,17 @@ void _showReceipt(BuildContext context, Payment p, MemberRef? member) {
             onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Close'),
           ),
-          if (member != null && p.status != PaymentStatus.failed)
+          if (member != null && p.status != PaymentStatus.failed) ...[
+            OutlinedButton.icon(
+              onPressed: () => printPaymentReceipt(
+                dialogContext,
+                payment: p,
+                memberRef: member,
+                agentName: ref.watch(currentUserProvider).name,
+              ),
+              icon: const Icon(Icons.print_outlined, size: 17),
+              label: const Text('Print receipt'),
+            ),
             OutlinedButton.icon(
               onPressed: () => sendOnWhatsApp(
                 dialogContext,
@@ -540,6 +551,7 @@ void _showReceipt(BuildContext context, Payment p, MemberRef? member) {
               icon: const Icon(Icons.chat_outlined, size: 17),
               label: const Text(S.shareReceipt),
             ),
+          ],
           if (canRequestCancel)
             FilledButton(
               onPressed: () async {

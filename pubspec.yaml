@@ -92,4 +92,7 @@ flutter:
   # with these, so they are plain assets rather than a font family.
   assets:
     - assets/brand/rudransh_logo.jpg
+    - assets/brand/rudransh_logo.png
+    - assets/brand/shiva.png
     - assets/fonts/YatraOne-Regular.ttf
+

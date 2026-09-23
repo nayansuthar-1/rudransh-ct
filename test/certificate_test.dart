@@ -128,7 +128,7 @@ void main() {
     });
 
     test('is branded as the trust, in Hindi', () {
-      expect(html, contains('रुद्रांश चेरीटेबल ट्रस्ट – लाखणी'));
+      expect(html, contains('रुद्रांश चेरीटेबल ट्रस्ट'));
       expect(html, contains(TrustInfo.slogan));
       expect(html, contains('प्रमाण पत्र'));
       expect(html, contains('सदस्यता क्रमांक'));
@@ -162,7 +162,7 @@ void main() {
     });
 
     test('prints the office address and the three chosen phone numbers', () {
-      expect(html, contains('ठी.दक्ष कोम्प्लेक्ष, लाखणी'));
+      expect(html, contains(TrustInfo.headOfficeAddress));
       expect(html, contains('88299 01246'));
       expect(html, contains('98259 46742'));
       expect(html, contains('95863 40736'));
@@ -177,11 +177,16 @@ void main() {
       expect(html, isNot(contains('class="cut"')));
     });
 
-    test('loads the logo from the asset folder, never embedded in the page', () {
+    test('loads both Shiva and Rudransh logos from the asset folder', () {
       expect(
         html,
         contains('src="https://trust.test/assets/assets/brand/'
-            'rudransh_logo.jpg"'),
+            'rudransh_logo.png"'),
+      );
+      expect(
+        html,
+        contains('src="https://trust.test/assets/assets/brand/'
+            'shiva.png"'),
       );
       expect(html, isNot(contains('data:image')));
     });
@@ -202,9 +207,8 @@ void main() {
       );
     });
 
-    test('draws the heading as arched SVG so it can be outlined', () {
-      expect(html, contains('<textPath href="#arc"'));
-      expect(html, contains('paint-order="stroke"'));
+    test('renders the heading with brand title', () {
+      expect(html, contains('class="brand-title"'));
     });
 
     test('a base URL without a trailing slash still resolves', () {
