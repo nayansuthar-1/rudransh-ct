@@ -66,7 +66,7 @@ class TrustInfo {
   ];
 
   /// The line across the foot of the certificate.
-  static const slogan = 'आपका साथ सहकार वही समाज का कल्याण।';
+  static const slogan = 'आपका साथ सहयोग वही समाज का कल्याण';
 
   /// Images served from the app's own assets, declared in `pubspec.yaml`.
   /// Replacing the logo means dropping a new file in `assets/brand/` — the

@@ -9,31 +9,27 @@ import 'certificate_data.dart';
 class _Hi {
   const _Hi._();
 
-  static const established = 'संस्था स्थापना';
+  static const established = 'स्थापना';
   static const registration = 'संस्था रजीस्टर नं.';
   static const certificate = 'प्रमाण पत्र';
   static const membershipNo = 'सदस्यता क्रमांक';
   static const date = 'दिनांक';
   static const photo = 'फोटो';
   static const name = 'नाम';
-  static const gotra = 'गौत्र';
+  static const gotra = 'गोत्र';
   static const jati = 'जाति';
-  static const dob = 'जन्म दि.';
-  static const village = 'गांव / सिटी';
+  static const dob = 'जन्म तारीख';
+  static const village = 'गाँव / सिटी';
   static const district = 'जिला';
   static const state = 'राज्य';
   static const address = 'पता';
-  static const phone = 'मोबाईल नं.';
+  static const phone = 'मोबाइल नं.';
   static const waris = 'वारिसदार';
   static const relation = 'सम्बन्ध';
-
-  /// The amount sits between the label-less dotted line and this text:
-  /// `..200.. रु प्रत्येक सहयोग पर लागु ।`
-  static const perContribution = 'रु प्रत्येक सहयोग पर लागु ।';
+  static const perContribution = 'प्रत्येक सहयोग';
   static const note = 'नोंध';
   static const karyakarta = 'कार्यकर्ता';
   static const president = 'अध्यक्ष';
-  static const headOffice = 'हेड ओफिस';
 }
 
 final _date = DateFormat('dd-MM-yyyy');
@@ -51,71 +47,6 @@ String _day(DateTime? d) => d == null ? '' : _date.format(d);
 String _assetUrl(String base, String path) {
   final sep = base.isEmpty || base.endsWith('/') ? '' : '/';
   return '$base${sep}assets/$path';
-}
-
-/// One `label ......value......` field. [grow] sets how much of the row it takes.
-String _field(String label, String value, {int grow = 1}) =>
-    '<div class="f" style="flex:$grow">'
-    '<span class="lbl">${_esc(label)}</span>'
-    '<span class="v">${_esc(value)}</span>'
-    '</div>';
-
-String _row(List<String> fields) => '<div class="row">${fields.join()}</div>';
-
-/// Ornamental corner flower motif matching the reference certificate's
-/// exact floral design with corner finial, central heart, and flowing spiral
-/// scrollwork. [flip] mirrors horizontally, [turn] vertically, so one drawing
-/// serves all four corners.
-String _cornerMotif(String position, {bool flip = false, bool turn = false}) {
-  final sx = flip ? -1 : 1;
-  final sy = turn ? -1 : 1;
-  return '''
-<svg class="corner $position" viewBox="0 0 200 200" aria-hidden="true">
-  <g transform="translate(${flip ? 200 : 0},${turn ? 200 : 0}) scale($sx,$sy)"
-     fill="none" stroke="#0A3D6B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-
-    <!-- ══ CORNER FINIAL (4-Point Ornate Rosette / Spearhead) ══ -->
-    <polygon points="18,18 7,7 11,3 23,13" fill="#0A3D6B" stroke="none"/>
-    <path d="M18,18 C26,12 22,4 12,6 C8,10 10,14 18,18
-             M18,18 C12,26 4,22 6,12 C10,8 14,10 18,18"/>
-
-    <!-- ══ CENTER HEART MOTIF ══ -->
-    <path d="M18,18 C28,8 44,14 44,32 C44,42 36,48 48,48
-             M18,18 C8,28 14,44 32,44 C42,44 48,36 48,48"/>
-
-    <!-- ══ BIG CIRCULAR SPIRALS (Symmetric across diagonal) ══ -->
-    <!-- Horizontal arm spiral -->
-    <path d="M48,48 C56,32 70,24 88,30 C104,38 104,68 86,76
-             C66,82 54,64 64,46 C72,34 88,40 86,52 C84,60 76,60 74,54"/>
-    <!-- Vertical arm spiral -->
-    <path d="M48,48 C32,56 24,70 30,88 C38,104 68,104 76,86
-             C82,66 64,54 46,64 C34,72 40,88 52,86 C60,84 60,76 54,74"/>
-
-    <!-- ══ OUTER VINE ARCH 1 & LEAF ACCENT ══ -->
-    <!-- Horizontal -->
-    <path d="M18,8 C36,4 62,6 84,16 M84,16 C92,8 98,12 94,20"/>
-    <!-- Vertical -->
-    <path d="M8,18 C4,36 6,62 16,84 M16,84 C8,92 12,98 20,94"/>
-
-    <!-- ══ OUTER VINE ARCH 2 & S-CURVE ══ -->
-    <!-- Horizontal -->
-    <path d="M84,16 C108,6 138,8 156,16 C168,24 182,22 192,16"/>
-    <!-- Vertical -->
-    <path d="M16,84 C6,108 8,138 16,156 C24,168 22,182 16,192"/>
-
-    <!-- ══ TERMINAL SCROLLS ══ -->
-    <!-- Horizontal -->
-    <path d="M192,16 C204,8 202,0 190,4 C182,8 186,16 194,14"/>
-    <!-- Vertical -->
-    <path d="M16,192 C8,204 0,202 4,190 C8,182 16,186 14,194"/>
-
-    <!-- ══ TRAILING ACCENT LEAF WISPS ══ -->
-    <!-- Horizontal -->
-    <path d="M140,14 C150,24 162,22 158,12 M38,16 C48,26 58,20 52,12"/>
-    <!-- Vertical -->
-    <path d="M14,140 C24,150 22,162 12,158 M16,38 C26,48 20,58 12,52"/>
-  </g>
-</svg>''';
 }
 
 /// Builds the printable membership certificate as one self-contained HTML
@@ -139,12 +70,6 @@ String buildCertificateHtml(CertificateData d, {required String baseUrl}) {
       d.contributionAmount > 0 ? _money.format(d.contributionAmount) : '';
   final phones = TrustInfo.headOfficePhones.join(' / ');
 
-  // One invocation centres; three spread left, centre and right.
-  final invocations =
-      TrustInfo.invocations.map((i) => '<span>${_esc(i)}</span>').join();
-  final invocationClass =
-      TrustInfo.invocations.length == 1 ? 'invocations one' : 'invocations';
-
   final shivaMark = shiva.isEmpty
       ? '<div class="logo-fallback"></div>'
       : '<img src="$shiva" alt="Lord Shiva">';
@@ -152,33 +77,11 @@ String buildCertificateHtml(CertificateData d, {required String baseUrl}) {
       ? '<div class="logo-fallback"></div>'
       : '<img src="$logo" alt="Logo">';
   final signMark = signature.isEmpty
-      ? '<div class="line"></div>'
+      ? '<div class="sign-line"></div>'
       : '<img src="$signature" alt="">';
   final memberPhoto = d.photoUrl.isNotEmpty
       ? '<img src="${_esc(d.photoUrl)}" alt="">'
       : _esc(_Hi.photo);
-
-  final rows = [
-    _row([
-      _field(_Hi.name, d.fullName, grow: 5),
-      _field(_Hi.gotra, d.gotra, grow: 2),
-      _field(_Hi.jati, d.jati, grow: 2),
-    ]),
-    _row([
-      _field(_Hi.dob, _day(d.dob)),
-      _field(_Hi.phone, d.phone, grow: 2),
-      _field(_Hi.village, d.village, grow: 3),
-    ]),
-    _row([
-      _field(_Hi.district, d.district, grow: 3),
-      _field(_Hi.state, d.state, grow: 3),
-      _field(_Hi.address, d.address, grow: 5),
-    ]),
-    _row([
-      _field(_Hi.waris, d.warisName, grow: 4),
-      _field(_Hi.relation, d.warisRelation, grow: 2),
-    ]),
-  ].join('\n        ');
 
   return '''<!DOCTYPE html>
 <html lang="hi">
@@ -205,11 +108,15 @@ String buildCertificateHtml(CertificateData d, {required String baseUrl}) {
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
   font-family: 'CertHindi', 'Noto Sans Devanagari', sans-serif;
-  color: #0A3D6B;
+  color: #1a1a4e;
   background: #fff;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   SHEET — A4 landscape container
+   ═══════════════════════════════════════════════════════════════ */
 .sheet {
   width: 291mm;
   height: 204mm;
@@ -219,62 +126,41 @@ html, body {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   PREMIUM BORDER FRAME & THICK CORNER LINES
+   OUTER FRAME — thick blue border with golden inner border
    ═══════════════════════════════════════════════════════════════ */
 .cert {
   position: relative;
   flex: 1;
   min-height: 0;
-  border: 2.2mm solid #0A3D6B;
-  border-radius: 2mm;
-  background: #EBF4FA;
-  padding: 4mm 7mm 2.5mm;
+  border: 3mm solid #0077c0;
+  background: linear-gradient(180deg, #e8f0f8 0%, #f0f4fa 40%, #e4ecf5 100%);
+  padding: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-/* ── Frame lines connecting the 4 corner flowers ── */
-.cert-line {
+/* Golden inner border line */
+.inner-border {
   position: absolute;
-  background: #0A3D6B;
-  z-index: 1;
+  top: 2mm;
+  left: 2mm;
+  right: 2mm;
+  bottom: 2mm;
+  border: 0.6mm solid #c8a84e;
   pointer-events: none;
-}
-.cert-line.top {
-  top: 3.8mm;
-  left: 31mm;
-  right: 31mm;
-  height: 0.8mm;
-}
-.cert-line.bottom {
-  bottom: 3.8mm;
-  left: 31mm;
-  right: 31mm;
-  height: 0.8mm;
-}
-.cert-line.left {
-  left: 3.8mm;
-  top: 31mm;
-  bottom: 31mm;
-  width: 0.8mm;
-}
-.cert-line.right {
-  right: 3.8mm;
-  top: 31mm;
-  bottom: 31mm;
-  width: 0.8mm;
+  z-index: 3;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   SUBTLE POLKA DOT & GLOW BACKGROUND
+   SUBTLE BACKGROUND PATTERN
    ═══════════════════════════════════════════════════════════════ */
 .watermark {
   position: absolute;
   inset: 0;
   background-image:
-    radial-gradient(circle, rgba(7, 87, 165, 0.16) 0.55mm, transparent 0.55mm);
-  background-size: 8mm 8mm;
+    radial-gradient(circle, rgba(7, 87, 165, 0.07) 0.5mm, transparent 0.5mm);
+  background-size: 7mm 7mm;
   pointer-events: none;
   z-index: 0;
 }
@@ -282,74 +168,52 @@ html, body {
 .glow {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at 50% 38%, rgba(215,235,248,0.7) 0%, rgba(235,244,250,0.0) 65%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.waves {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 38mm;
+  background: radial-gradient(ellipse at 50% 35%,
+    rgba(255,255,255,0.5) 0%,
+    rgba(235,244,250,0.0) 60%);
   pointer-events: none;
   z-index: 0;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   CORNER MOTIFS
+   CORNER DECORATIONS — ornamental corner accents
    ═══════════════════════════════════════════════════════════════ */
-.corner {
+.corner-decor {
   position: absolute;
-  width: 32mm;
-  height: 32mm;
-  opacity: 0.95;
-  z-index: 1;
+  width: 22mm;
+  height: 22mm;
+  z-index: 4;
   pointer-events: none;
 }
-.corner.tl { top: 2mm;    left: 2mm; }
-.corner.tr { top: 2mm;    right: 2mm; }
-.corner.bl { bottom: 2mm; left: 2mm; }
-.corner.br { bottom: 2mm; right: 2mm; }
+.corner-decor.tl { top: 1mm; left: 1mm; }
+.corner-decor.tr { top: 1mm; right: 1mm; }
+.corner-decor.bl { bottom: 1mm; left: 1mm; }
+.corner-decor.br { bottom: 1mm; right: 1mm; }
 
 /* ═══════════════════════════════════════════════════════════════
-   MASTHEAD — invocations, registration, states
+   CONTENT WRAPPER — padding inside the golden border
+   ═══════════════════════════════════════════════════════════════ */
+.content {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 3.5mm 8mm 0mm;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   INVOCATIONS — left and right religious text
    ═══════════════════════════════════════════════════════════════ */
 .invocations {
   display: flex;
   justify-content: space-between;
   font-size: 8.5pt;
-  padding: 0 8mm;
-  position: relative;
-  z-index: 1;
-  color: #B5121B;
+  padding: 0 5mm;
+  color: #c4161c;
   font-weight: 700;
   letter-spacing: 0.02em;
-}
-.invocations.one { justify-content: center; }
-
-.regline {
-  display: flex;
-  justify-content: center;
-  gap: 22mm;
-  font-size: 8pt;
-  margin-top: 0.5mm;
-  position: relative;
-  z-index: 1;
-  color: #0A3D6B;
-  letter-spacing: 0.01em;
-}
-.regline b { font-weight: 700; color: #B5121B; }
-
-.states {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11pt;
-  font-weight: 700;
-  padding: 0 8mm;
-  margin-top: 0.5mm;
-  position: relative;
-  z-index: 1;
-  color: #0A3D6B;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -357,35 +221,35 @@ html, body {
    ═══════════════════════════════════════════════════════════════ */
 .header-banner {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 4mm;
-  margin-top: -1mm;
-  position: relative;
-  z-index: 2;
-  padding: 0 2mm;
+  gap: 3mm;
+  margin-top: 0mm;
+  padding: 0 0mm;
 }
 
 .header-logo {
-  width: 28mm;
-  height: 28mm;
+  width: 30mm;
+  height: 30mm;
   flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle, rgba(255,255,255,0.95) 45%, rgba(215,235,248,0.3) 100%);
-  border: 0.65mm solid #0A3D6B;
   border-radius: 50%;
-  padding: 1.2mm;
-  box-shadow:
-    0 0 0 0.3mm rgba(212,175,55,0.4),
-    0 1mm 2.5mm rgba(10,61,107,0.18);
+  overflow: hidden;
 }
 .header-logo img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  border-radius: 50%;
+}
+.header-logo.shiva-wrap {
+  margin-top: -2mm;
+}
+.header-logo.logo-wrap {
+  width: 36mm;
+  height: 36mm;
+  margin-top: -2mm;
 }
 .logo-fallback {
   width: 100%;
@@ -406,54 +270,57 @@ html, body {
 
 .brand-title {
   font-family: 'CertTitle', 'CertHindi', sans-serif;
-  color: #B5121B;
-  font-size: 26pt;
+  color: #1a1a4e;
+  font-size: 28pt;
   font-weight: 700;
-  line-height: 1.1;
+  line-height: 1.15;
   letter-spacing: 0.02em;
-  text-shadow: 0.3mm 0.4mm 0.5mm rgba(10, 61, 107, 0.2);
 }
 
 .brand-subtitle {
-  font-size: 11pt;
+  font-size: 13pt;
   font-weight: 700;
-  color: #0A3D6B;
-  margin-top: 0.5mm;
+  color: #1a1a4e;
+  margin-top: 0mm;
   letter-spacing: 0.02em;
 }
 
-.header-address {
+.header-reg {
   font-size: 8.5pt;
   font-weight: 600;
-  color: #0A3D6B;
+  color: #1a1a4e;
   margin-top: 0.8mm;
-  line-height: 1.25;
+  line-height: 1.3;
+}
+
+.header-address {
+  font-size: 9pt;
+  font-weight: 700;
+  color: #1a1a4e;
+  margin-top: 0.3mm;
+  line-height: 1.3;
 }
 
 .header-phones {
   font-size: 9pt;
   font-weight: 700;
-  color: #0A3D6B;
-  margin-top: 0.5mm;
+  color: #1a1a4e;
+  margin-top: 0.3mm;
   letter-spacing: 0.03em;
 }
 
-/* ── Scheme pill badge ── */
+/* ── Certificate title pill badge ── */
 .cert-title {
   display: inline-block;
-  position: relative;
-  background: linear-gradient(180deg, #0F4C81 0%, #0A3D6B 100%);
+  background: linear-gradient(180deg, #2b3a7a 0%, #1a1a4e 100%);
   color: #fff;
   font-weight: 700;
-  font-size: 11pt;
-  padding: 1.2mm 9mm;
-  border-radius: 4mm;
-  letter-spacing: 0.04em;
-  margin-top: 1.5mm;
-  box-shadow:
-    0 0.8mm 2.5mm rgba(10,61,107,0.22),
-    inset 0 0.4mm 0 rgba(255,255,255,0.15);
-  border: 0.35mm solid rgba(212,175,55,0.6);
+  font-size: 12pt;
+  padding: 1.5mm 14mm;
+  border-radius: 5mm;
+  letter-spacing: 0.06em;
+  margin-top: 1.8mm;
+  box-shadow: 0 0.8mm 2mm rgba(26,26,78,0.25);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -463,57 +330,60 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 2mm;
-  margin-bottom: 1.5mm;
+  margin-top: 3mm;
+  margin-bottom: 1mm;
   font-size: 10pt;
   font-weight: 700;
-  color: #0A3D6B;
-  position: relative;
-  z-index: 2;
-  padding: 0 3mm;
+  color: #1a1a4e;
+  padding: 0 2mm;
 }
 .head-meta .side { flex: 1; }
 .head-meta .side.right { text-align: right; }
 .head-meta .val {
-  color: #B5121B;
-  font-weight: 700;
-  border-bottom: 0.35mm dotted #4A7FAF;
+  border-bottom: 0.4mm solid #333;
   padding: 0 4mm;
-  min-width: 34mm;
+  min-width: 40mm;
   display: inline-block;
   text-align: center;
+  color: #1a1a4e;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   BODY — fields + photo
+   BODY — two-column fields on left + photo on right
    ═══════════════════════════════════════════════════════════════ */
 .body {
   display: flex;
   gap: 5mm;
-  margin-top: 1mm;
+  margin-top: 2mm;
   flex: 1;
   min-height: 0;
-  position: relative;
-  z-index: 2;
+  padding: 0 2mm;
 }
 
-/* ── Photo frame (premium) ── */
+.fields-area {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Photo frame ── */
 .photo {
-  width: 32mm;
-  height: 40mm;
-  border: 0.65mm solid #0A3D6B;
-  border-radius: 1.5mm;
+  width: 34mm;
+  height: 38mm;
+  border: 0.8mm solid #1a1a4e;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 8.5pt;
-  color: #4A7FAF;
+  font-size: 11pt;
+  color: #1a1a4e;
+  font-weight: 700;
   flex: none;
-  background: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.85);
   overflow: hidden;
-  box-shadow:
-    0 0 0 0.35mm rgba(7,87,165,0.15),
-    0 0.8mm 2.5mm rgba(10,61,107,0.1);
+  margin-top: 0mm;
+  align-self: flex-start;
 }
 .photo img {
   width: 100%;
@@ -521,98 +391,109 @@ html, body {
   object-fit: cover;
 }
 
-/* ── Field rows ── */
-.fields {
-  flex: 1;
-  min-width: 0;
+/* ═══════════════════════════════════════════════════════════════
+   FIELD ROWS — label: ___value___ layout
+   ═══════════════════════════════════════════════════════════════ */
+.form-row {
   display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 1.8mm;
+  gap: 6mm;
+  margin-bottom: 3mm;
 }
-.row { display: flex; gap: 5mm; }
-.f { display: flex; align-items: baseline; gap: 1.5mm; min-width: 0; }
-.f .lbl {
-  font-size: 10pt;
+.form-row.single {
+  max-width: 60%;
+}
+
+.field {
+  display: flex;
+  align-items: baseline;
+  gap: 1.5mm;
+  min-width: 0;
+  flex: 1;
+}
+.field.grow2 { flex: 2; }
+.field.grow3 { flex: 3; }
+.field.grow4 { flex: 4; }
+.field.grow5 { flex: 5; }
+
+.field .lbl {
+  font-size: 10.5pt;
   white-space: nowrap;
   font-weight: 700;
-  color: #0A3D6B;
+  color: #1a1a4e;
 }
-.f .v {
+.field .val {
   flex: 1;
   min-width: 0;
-  border-bottom: 0.35mm dotted #4A7FAF;
-  color: #B5121B;
-  font-weight: 700;
+  border-bottom: 0.4mm solid #555;
+  color: #1a1a4e;
+  font-weight: 600;
   font-size: 10pt;
   padding: 0 2mm;
   min-height: 5.5mm;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  line-height: 1.5;
+  line-height: 1.6;
+}
+
+/* The top section: fields + photo side by side */
+.fields-with-photo {
+  display: flex;
+  gap: 5mm;
+}
+.fields-left {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   TAIL — amount, karyakarta/note, signature
+   SIGNATURE AREA — अध्यक्ष at bottom right
    ═══════════════════════════════════════════════════════════════ */
-.tail { display: flex; gap: 6mm; align-items: flex-end; }
-.tail .left { flex: 1; min-width: 0; }
-.amount {
+.signature-area {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+  padding: 0 4mm;
+  margin-top: auto;
+  margin-bottom: 3mm;
+}
+.sign-block {
+  text-align: center;
+  font-size: 11pt;
+  font-weight: 700;
+  color: #1a1a4e;
   display: flex;
   align-items: baseline;
   gap: 2mm;
-  font-size: 10pt;
-  font-weight: 700;
 }
-.amount .v {
-  border-bottom: 0.35mm dotted #4A7FAF;
-  color: #B5121B;
-  font-weight: 700;
-  min-width: 24mm;
-  text-align: center;
-  padding: 0 2mm;
+.sign-block .sign-line {
+  width: 40mm;
+  border-bottom: 0.4mm solid #333;
+  display: inline-block;
 }
-.tail .row { margin-top: 2mm; align-items: flex-end; }
-.note .v {
-  text-align: center;
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
-  line-height: 1.25;
+.sign-block img {
+  height: 10mm;
+  display: block;
+  margin: 0 auto 1mm;
 }
-
-/* ── Signature block ── */
-.sign {
-  text-align: center;
-  font-size: 9.5pt;
-  flex: none;
-  width: 50mm;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.sign img { height: 10mm; display: block; margin: 0 auto 0.5mm; }
-.sign .line { height: 10mm; border-bottom: 0.35mm solid #0A3D6B; width: 100%; }
-.sign b { display: block; font-weight: 700; margin-top: 1mm; color: #0A3D6B; }
 
 /* ═══════════════════════════════════════════════════════════════
-   FOOTER — slogan ribbon
+   FOOTER — golden slogan bar
    ═══════════════════════════════════════════════════════════════ */
-.slogan {
-  align-self: center;
+.slogan-bar {
+  background: linear-gradient(180deg, #f5e6b8 0%, #e8d090 50%, #d4af37 100%);
+  color: #1a1a4e;
+  text-align: center;
+  font-size: 16pt;
+  font-weight: 700;
+  padding: 3mm 12mm;
+  letter-spacing: 0.04em;
+  margin-top: auto;
   position: relative;
   z-index: 2;
-  margin-top: 2mm;
-  background: linear-gradient(180deg, #0F4C81 0%, #0A3D6B 100%);
-  color: #fff;
-  text-align: center;
-  font-size: 9pt;
-  font-weight: 700;
-  padding: 1mm 12mm;
-  border-radius: 0.6mm;
-  letter-spacing: 0.03em;
-  box-shadow: 0 0.8mm 2mm rgba(10,61,107,0.18);
 }
 </style>
 </head>
@@ -622,92 +503,193 @@ html, body {
     <!-- Background layers -->
     <div class="watermark"></div>
     <div class="glow"></div>
-    <svg class="waves" viewBox="0 0 1200 150" preserveAspectRatio="none" aria-hidden="true">
-      <path d="M0,150 L1200,150 L1200,105 Q950,135 600,85 Q250,35 0,105 Z" fill="rgba(10,61,107,0.045)"/>
-      <path d="M0,150 L1200,150 L1200,125 Q900,148 600,115 Q300,82 0,135 Z" fill="rgba(7,87,165,0.035)"/>
+
+    <!-- Golden inner border -->
+    <div class="inner-border"></div>
+
+    <!-- Corner decorations -->
+    <svg class="corner-decor tl" viewBox="0 0 80 80" aria-hidden="true">
+      <path d="M5,5 L5,35 M5,5 L35,5" stroke="#0077c0" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M5,5 C5,5 15,5 15,15 C15,25 5,25 5,15" stroke="#0077c0" stroke-width="1.5" fill="none"/>
+      <circle cx="8" cy="8" r="2.5" fill="#0077c0"/>
+      <path d="M10,5 Q20,3 25,8 Q20,13 10,10 Z" fill="rgba(0,119,192,0.2)" stroke="#0077c0" stroke-width="0.8"/>
+      <path d="M5,10 Q3,20 8,25 Q13,20 10,10 Z" fill="rgba(0,119,192,0.2)" stroke="#0077c0" stroke-width="0.8"/>
+    </svg>
+    <svg class="corner-decor tr" viewBox="0 0 80 80" aria-hidden="true">
+      <path d="M75,5 L75,35 M75,5 L45,5" stroke="#0077c0" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M75,5 C75,5 65,5 65,15 C65,25 75,25 75,15" stroke="#0077c0" stroke-width="1.5" fill="none"/>
+      <circle cx="72" cy="8" r="2.5" fill="#0077c0"/>
+      <path d="M70,5 Q60,3 55,8 Q60,13 70,10 Z" fill="rgba(0,119,192,0.2)" stroke="#0077c0" stroke-width="0.8"/>
+      <path d="M75,10 Q77,20 72,25 Q67,20 70,10 Z" fill="rgba(0,119,192,0.2)" stroke="#0077c0" stroke-width="0.8"/>
+    </svg>
+    <svg class="corner-decor bl" viewBox="0 0 80 80" aria-hidden="true">
+      <path d="M5,75 L5,45 M5,75 L35,75" stroke="#0077c0" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M5,75 C5,75 15,75 15,65 C15,55 5,55 5,65" stroke="#0077c0" stroke-width="1.5" fill="none"/>
+      <circle cx="8" cy="72" r="2.5" fill="#0077c0"/>
+      <path d="M10,75 Q20,77 25,72 Q20,67 10,70 Z" fill="rgba(0,119,192,0.2)" stroke="#0077c0" stroke-width="0.8"/>
+      <path d="M5,70 Q3,60 8,55 Q13,60 10,70 Z" fill="rgba(0,119,192,0.2)" stroke="#0077c0" stroke-width="0.8"/>
+    </svg>
+    <svg class="corner-decor br" viewBox="0 0 80 80" aria-hidden="true">
+      <path d="M75,75 L75,45 M75,75 L45,75" stroke="#0077c0" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M75,75 C75,75 65,75 65,65 C65,55 75,55 75,65" stroke="#0077c0" stroke-width="1.5" fill="none"/>
+      <circle cx="72" cy="72" r="2.5" fill="#0077c0"/>
+      <path d="M70,75 Q60,77 55,72 Q60,67 70,70 Z" fill="rgba(0,119,192,0.2)" stroke="#0077c0" stroke-width="0.8"/>
+      <path d="M75,70 Q77,60 72,55 Q67,60 70,70 Z" fill="rgba(0,119,192,0.2)" stroke="#0077c0" stroke-width="0.8"/>
     </svg>
 
-    <!-- Ornamental corners -->
-    ${_cornerMotif('tl')}
-    ${_cornerMotif('tr', flip: true)}
-    ${_cornerMotif('bl', turn: true)}
-    ${_cornerMotif('br', flip: true, turn: true)}
+    <!-- Main content -->
+    <div class="content">
 
-    <!-- Corner connecting border lines -->
-    <div class="cert-line top"></div>
-    <div class="cert-line bottom"></div>
-    <div class="cert-line left"></div>
-    <div class="cert-line right"></div>
-
-    <!-- Invocations -->
-    <div class="$invocationClass">$invocations</div>
-
-    <!-- Registration line -->
-    <div class="regline">
-      <span>${_esc(_Hi.established)} : <b>${_esc(TrustInfo.establishedOn)}</b></span>
-      <span>${_esc(_Hi.registration)} <b>${_esc(TrustInfo.registrationNo)}</b></span>
-    </div>
-
-    <!-- State names -->
-    <div class="states">
-      <span>${_esc(TrustInfo.leftState)}</span>
-      <span>${_esc(TrustInfo.rightState)}</span>
-    </div>
-
-    <!-- Header Banner: Shiva (Left) | Title & Address (Mid) | Logo (Right) -->
-    <div class="header-banner">
-      <div class="header-logo shiva">$shivaMark</div>
-      <div class="header-center">
-        <div class="brand-title">${_esc(TrustInfo.nameHindi)}</div>
-        <div class="brand-subtitle">${_esc(TrustInfo.place)}-गुजरात</div>
-        <div class="header-address">${_esc(_Hi.headOffice)} :- ${_esc(TrustInfo.headOfficeAddress)}</div>
-        <div class="header-phones">M : ${_esc(phones)}</div>
-        <div class="cert-title">&bull; ${_esc(_Hi.certificate)} &bull;</div>
+      <!-- Invocations — left and right -->
+      <div class="invocations">
+        <span>${_esc(TrustInfo.invocations.first)}</span>
+        <span>${_esc(TrustInfo.invocations.last)}</span>
       </div>
-      <div class="header-logo logo">$logoMark</div>
-    </div>
 
-    <!-- Membership No · Date -->
-    <div class="head-meta">
-      <div class="side">
-        ${_esc(_Hi.membershipNo)}:
-        <span class="val">${_esc(d.regNo)}</span>
+      <!-- Header Banner: Shiva (Left) | Title & Address (Mid) | Logo (Right) -->
+      <div class="header-banner">
+        <div class="header-logo shiva-wrap">$shivaMark</div>
+        <div class="header-center">
+          <div class="brand-title">${_esc(TrustInfo.nameHindi)}</div>
+          <div class="brand-subtitle">${_esc(TrustInfo.place)} - गुजरात</div>
+          <div class="header-reg">
+            ${_esc(_Hi.established)}: ${_esc(TrustInfo.establishedOn)}
+            &nbsp; | &nbsp;
+            ${_esc(_Hi.registration)}: &nbsp;${_esc(TrustInfo.registrationNo)}
+          </div>
+          <div class="header-address">${_esc(TrustInfo.headOfficeAddress)}</div>
+          <div class="header-phones">Mobile: ${_esc(phones)}</div>
+          <div class="cert-title">${_esc(_Hi.certificate)}</div>
+        </div>
+        <div class="header-logo logo-wrap">$logoMark</div>
       </div>
-      <div class="side right">
-        ${_esc(_Hi.date)}:
-        <span class="val">${_esc(_day(d.issuedOn))}</span>
-      </div>
-    </div>
 
-    <!-- Body: fields + photo -->
-    <div class="body">
-      <div class="fields">
-        $rows
-        <div class="tail">
-          <div class="left">
-            <div class="amount">
-              <span class="v">${_esc(amount)}</span>
-              <span>${_esc(_Hi.perContribution)}</span>
-            </div>
-            <div class="row">
-              ${_field(_Hi.karyakarta, d.agentName, grow: 3)}
-              <div class="f note" style="flex:4">
-                <span class="lbl">${_esc(_Hi.note)}</span>
-                <span class="v">${_esc(d.payoutNote)}</span>
+      <!-- Membership No · Date -->
+      <div class="head-meta">
+        <div class="side">
+          ${_esc(_Hi.membershipNo)}:
+          <span class="val">${_esc(d.regNo)}</span>
+        </div>
+        <div class="side right">
+          ${_esc(_Hi.date)}:
+          <span class="val">${_esc(_day(d.issuedOn))}</span>
+        </div>
+      </div>
+
+      <!-- Body: fields + photo -->
+      <div class="body">
+        <div class="fields-area">
+          <!-- Top section: two-column fields with photo on right -->
+          <div class="fields-with-photo">
+            <div class="fields-left">
+              <!-- Row 1: नाम / गोत्र -->
+              <div class="form-row">
+                <div class="field grow3">
+                  <span class="lbl">${_esc(_Hi.name)}:</span>
+                  <span class="val">${_esc(d.fullName)}</span>
+                </div>
+                <div class="field grow2">
+                  <span class="lbl">${_esc(_Hi.gotra)}:</span>
+                  <span class="val">${_esc(d.gotra)}</span>
+                </div>
+              </div>
+
+              <!-- Row 2: जाति / जन्म तारीख -->
+              <div class="form-row">
+                <div class="field grow3">
+                  <span class="lbl">${_esc(_Hi.jati)}:</span>
+                  <span class="val">${_esc(d.jati)}</span>
+                </div>
+                <div class="field grow2">
+                  <span class="lbl">${_esc(_Hi.dob)} :</span>
+                  <span class="val">${_esc(_day(d.dob))}</span>
+                </div>
+              </div>
+
+              <!-- Row 3: मोबाइल नं. / गाँव-सिटी -->
+              <div class="form-row">
+                <div class="field grow3">
+                  <span class="lbl">${_esc(_Hi.phone)}:</span>
+                  <span class="val">${_esc(d.phone)}</span>
+                </div>
+                <div class="field grow2">
+                  <span class="lbl">${_esc(_Hi.village)}:</span>
+                  <span class="val">${_esc(d.village)}</span>
+                </div>
+              </div>
+
+              <!-- Row 4: जिला / राज्य -->
+              <div class="form-row">
+                <div class="field grow3">
+                  <span class="lbl">${_esc(_Hi.district)}:</span>
+                  <span class="val">${_esc(d.district)}</span>
+                </div>
+                <div class="field grow2">
+                  <span class="lbl">${_esc(_Hi.state)}:</span>
+                  <span class="val">${_esc(d.state)}</span>
+                </div>
               </div>
             </div>
+
+            <!-- Photo box — positioned to right of first 4 rows -->
+            <div class="photo">$memberPhoto</div>
           </div>
-          <div class="sign">
-            $signMark
-            <b>${_esc(_Hi.president)}</b>
+
+          <!-- Remaining rows span full width -->
+          <!-- Row 5: पता / वारिसदार -->
+          <div class="form-row">
+            <div class="field grow3">
+              <span class="lbl">${_esc(_Hi.address)}:</span>
+              <span class="val">${_esc(d.address)}</span>
+            </div>
+            <div class="field grow3">
+              <span class="lbl">${_esc(_Hi.waris)}:</span>
+              <span class="val">${_esc(d.warisName)}</span>
+            </div>
+          </div>
+
+          <!-- Row 6: सम्बन्ध / प्रत्येक सहयोग -->
+          <div class="form-row">
+            <div class="field grow3">
+              <span class="lbl">${_esc(_Hi.relation)} :</span>
+              <span class="val">${_esc(d.warisRelation)}</span>
+            </div>
+            <div class="field grow3">
+              <span class="lbl">${_esc(_Hi.perContribution)}:</span>
+              <span class="val">${_esc(amount)}</span>
+            </div>
+          </div>
+
+          <!-- Row 7: कार्यकर्ता (single, half width) -->
+          <div class="form-row single">
+            <div class="field">
+              <span class="lbl">${_esc(_Hi.karyakarta)}:</span>
+              <span class="val">${_esc(d.agentName)}</span>
+            </div>
+          </div>
+
+          <!-- Row 8: नोंध (single, half width) -->
+          <div class="form-row single">
+            <div class="field">
+              <span class="lbl">${_esc(_Hi.note)}:</span>
+              <span class="val">${_esc(d.payoutNote)}</span>
+            </div>
           </div>
         </div>
       </div>
-      <div class="photo">$memberPhoto</div>
+
+      <!-- Signature: अध्यक्ष at bottom right -->
+      <div class="signature-area">
+        <div class="sign-block">
+          <span>${_esc(_Hi.president)}:</span>
+          $signMark
+        </div>
+      </div>
+
     </div>
 
-    <!-- Footer Slogan -->
-    <div class="slogan">${_esc(TrustInfo.slogan)}</div>
+    <!-- Footer Slogan Bar — golden -->
+    <div class="slogan-bar">${_esc(TrustInfo.slogan)}</div>
   </div>
 </div>
 <script>window.addEventListener('load', function () { window.print(); });</script>
