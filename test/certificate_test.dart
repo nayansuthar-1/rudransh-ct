@@ -112,7 +112,8 @@ void main() {
     final html = buildCertificateHtml(_data(), baseUrl: 'https://trust.test/');
 
     test('prints every member value', () {
-      expect(html, contains('Punamabhai Sonabhai'));
+      expect(html, contains('>Punamabhai<'));
+      expect(html, contains('>Sonabhai<'));
       expect(html, contains('SSY-2026-0184'));
       expect(html, contains('Chauhan'));
       expect(html, contains('Luhar'));
@@ -159,12 +160,35 @@ void main() {
       expect(html, contains('height: 209.31mm'));
     });
 
-    test('writes the name on the नाम line', () {
+    test('writes the name and the father on their own lines', () {
       expect(
         html,
-        contains('नाम:</span><div class="ln" style="width:150.00pt">'
-            '<span class="v">Punamabhai Sonabhai</span>'),
+        contains('>नाम:</span><div class="ln" style="width:150.00pt">'
+            '<span class="v">Punamabhai</span>'),
       );
+      expect(
+        html,
+        contains('>पिता/पति का नाम:</span><div class="ln" '
+            'style="width:150.00pt"><span class="v">Sonabhai</span>'),
+      );
+    });
+
+    test('नोंध is a field of its own, on the row under सम्बन्ध', () {
+      final relation = html.indexOf('>सम्बन्ध :</span>');
+      final note = html.indexOf('>नोंध:</span>');
+      expect(relation, isNonNegative);
+      expect(note, greaterThan(relation));
+      expect(
+        html,
+        contains('>नोंध:</span><div class="ln"><span class="v">'
+            'तीन महीने तक रु 25000'),
+      );
+    });
+
+    test('prints the payout rule under the fields', () {
+      for (final line in TrustInfo.certificateRule) {
+        expect(html, contains(line));
+      }
     });
 
     test('the agent signs as कार्यकर्ता', () {

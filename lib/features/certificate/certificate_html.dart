@@ -42,9 +42,14 @@ const _scale = 841.889764 / _sheetW;
 const _artW = 2559;
 const _artH = 1659;
 
-/// Baseline of the first body row, and the distance between rows.
+/// Baseline of the first body row, and the distance between rows. The
+/// reference spaces its six rows 24pt apart; ours has eight, so they are
+/// drawn 21pt apart to leave the rule and the signatures where they were.
 const _row1 = 175.23;
-const _rowPitch = 24.008;
+const _rowPitch = 21.0;
+
+/// Baseline of the rule's first line: 11pt under the नोंध row's line.
+const _ruleBase = _row1 + 7 * _rowPitch + 4.70 + 1 + 11;
 
 /// Wraps each run of Latin letters and digits — `01-07-2026`, `F/0000/B.K.,`
 /// — in a tspan for the Latin face, as the reference sets `C-3,` in Arial
@@ -150,40 +155,51 @@ String buildCertificateHtml(CertificateData d, {required String baseUrl}) {
       ? '<img src="${_esc(d.photoUrl)}" alt="">'
       : '<span>फोटो</span>';
 
+  // Rows 0–5 are the reference's own fields, labels and line lengths. The
+  // सम्बन्ध and नोंध rows are ours, in the same style.
   final rows = [
     _rowHtml(0, spread: true, [
       _Field('सदस्यता क्रमांक:', d.regNo, width: 90),
       _Field('दिनांक:', _day(d.issuedOn), width: 62.74),
     ]),
     _rowHtml(1, [
-      _Field('नाम:', d.fullName, width: 150),
-      _Field('गोत्र:', d.gotra),
+      _Field('नाम:', d.name, width: 150),
+      _Field('पिता/पति का नाम:', d.fatherOrHusbandName, width: 150),
     ]),
     _rowHtml(2, [
-      _Field('जाति:', d.jati, width: 90),
-      _Field('जन्म तारीख :', _day(d.dob), width: 90),
-      _Field('मोबाइल नं.:', d.phone),
+      _Field('गोत्र:', d.gotra, width: 90),
+      _Field('जाति:', d.jati, width: 100),
+      _Field('जन्म दि.:', _day(d.dob), width: 110),
     ]),
     _rowHtml(3, [
-      _Field('गाँव / सिटी:', d.village, width: 110),
-      _Field('जिला:', d.district, width: 90),
-      _Field('राज्य:', d.state),
+      _Field('मोबाईल नंबर', d.phone, width: 140),
+      _Field('गाँव/शहर का नाम:', d.village, width: 135),
     ]),
     _rowHtml(4, [
-      _Field('पता:', d.address),
-      _Field('वारिसदार:', d.warisName, width: 110),
+      _Field('जिला:', d.district, width: 160),
+      _Field('राज्य:', d.state, width: 180),
     ]),
     _rowHtml(5, [
-      _Field('सम्बन्ध :', d.warisRelation, width: 110),
-      _Field('प्रत्येक सहयोग:', amount, width: 70, unit: 'रुपये'),
+      _Field('वारिसदार:', d.warisName, width: 160),
+      _Field('प्रत्येक मायरा पर सहयोग राशि:', amount,
+          width: 70, unit: 'रुपये'),
+    ]),
+    _rowHtml(6, [
+      _Field('सम्बन्ध :', d.warisRelation, width: 160),
+    ]),
+    _rowHtml(7, [
+      _Field('नोंध:', d.payoutNote.trim()),
     ]),
   ].join('\n  ');
 
-  // The नोंध sits where the reference prints its payout rule. With nothing
-  // to say it keeps a dotted line to write on, as every other field does.
-  final note = d.payoutNote.trim().isEmpty
-      ? 'नोंध: <span class="blank"></span>'
-      : 'नोंध: ${_esc(d.payoutNote.trim())}';
+  // The trust's rule, centred under the fields as the reference prints its
+  // own: line 1 tracked out 0.29pt as there, line 2 plain.
+  final rule = [
+    for (final (i, line) in TrustInfo.certificateRule.indexed)
+      '<div class="rule-line${i == 0 ? ' first' : ''}" '
+          'style="top:${(_ruleBase + i * 11.9 - 0.896 * 8.5).toStringAsFixed(2)}pt">'
+          '${_esc(line)}</div>',
+  ].join('\n  ');
 
   return '''<!DOCTYPE html>
 <html lang="hi">
@@ -305,7 +321,7 @@ html, body {
 .l { font-size: 9.5pt; font-weight: 400; }
 .ln { position: relative; margin-left: 4pt; flex: none; }
 .f.grow .ln { flex: 1 1 0; min-width: 0; }
-.ln::after, .blank::after, .sig .rule {
+.ln::after, .sig .rule {
   content: '';
   position: absolute;
   left: 0;
@@ -323,23 +339,15 @@ html, body {
   font-weight: 700;
 }
 
-.note {
+.rule-line {
   position: absolute;
   left: 28pt;
   width: 539.28pt;
-  top: 318.06pt;
   font-size: 8.5pt;
-  line-height: 11.9pt;
   text-align: center;
+  white-space: nowrap;
 }
-.note .blank {
-  display: inline-block;
-  position: relative;
-  width: 250pt;
-  height: 11.9pt;
-  vertical-align: top;
-}
-.note .blank::after { top: 9pt; }
+.rule-line.first { letter-spacing: 0.29pt; }
 
 .slogan {
   position: absolute;
@@ -365,7 +373,7 @@ html, body {
   <div class="title">प्रमाण पत्र</div>
   <div class="photo">$photo</div>
   $rows
-  <div class="note">$note</div>
+  $rule
   <div class="sig" style="left:77.09pt;width:155.49pt">
     <div class="name">${_esc(d.agentName)}</div><div class="rule"></div><div class="role">कार्यकर्ता</div>
   </div>
@@ -386,14 +394,9 @@ function fitValues() {
   document.querySelectorAll('.v').forEach(function (el) {
     fit(el, function () { return el.parentNode.clientWidth; }, 10, 6);
   });
-  // The नोंध may take two lines, as the reference's rule does; past that
-  // it would run into the signatures.
-  var note = document.querySelector('.note');
-  var noteSize = 8.5;
-  while (note.offsetHeight > 32 && noteSize > 6) {
-    noteSize -= 0.25;
-    note.style.fontSize = noteSize + 'pt';
-  }
+  document.querySelectorAll('.rule-line').forEach(function (el) {
+    fit(el, function () { return el.clientWidth; }, 8.5, 6);
+  });
   document.querySelectorAll('.sig .name').forEach(function (el) {
     fit(el, function () { return el.clientWidth; }, 9.5, 6);
   });

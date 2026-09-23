@@ -62,6 +62,14 @@ class TrustInfo {
     '95863 40736',
   ];
 
+  /// The payout rule printed under the certificate's fields, one entry per
+  /// line, worded as the reference certificate has it.
+  static const certificateRule = <String>[
+    'जुड़ने की तिथि से 12 माह पहले मायरा 00 एवं 12 माह से 18 माह तक 101000 '
+        'एवं 18 माह बाद सदस्यों के हिसाब से नियमानुसार राशि दी जाएगी।',
+    'यह नियम 13-5-2026 से लागू है |',
+  ];
+
   /// The line across the foot of the certificate.
   static const slogan = 'आपका साथ सहयोग वही समाज का कल्याण';
 
