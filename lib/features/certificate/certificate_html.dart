@@ -200,11 +200,13 @@ String buildCertificateHtml(CertificateData d, {required String baseUrl}) {
   ].join('\n  ');
 
   // The trust's rule, centred under the fields as the reference prints its
-  // own: line 1 tracked out 0.29pt as there, line 2 plain.
+  // own. The lines sit centred on the reference's two-line block, so a
+  // single line lands midway between its two.
+  final ruleLines = TrustInfo.certificateRule;
   final rule = [
-    for (final (i, line) in TrustInfo.certificateRule.indexed)
-      '<div class="rule-line${i == 0 ? ' first' : ''}" '
-          'style="top:${(_ruleBase + i * 11.9 - 0.896 * 8.5).toStringAsFixed(2)}pt">'
+    for (final (i, line) in ruleLines.indexed)
+      '<div class="rule-line" '
+          'style="top:${(_ruleBase + (i + 1 - ruleLines.length / 2) * 11.9 - 0.896 * 8.5).toStringAsFixed(2)}pt">'
           '${_esc(line)}</div>',
   ].join('\n  ');
 
@@ -348,14 +350,13 @@ html, body {
 
 .rule-line {
   position: absolute;
-  /* Clear of the frame's side lines and corner flourishes. */
-  left: 40pt;
-  width: 515.28pt;
+  /* Clear of the frame's side lines (at about 26pt and 573pt) by 8pt. */
+  left: 34pt;
+  width: 527.28pt;
   font-size: 8.5pt;
   text-align: center;
   white-space: nowrap;
 }
-.rule-line.first { letter-spacing: 0.29pt; }
 
 /* Signatures: the name over a dotted line, the role under it. */
 .sig { position: absolute; top: 0; height: 100%; text-align: center; font-weight: 700; }
