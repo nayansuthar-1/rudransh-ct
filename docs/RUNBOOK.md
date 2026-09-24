@@ -45,7 +45,7 @@ Free projects reject custom email templates unless SMTP is configured in the
 same push. In `config.toml`, `[auth.email] enable_signup` switches email login
 itself and must stay `true`; `[auth] enable_signup = false` is what blocks new
 sign-ups. `site_url` and `additional_redirect_urls` point at
-`rudransh-ct.pages.dev` (there is no custom domain). What the push sets, for
+`rudransh-green.vercel.app` (there is no custom domain). What the push sets, for
 reference (Dashboard → **Authentication**):
 
 | Setting | Value |
@@ -53,8 +53,8 @@ reference (Dashboard → **Authentication**):
 | Sign In / Providers → Allow new users to sign up | **Off** |
 | Email provider → Email OTP length | 6 |
 | Email provider → Email OTP expiration | 600 seconds |
-| URL Configuration → Site URL | `https://rudransh-ct.pages.dev` |
-| URL Configuration → Redirect URLs | `https://rudransh-ct.pages.dev`, `https://*.rudransh-ct.pages.dev`, `http://localhost:8080` |
+| URL Configuration → Site URL | `https://rudransh-green.vercel.app` |
+| URL Configuration → Redirect URLs | `https://rudransh-green.vercel.app`, `https://rudransh-green.vercel.app/**`, `http://localhost:8080` |
 | Emails → SMTP Settings | Brevo: host `smtp-relay.brevo.com`, port 587, user and SMTP key from Brevo, sender `rudranshct@gmail.com` (verified sender address) |
 | Rate Limits → emails per hour | 100 (possible only after custom SMTP is on) |
 | Emails → Templates → **Magic Link** | subject and body from `supabase/templates/otp.html` |

@@ -22,7 +22,8 @@ class RudranshAdminApp extends ConsumerWidget {
     );
 
     return MaterialApp.router(
-      title: '${S.appName} · ${S.appSubtitle}',
+      // Members and agents see this tab title too: no "Admin Panel".
+      title: S.appName,
       debugShowCheckedModeBanner: false,
       routerConfig: router,
       theme: AppTheme.light(),

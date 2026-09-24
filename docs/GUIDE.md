@@ -4,7 +4,7 @@
 
 The trust's register, receipt book and claim file in one website. Staff open it in a browser, sign in with a code sent to their email, and every entry is saved safely online.
 
-- **Website:** rudransh-ct.pages.dev
+- **Website:** rudransh-green.vercel.app. Office login: `/login`. Members: `/m` (the bare address opens it too). Agents: `/a`.
 - **Launch:** Mon 5 Oct 2026
 - **Running cost:** ₹0 a month
 - **Status as of:** 17 Sep 2026

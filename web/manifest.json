@@ -1,11 +1,11 @@
 {
-    "name": "Rudransh CT Admin Panel",
+    "name": "Rudransh CT",
     "short_name": "Rudransh CT",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#F4F6FB",
     "theme_color": "#2563EB",
-    "description": "Admin panel for Rudransh Charitable Trust — yojna, members, agents and payment records.",
+    "description": "Rudransh Charitable Trust — members, agents and the trust office.",
     "orientation": "any",
     "prefer_related_applications": false,
     "icons": [

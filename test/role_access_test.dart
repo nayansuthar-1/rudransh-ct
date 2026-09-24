@@ -68,15 +68,32 @@ Future<ProviderContainer> _pumpAs(
 
 void main() {
   group('redirectFor', () {
-    test('signed out users go to login', () {
-      expect(redirectFor(const AuthState(), AppRoutes.dashboard), AppRoutes.login);
-      expect(redirectFor(const AuthState(), AppRoutes.agentHome), AppRoutes.login);
-      expect(redirectFor(const AuthState(), AppRoutes.login), isNull);
+    test('signed out users go to the login page for that part of the app', () {
+      const out = AuthState();
+      expect(redirectFor(out, AppRoutes.dashboard), AppRoutes.login);
+      expect(redirectFor(out, AppRoutes.members), AppRoutes.login);
+      expect(redirectFor(out, AppRoutes.agentHome), AppRoutes.agentLogin);
+      expect(redirectFor(out, AppRoutes.agentDues), AppRoutes.agentLogin);
+      expect(redirectFor(out, AppRoutes.memberHome), AppRoutes.memberLogin);
+      expect(redirectFor(out, AppRoutes.memberPayments), AppRoutes.memberLogin);
+      for (final page in AppRoutes.loginPages) {
+        expect(redirectFor(out, page), isNull);
+      }
+    });
+
+    test('the bare site address opens the member login, not the office one',
+        () {
+      expect(
+        redirectFor(const AuthState(), AppRoutes.root),
+        AppRoutes.memberLogin,
+      );
     });
 
     test('each role lands on its own home after login', () {
       for (final role in UserRole.values) {
-        expect(redirectFor(_signedIn(role), AppRoutes.login), role.home);
+        for (final page in AppRoutes.loginPages) {
+          expect(redirectFor(_signedIn(role), page), role.home);
+        }
       }
       expect(UserRole.staff.home, AppRoutes.dashboard);
       expect(UserRole.agent.home, AppRoutes.agentHome);
@@ -178,7 +195,11 @@ void main() {
     expect(find.byType(AppShell), findsNothing);
   });
 
-  for (final (role, visible) in [(UserRole.owner, true), (UserRole.staff, false)]) {
+  // The owner is offered the invite only once agents may sign in.
+  for (final (role, visible) in [
+    (UserRole.owner, AuthController.agentsMaySignIn),
+    (UserRole.staff, false),
+  ]) {
     testWidgets(
         'invite action for agents is ${visible ? 'shown' : 'hidden'} for ${role.name}',
         (tester) async {
@@ -272,7 +293,7 @@ void main() {
     test('agents and other staff wait for Release 2', () {
       expect(
         AuthController.mayUseApp(user(UserRole.agent, 'agent@example.com')),
-        isFalse,
+        AuthController.agentsMaySignIn,
       );
       expect(
         AuthController.mayUseApp(user(UserRole.staff, 'staff@example.com')),
@@ -282,6 +303,83 @@ void main() {
         AuthController.mayUseApp(user(UserRole.owner, 'other@example.com')),
         isFalse,
       );
+    });
+  });
+
+  group('login pages', () {
+    Future<void> open(WidgetTester tester, String page) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(390, 844);
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authControllerProvider
+                .overrideWith(() => _FixedAuth(const AuthState())),
+          ],
+          child: const RudranshAdminApp(),
+        ),
+      );
+      ProviderScope.containerOf(tester.element(find.byType(RudranshAdminApp)))
+          .read(routerProvider)
+          .go(page);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the member login is in Hindi and says nothing of the office',
+        (tester) async {
+      await open(tester, AppRoutes.memberLogin);
+      expect(find.text(const MemberText(MemberLang.hi).signInTitle),
+          findsOneWidget);
+      expect(find.text(const MemberText(MemberLang.hi).noEmailLookup),
+          findsOneWidget);
+      expect(find.textContaining('office'), findsNothing);
+      expect(find.text(S.officeSignIn), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the office login does not point members anywhere',
+        (tester) async {
+      await open(tester, AppRoutes.login);
+      expect(find.text(S.officeSignIn), findsOneWidget);
+      expect(find.text(const MemberText(MemberLang.hi).noEmailLookup),
+          findsNothing);
+      expect(find.byType(TextButton), findsNothing);
+    });
+
+    testWidgets('the agent login is its own page', (tester) async {
+      await open(tester, AppRoutes.agentLogin);
+      expect(find.text(S.agentSignIn), findsOneWidget);
+      expect(find.text(S.officeSignIn), findsNothing);
+    });
+  });
+
+  group('each login page admits its own role only', () {
+    AppUser user(UserRole role, String email) =>
+        AppUser(id: 'u', name: 'U', email: email, role: role);
+    final office = user(UserRole.owner, Env.adminEmail);
+    final member = user(UserRole.member, 'ram@example.com');
+    final agent = user(UserRole.agent, 'agent@example.com');
+
+    test('the office page takes the office only', () {
+      expect(AuthController.admits(LoginPortal.office, office), isTrue);
+      expect(AuthController.admits(LoginPortal.office, member), isFalse);
+      expect(AuthController.admits(LoginPortal.office, agent), isFalse);
+    });
+
+    test('the member page takes members only', () {
+      expect(AuthController.admits(LoginPortal.member, member), isTrue);
+      expect(AuthController.admits(LoginPortal.member, office), isFalse);
+      expect(AuthController.admits(LoginPortal.member, agent), isFalse);
+    });
+
+    test('the agent page takes agents only, once they may sign in', () {
+      expect(
+        AuthController.admits(LoginPortal.agent, agent),
+        AuthController.agentsMaySignIn,
+      );
+      expect(AuthController.admits(LoginPortal.agent, office), isFalse);
+      expect(AuthController.admits(LoginPortal.agent, member), isFalse);
     });
   });
 
@@ -331,6 +429,38 @@ void main() {
       final state = await request('someone.else@example.com');
       expect(state.stage, isNot(AuthStage.awaitingOtp));
       expect(state.error, isNotNull);
+    });
+  });
+
+  group('login pages refuse the wrong email before sending a code', () {
+    Future<AuthState> request(String email, LoginPortal portal) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await container
+          .read(authControllerProvider.notifier)
+          .requestOtp(email, portal: portal);
+      return container.read(authControllerProvider);
+    }
+
+    test('the office page turns a member away', () async {
+      final state = await request('ram@example.com', LoginPortal.office);
+      expect(state.stage, AuthStage.signedOut);
+      expect(state.error, contains('trust office only'));
+    });
+
+    test("the member page will not send the office's login a code", () async {
+      final state = await request(Env.adminEmail, LoginPortal.member);
+      expect(state.stage, AuthStage.signedOut);
+      expect(state.portal, LoginPortal.member);
+      expect(state.error, isNot(contains('OTP email is not configured')));
+    });
+
+    test('the agent page is closed until agents may sign in', () async {
+      final state = await request('agent@example.com', LoginPortal.agent);
+      expect(state.stage, AuthStage.signedOut);
+      if (!AuthController.agentsMaySignIn) {
+        expect(state.error, contains('not open yet'));
+      }
     });
   });
 }

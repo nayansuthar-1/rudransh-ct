@@ -7,7 +7,8 @@
 // When an approved member has this email and no login yet, it makes one: an
 // auth user (confirmed, no email sent) and a `member` profile linked to that
 // member. The code itself is then sent by the normal OTP request, so only the
-// person who reads that inbox gets in.
+// person who reads that inbox gets in. It also confirms an invited login whose
+// invite link was never opened, which would otherwise get no code.
 //
 // It answers the same whatever the email is — a member's, someone else's, or
 // nobody's — so it cannot be used to find out who is a member.
@@ -56,6 +57,20 @@ Deno.serve(async (req) => {
 });
 
 async function prepareMemberLogin(admin: SupabaseClient, email: string) {
+  // A login made by an owner's invite before 25 Sep 2026 stays unconfirmed
+  // until its email link is opened, and Supabase refuses a sign-in code to an
+  // unconfirmed account. Confirm it; the code still goes only to this inbox.
+  const { data: invited } = await admin
+    .from("profiles")
+    .select("user_id")
+    .eq("email", email)
+    .eq("is_active", true)
+    .limit(1);
+  if (invited && invited.length > 0) {
+    await confirmLogin(admin, invited[0].user_id);
+    return;
+  }
+
   // The approved member with this email; the longest-standing one if a
   // person holds several memberships under one address. Emails are stored
   // lowercase (the column insists), so an exact match is right — and unlike
@@ -113,6 +128,13 @@ async function prepareMemberLogin(admin: SupabaseClient, email: string) {
   });
   if (profileError && createdNow) {
     await admin.auth.admin.deleteUser(userId);
+  }
+}
+
+async function confirmLogin(admin: SupabaseClient, userId: string) {
+  const { data } = await admin.auth.admin.getUserById(userId);
+  if (data?.user && !data.user.email_confirmed_at) {
+    await admin.auth.admin.updateUserById(userId, { email_confirm: true });
   }
 }
 

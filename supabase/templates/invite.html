@@ -1,9 +1,26 @@
+{{/* Each role has its own login page; invite_user puts the role in .Data.
+     printf keeps an invite sent from the dashboard (no role) from failing. */}}
+{{ $role := printf "%v" .Data.role }}
+{{ $login := "/login" }}{{ if eq $role "member" }}{{ $login = "/m" }}{{ else if eq $role "agent" }}{{ $login = "/a" }}{{ end }}
 <div style="font-family: 'Google Sans', Roboto, Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #1f1f1f;">
   <h2 style="margin: 0 0 4px; font-weight: 500;">Rudransh Charitable Trust</h2>
   <p style="margin: 0 0 24px; color: #5f6368;">Rudransh CT</p>
 
-  <p>You have been given access to the Rudransh CT app. Activate your account once using the button below. After that, sign in by entering your email on the login page; you will receive a 6-digit code.</p>
-  <p>आपको रुद्रांश CT ऐप का उपयोग करने की अनुमति दी गई है। नीचे दिए गए बटन से एक बार अपना खाता सक्रिय करें। इसके बाद लॉगिन पेज पर अपना ईमेल डालें, आपको 6 अंकों का कोड मिलेगा।</p>
+  <p>You now have access to the Rudransh CT app. To sign in:</p>
+  <ol style="padding-left: 20px; line-height: 1.6;">
+    <li>Open the app with the button below.</li>
+    <li>Enter this email address: <b>{{ .Email }}</b></li>
+    <li>You will get a 6-digit code by email. Enter it to sign in.</li>
+  </ol>
 
-  <p style="margin: 24px 0;"><a href="{{ .ConfirmationURL }}" style="background: #0b57d0; color: #ffffff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 500;">Activate account / खाता सक्रिय करें</a></p>
+  <p>आपको रुद्रांश CT ऐप का उपयोग करने की अनुमति दी गई है। लॉगिन करने के लिए:</p>
+  <ol style="padding-left: 20px; line-height: 1.6;">
+    <li>नीचे दिए गए बटन से ऐप खोलें।</li>
+    <li>यह ईमेल डालें: <b>{{ .Email }}</b></li>
+    <li>आपको ईमेल पर 6 अंकों का कोड मिलेगा। उसे डालकर लॉगिन करें।</li>
+  </ol>
+
+  <p style="margin: 24px 0;"><a href="{{ .SiteURL }}{{ $login }}"style="background: #0b57d0; color: #ffffff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 500;">Open the app / ऐप खोलें</a></p>
+
+  <p style="color: #5f6368; font-size: 12px;">Keep this email: the button always opens the app. On a phone, open it in Chrome and choose "Add to Home screen" to keep the app like any other.</p>
 </div>

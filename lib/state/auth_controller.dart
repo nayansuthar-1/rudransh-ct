@@ -3,9 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../core/config/env.dart';
+import '../core/l10n/member_text.dart';
 import '../data/models/models.dart';
+import 'member_lang.dart';
 
 enum AuthStage { signedOut, awaitingOtp, signedIn }
+
+/// Which login page a sign-in started on. Each page admits one kind of login
+/// only, so members and agents never meet the office's sign-in, nor each
+/// other's (client request, 25 Sep 2026). See `AppRoutes.loginFor`.
+enum LoginPortal { office, member, agent }
 
 @immutable
 class AuthState {
@@ -16,6 +23,7 @@ class AuthState {
     this.busy = false,
     this.checkingAccess = false,
     this.error,
+    this.portal = LoginPortal.office,
   });
 
   final AuthStage stage;
@@ -28,6 +36,10 @@ class AuthState {
   final bool checkingAccess;
   final String? error;
 
+  /// The login page of the current or last sign-in attempt. Another page
+  /// ignores its code step and its error.
+  final LoginPortal portal;
+
   bool get isSignedIn => stage == AuthStage.signedIn;
 
   AuthState copyWith({
@@ -38,6 +50,7 @@ class AuthState {
     bool? checkingAccess,
     String? error,
     bool clearError = false,
+    LoginPortal? portal,
   }) {
     return AuthState(
       stage: stage ?? this.stage,
@@ -46,6 +59,7 @@ class AuthState {
       busy: busy ?? this.busy,
       checkingAccess: checkingAccess ?? this.checkingAccess,
       error: clearError ? null : (error ?? this.error),
+      portal: portal ?? this.portal,
     );
   }
 }
@@ -79,23 +93,34 @@ class AuthController extends Notifier<AuthState> {
     );
   }
 
-  Future<void> requestOtp(String email) async {
+  /// Sends a sign-in code to [email], if [portal]'s page admits it. An email
+  /// that belongs on another page is refused before any code is sent.
+  Future<void> requestOtp(
+    String email, {
+    LoginPortal portal = LoginPortal.office,
+  }) async {
     final address = email.trim().toLowerCase();
     final isAdmin = Env.isAdminEmail(address);
-    state = state.copyWith(busy: true, clearError: true);
+    state = state.copyWith(busy: true, clearError: true, portal: portal);
+
+    final refusal = _refusal(isAdmin: isAdmin);
+    if (refusal != null) {
+      state = state.copyWith(busy: false, error: refusal);
+      return;
+    }
 
     if (!Env.hasSupabase) {
       state = state.copyWith(
         busy: false,
-        error: isAdmin ? _otpUnavailable : _noAccess,
+        error: _say(_otpUnavailable, (t) => t.signInUnavailable),
       );
       return;
     }
 
     try {
-      // Anyone but the trust's own login is taken to be a member (agents and
-      // staff sign in from Release 2; see [mayUseApp]). A member whose email
-      // is on their record may have no login yet: the function makes one.
+      // A member whose email is on their record may have no login yet: the
+      // function makes one. It also activates an invited login whose invite
+      // link was never opened, an agent's too.
       if (!isAdmin) await _prepareMemberLogin(address);
       // shouldCreateUser: false — an unknown email is rejected, not signed up.
       await _auth.signInWithOtp(email: address, shouldCreateUser: false);
@@ -105,14 +130,44 @@ class AuthController extends Notifier<AuthState> {
         busy: false,
       );
     } on sb.AuthException catch (e) {
+      state = state.copyWith(busy: false, error: _describeRequestError(e));
+    } catch (_) {
       state = state.copyWith(
         busy: false,
-        error: _describeRequestError(e, isAdmin: isAdmin),
+        error: _say(_networkError, (t) => t.signInNetworkError),
       );
-    } catch (_) {
-      state = state.copyWith(busy: false, error: _networkError);
     }
   }
+
+  /// Why this page will not send a code to this email, or null if it will.
+  /// The trust's own login is never sent a code from the member or agent
+  /// page, which must not become a way into the office.
+  String? _refusal({required bool isAdmin}) => switch (state.portal) {
+        // Staff sign in here once they are switched on (Release 2); until
+        // then the office page is the trust's own login only.
+        LoginPortal.office => isAdmin ? null : _officeOnly,
+        LoginPortal.member =>
+          isAdmin ? _say(_noAccess, (t) => t.noMemberLogin) : null,
+        LoginPortal.agent => !agentsMaySignIn
+            ? _agentsNotYet
+            : isAdmin
+                ? _noAgentLogin
+                : null,
+      };
+
+  /// Why a verified login was turned away from this page.
+  String _notForThisPage(AppUser? user) => switch (state.portal) {
+        LoginPortal.office => user == null ? _noAccess : _officeOnly,
+        LoginPortal.member => _say(_noAccess, (t) => t.noMemberLogin),
+        LoginPortal.agent => agentsMaySignIn ? _noAgentLogin : _agentsNotYet,
+      };
+
+  /// [english] on the office and agent pages; on the member page, the member
+  /// page's words in the member's language.
+  String _say(String english, String Function(MemberText t) member) =>
+      state.portal == LoginPortal.member
+          ? member(ref.read(memberTextProvider))
+          : english;
 
   /// Makes a login for a member whose email is on their record, if they have
   /// none yet. It answers the same for any address, and a failure (function
@@ -124,24 +179,48 @@ class AuthController extends Notifier<AuthState> {
     } catch (_) {}
   }
 
-  /// Who may use the app for now: the trust's own login, and members. Agents
-  /// and staff have logins but wait for Release 2 (client decision,
-  /// 24 Sep 2026).
+  /// Whether agents may sign in yet. They wait for Release 2 (client
+  /// decision, 24 Sep 2026); until then the Agents page offers no invite, as
+  /// an invite they cannot use only confuses them. Flip it to switch agents on.
+  static const agentsMaySignIn = false;
+
+  /// Who may use the app for now: the trust's own login, members, and agents
+  /// once [agentsMaySignIn]. Staff wait for Release 2.
   @visibleForTesting
   static bool mayUseApp(AppUser user) =>
-      user.role == UserRole.member || Env.isAdminEmail(user.email);
+      user.role == UserRole.member ||
+      (agentsMaySignIn && user.role == UserRole.agent) ||
+      Env.isAdminEmail(user.email);
+
+  /// Whether [portal]'s login page lets [user] in: the office page takes the
+  /// office, the member page members, the agent page agents.
+  @visibleForTesting
+  static bool admits(LoginPortal portal, AppUser user) =>
+      mayUseApp(user) &&
+      switch (portal) {
+        LoginPortal.office =>
+          user.role == UserRole.owner || user.role == UserRole.staff,
+        LoginPortal.member => user.role == UserRole.member,
+        LoginPortal.agent => user.role == UserRole.agent,
+      };
 
   Future<bool> verifyOtp(String code) async {
     state = state.copyWith(busy: true, clearError: true);
     final token = code.trim();
 
     if (!RegExp(r'^\d{6}$').hasMatch(token)) {
-      state = state.copyWith(busy: false, error: 'Enter the 6-digit code');
+      state = state.copyWith(
+        busy: false,
+        error: _say('Enter the 6-digit code', (t) => t.enterCode),
+      );
       return false;
     }
 
     if (!Env.hasSupabase) {
-      state = state.copyWith(busy: false, error: _otpUnavailable);
+      state = state.copyWith(
+        busy: false,
+        error: _say(_otpUnavailable, (t) => t.signInUnavailable),
+      );
       return false;
     }
 
@@ -155,14 +234,11 @@ class AuthController extends Notifier<AuthState> {
       if (user == null) throw const sb.AuthException('No user in response');
 
       final appUser = await _loadProfile(user);
-      if (appUser == null) {
+      if (appUser == null || !admits(state.portal, appUser)) {
+        final portal = state.portal;
+        final error = _notForThisPage(appUser);
         await _auth.signOut();
-        state = const AuthState(error: _noAccess);
-        return false;
-      }
-      if (!mayUseApp(appUser)) {
-        await _auth.signOut();
-        state = const AuthState(error: _membersOnly);
+        state = AuthState(portal: portal, error: error);
         return false;
       }
 
@@ -176,12 +252,18 @@ class AuthController extends Notifier<AuthState> {
       state = state.copyWith(
         busy: false,
         error: e.statusCode == '429'
-            ? _tooManyAttempts
-            : 'The code is wrong or has expired. Request a new code.',
+            ? _say(_tooManyAttempts, (t) => t.signInTooMany)
+            : _say(
+                'The code is wrong or has expired. Request a new code.',
+                (t) => t.codeWrong,
+              ),
       );
       return false;
     } catch (_) {
-      state = state.copyWith(busy: false, error: _networkError);
+      state = state.copyWith(
+        busy: false,
+        error: _say(_networkError, (t) => t.signInNetworkError),
+      );
       return false;
     }
   }
@@ -293,16 +375,23 @@ class AuthController extends Notifier<AuthState> {
     );
   }
 
-  static String _describeRequestError(
-    sb.AuthException e, {
-    required bool isAdmin,
-  }) {
-    if (e.statusCode == '429') return _tooManyAttempts;
+  String _describeRequestError(sb.AuthException e) {
+    if (e.statusCode == '429') {
+      return _say(_tooManyAttempts, (t) => t.signInTooMany);
+    }
     final message = e.message.toLowerCase();
     if (e.code == 'otp_disabled' ||
         e.code == 'user_not_found' ||
         message.contains('signups not allowed')) {
-      return isAdmin ? _adminNotRegistered : _noAccess;
+      return switch (state.portal) {
+        LoginPortal.office => _adminNotRegistered,
+        LoginPortal.member => _say(_noAccess, (t) => t.noMemberLogin),
+        LoginPortal.agent => _noAgentLogin,
+      };
+    }
+    // Supabase's own wording is for the office, not for members.
+    if (state.portal == LoginPortal.member) {
+      return _say(_emailProviderError, (t) => t.codeNotSent);
     }
     if (e.code == 'unexpected_failure' ||
         message.contains('error sending magic link email')) {
@@ -313,6 +402,11 @@ class AuthController extends Notifier<AuthState> {
 
   static const _noAccess =
       'This email does not have access. Contact the trust office.';
+  static const _officeOnly = 'This sign-in is for the trust office only.';
+  static const _agentsNotYet = 'Agent sign-in is not open yet. The trust '
+      'office will tell you when it is.';
+  static const _noAgentLogin =
+      'This email has no agent login. Contact the trust office.';
   static const _membersOnly =
       'Only the trust office and members can sign in for now. Agents and '
       'staff: ask the trust office.';

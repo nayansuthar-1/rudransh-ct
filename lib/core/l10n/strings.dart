@@ -6,7 +6,6 @@ class S {
 
   // Brand
   static const appName = 'Rudransh CT';
-  static const appSubtitle = 'Admin Panel';
   static const trustName = 'Rudransh Charitable Trust';
 
   /// Used in WhatsApp messages to members, which are in Hindi.
@@ -209,7 +208,13 @@ class S {
 
   // Auth
   static const signIn = 'Sign in';
-  static const signInSubtitle = 'Invited users only';
+  static const officeSignIn = 'Office sign in';
+  static const officeSignInSub = 'Trust office only';
+  static const agentSignIn = 'Agent sign in';
+  static const agentSignInSub = "For the trust's agents";
+  static const checkEmail = 'Check your email';
+  static const otpHint = '6-digit code';
+  static const enterOtp = 'Enter the 6-digit code';
   static const allYojnas = 'All Yojnas';
   static const searchMembers = 'Search members by name, reg no or phone';
   static const emailLabel = 'Email address';

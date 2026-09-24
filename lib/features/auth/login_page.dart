@@ -3,18 +3,25 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/config/env.dart';
+import '../../core/l10n/member_text.dart';
 import '../../core/l10n/strings.dart';
 import '../../core/router/routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/validators.dart';
 import '../../state/auth_controller.dart';
+import '../../state/member_lang.dart';
 import '../../widgets/inputs.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_sidebar.dart';
+import '../../widgets/member_lang_toggle.dart';
 
-/// Email + OTP sign-in. See [AuthController] for the Supabase flow.
+/// Email + OTP sign-in, one page per [LoginPortal]: the office at `/login`,
+/// members at `/m` (Hindi first), agents at `/a`. Each admits its own kind of
+/// login only; see [AuthController] for the Supabase flow.
 class LoginPage extends ConsumerStatefulWidget {
-  const LoginPage({super.key});
+  const LoginPage({super.key, this.portal = LoginPortal.office});
+
+  final LoginPortal portal;
 
   @override
   ConsumerState<LoginPage> createState() => _LoginPageState();
@@ -38,8 +45,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final c = context.colors;
     final auth = ref.watch(authControllerProvider);
     final controller = ref.read(authControllerProvider.notifier);
+    final isMember = widget.portal == LoginPortal.member;
+    final copy = isMember
+        ? _Copy.member(ref.watch(memberTextProvider))
+        : _Copy.forPortal(widget.portal);
 
-    final awaitingOtp = auth.stage == AuthStage.awaitingOtp;
+    // A sign-in begun on another login page is not this page's business.
+    final ours = auth.portal == widget.portal;
+    final awaitingOtp = ours && auth.stage == AuthStage.awaitingOtp;
+    final error = ours ? auth.error : null;
 
     final form = ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 360),
@@ -47,13 +61,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: BrandMark(size: 36),
+          Row(
+            children: [
+              const BrandMark(size: 36),
+              const Spacer(),
+              if (isMember) const MemberLangToggle(),
+            ],
           ),
           const SizedBox(height: 28),
           Text(
-            awaitingOtp ? 'Check your email' : S.signIn,
+            awaitingOtp ? copy.checkEmail : copy.title,
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w600,
@@ -62,9 +79,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           ),
           const SizedBox(height: 6),
           Text(
-            awaitingOtp
-                ? '${S.otpSentTo} ${auth.email}'
-                : '${S.trustName} · ${S.signInSubtitle}',
+            awaitingOtp ? '${copy.codeSentTo} ${auth.email}' : copy.subtitle,
             style: TextStyle(fontSize: 14, color: c.textSecondary, height: 1.45),
           ),
           const SizedBox(height: 28),
@@ -76,10 +91,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   AppTextField(
-                    label: S.otpLabel,
+                    label: copy.codeLabel,
                     controller: _otp,
                     autofocus: true,
-                    hint: '6-digit code',
+                    hint: S.otpHint,
                     keyboardType: TextInputType.number,
                     inputFormatters: Fmts.otp(),
                     textInputAction: TextInputAction.done,
@@ -87,9 +102,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     validator: (v) =>
                         RegExp(r'^\d{6}$').hasMatch(v?.trim() ?? '')
                             ? null
-                            : 'Enter the 6-digit code',
+                            : copy.enterCode,
                   ),
-                  if (auth.error != null) _ErrorText(auth.error!),
+                  if (error != null) _ErrorText(error),
                   const SizedBox(height: 16),
                   FilledButton(
                     onPressed: auth.busy ? null : () => _verify(controller),
@@ -98,7 +113,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ),
                     child: auth.busy
                         ? const ButtonSpinner()
-                        : const Text(S.verify),
+                        : Text(copy.verify),
                   ),
                   const SizedBox(height: 8),
                   Row(
@@ -106,13 +121,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     children: [
                       TextButton(
                         onPressed: auth.busy ? null : controller.backToEmail,
-                        child: const Text(S.changeEmail),
+                        child: Text(copy.changeEmail),
                       ),
                       TextButton(
                         onPressed: auth.busy
                             ? null
-                            : () => controller.requestOtp(auth.email),
-                        child: const Text(S.resendOtp),
+                            : () => controller.requestOtp(
+                                  auth.email,
+                                  portal: widget.portal,
+                                ),
+                        child: Text(copy.resend),
                       ),
                     ],
                   ),
@@ -126,16 +144,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   AppTextField(
-                    label: S.emailLabel,
+                    label: copy.emailLabel,
                     controller: _email,
                     autofocus: true,
-                    hint: S.emailHint,
+                    hint: copy.emailHint,
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) => _sendOtp(controller),
-                    validator: V.email,
+                    validator: (v) => V.email(v) == null ? null : copy.badEmail,
                   ),
-                  if (auth.error != null) _ErrorText(auth.error!),
+                  if (error != null) _ErrorText(error),
                   const SizedBox(height: 16),
                   FilledButton(
                     onPressed: auth.busy ? null : () => _sendOtp(controller),
@@ -144,19 +162,21 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ),
                     child: auth.busy
                         ? const ButtonSpinner()
-                        : const Text(S.sendOtp),
+                        : Text(copy.sendCode),
                   ),
                 ],
               ),
             ),
 
-          // Most members have no login, so the public check is the way in
+          // Most members have no email, so the public check is the way in
           // for them (IMPLEMENTATION_PLAN Phase 15).
-          const SizedBox(height: 16),
-          TextButton(
-            onPressed: () => context.go(AppRoutes.lookup),
-            child: const Text('Members: check your membership'),
-          ),
+          if (isMember) ...[
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: () => context.go(AppRoutes.lookup),
+              child: Text(ref.watch(memberTextProvider).noEmailLookup),
+            ),
+          ],
 
           if (Env.demoMode) ...[
             const SizedBox(height: 24),
@@ -184,13 +204,84 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   void _sendOtp(AuthController controller) {
     if (!(_emailKey.currentState?.validate() ?? false)) return;
-    controller.requestOtp(_email.text.trim());
+    controller.requestOtp(_email.text.trim(), portal: widget.portal);
   }
 
   void _verify(AuthController controller) {
     if (!(_otpKey.currentState?.validate() ?? false)) return;
     controller.verifyOtp(_otp.text.trim());
   }
+}
+
+/// The words on one login page.
+class _Copy {
+  const _Copy({
+    required this.title,
+    required this.subtitle,
+    required this.emailLabel,
+    required this.emailHint,
+    required this.badEmail,
+    required this.sendCode,
+    required this.checkEmail,
+    required this.codeSentTo,
+    required this.codeLabel,
+    required this.enterCode,
+    required this.verify,
+    required this.changeEmail,
+    required this.resend,
+  });
+
+  /// The office and agent pages, in English like the rest of their screens.
+  factory _Copy.forPortal(LoginPortal portal) {
+    final agent = portal == LoginPortal.agent;
+    return _Copy(
+      title: agent ? S.agentSignIn : S.officeSignIn,
+      subtitle:
+          '${S.trustName} · ${agent ? S.agentSignInSub : S.officeSignInSub}',
+      emailLabel: S.emailLabel,
+      emailHint: agent ? 'name@example.com' : S.emailHint,
+      badEmail: S.invalidEmail,
+      sendCode: S.sendOtp,
+      checkEmail: S.checkEmail,
+      codeSentTo: S.otpSentTo,
+      codeLabel: S.otpLabel,
+      enterCode: S.enterOtp,
+      verify: S.verify,
+      changeEmail: S.changeEmail,
+      resend: S.resendOtp,
+    );
+  }
+
+  /// The member page, in the member's language (Hindi by default).
+  factory _Copy.member(MemberText t) => _Copy(
+        title: t.signInTitle,
+        subtitle: '${t.trustName}\n${t.signInSub}',
+        emailLabel: t.email,
+        emailHint: 'name@example.com',
+        badEmail: t.enterEmail,
+        sendCode: t.sendCode,
+        checkEmail: t.checkEmail,
+        codeSentTo: t.codeSentTo,
+        codeLabel: t.code,
+        enterCode: t.enterCode,
+        verify: t.signInButton,
+        changeEmail: t.changeEmail,
+        resend: t.resendCode,
+      );
+
+  final String title;
+  final String subtitle;
+  final String emailLabel;
+  final String emailHint;
+  final String badEmail;
+  final String sendCode;
+  final String checkEmail;
+  final String codeSentTo;
+  final String codeLabel;
+  final String enterCode;
+  final String verify;
+  final String changeEmail;
+  final String resend;
 }
 
 class _ErrorText extends StatelessWidget {

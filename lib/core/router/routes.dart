@@ -23,7 +23,19 @@ class NavItem {
 class AppRoutes {
   const AppRoutes._();
 
+  /// The office's login. Members and agents each have their own
+  /// ([memberLogin], [agentLogin]), and nothing public links here.
   static const login = '/login';
+
+  /// Members' login, Hindi first. The site's root opens it.
+  static const memberLogin = '/m';
+
+  /// Agents' login.
+  static const agentLogin = '/a';
+
+  static const loginPages = {login, memberLogin, agentLogin};
+
+  static const root = '/';
   static const dashboard = '/dashboard';
   static const members = '/members';
   static const agents = '/agents';
@@ -150,6 +162,17 @@ extension RoleRoutes on UserRole {
       UserRole.member => memberArea,
     };
   }
+}
+
+/// The login page for a signed-out visit to [location]: the member or agent
+/// screens send people to their own login, the office screens to the office's.
+/// The bare site address is what members are given, so it opens theirs.
+String loginFor(String location) {
+  if (location == AppRoutes.root || _within(location, AppRoutes.memberHome)) {
+    return AppRoutes.memberLogin;
+  }
+  if (_within(location, AppRoutes.agentHome)) return AppRoutes.agentLogin;
+  return AppRoutes.login;
 }
 
 /// `/me` and `/me/payments` are within `/me`; `/members` is not.

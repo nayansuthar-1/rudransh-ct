@@ -51,6 +51,23 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) =>
             const NoTransitionPage(child: LoginPage()),
       ),
+      GoRoute(
+        path: AppRoutes.memberLogin,
+        pageBuilder: (context, state) => const NoTransitionPage(
+          child: LoginPage(portal: LoginPortal.member),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.agentLogin,
+        pageBuilder: (context, state) => const NoTransitionPage(
+          child: LoginPage(portal: LoginPortal.agent),
+        ),
+      ),
+      // The bare address: [redirectFor] sends everyone on from here.
+      GoRoute(
+        path: AppRoutes.root,
+        redirect: (context, state) => AppRoutes.dashboard,
+      ),
       ShellRoute(
         builder: (context, state, child) => AppShell(
           location: state.matchedLocation,
@@ -106,17 +123,17 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-/// Signed out → login, except the public lookup, which is the whole point of
-/// Phase 15: most members have no login and never will. Signed in → the role's
-/// own screens only; anything else sends them to their home. While a restored
-/// session's access is being checked nothing moves, so a reload stays on the
-/// same page.
+/// Signed out → the login page for that part of the app ([loginFor]), except
+/// the public lookup, which is the whole point of Phase 15: most members have
+/// no login and never will. Signed in → the role's own screens only; anything
+/// else sends them to their home. While a restored session's access is being
+/// checked nothing moves, so a reload stays on the same page.
 @visibleForTesting
 String? redirectFor(AuthState auth, String location) {
-  final atLogin = location == AppRoutes.login;
+  final atLogin = AppRoutes.loginPages.contains(location);
   final atLookup = location == AppRoutes.lookup;
   if (!auth.isSignedIn) {
-    return (atLogin || atLookup) ? null : AppRoutes.login;
+    return (atLogin || atLookup) ? null : loginFor(location);
   }
   if (auth.checkingAccess) return null;
   // A signed-in person has their own screens; the public page is not for them.
@@ -156,7 +173,9 @@ class _RouteError extends StatelessWidget {
               Text(message, textAlign: TextAlign.center),
               const SizedBox(height: 16),
               FilledButton(
-                onPressed: () => GoRouter.of(context).go(AppRoutes.login),
+                // The root: signed in, their home; signed out, the member
+                // login — never the office's, for whoever mistyped an address.
+                onPressed: () => GoRouter.of(context).go(AppRoutes.root),
                 child: const Text('Back to home'),
               ),
             ],

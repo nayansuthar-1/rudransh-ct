@@ -237,7 +237,7 @@ class _AgentActions extends ConsumerWidget {
           value: 2,
           child: Text(agent.isActive ? 'Deactivate' : 'Activate'),
         ),
-        if (isOwner && !hasAccess)
+        if (isOwner && !hasAccess && AuthController.agentsMaySignIn)
           const PopupMenuItem(value: 4, child: Text(S.inviteToApp)),
         const PopupMenuItem(value: 5, child: Text('${S.moveMembers}…')),
         PopupMenuItem(

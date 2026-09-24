@@ -156,15 +156,18 @@ max_indexes = 5
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-# No custom domain: production lives on Cloudflare Pages (IMPLEMENTATION_PLAN Phase 7).
-site_url = "https://rudransh-ct.pages.dev"
+# No custom domain: production lives on Vercel (moved from Cloudflare Pages,
+# 21 Sep 2026). The invite email links to {{ .SiteURL }}/login.
+site_url = "https://rudransh-green.vercel.app"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-# Pull request previews and local `flutter run -d web-server --web-port 8080`.
+# Not "*.vercel.app": anyone can host a page there, and a sign-in link must
+# never hand its tokens to a stranger's site. Local: `flutter run -d
+# web-server --web-port 8080`.
 additional_redirect_urls = [
-  "https://rudransh-ct.pages.dev",
-  "https://*.rudransh-ct.pages.dev",
+  "https://rudransh-green.vercel.app",
+  "https://rudransh-green.vercel.app/**",
   "http://localhost:8080",
 ]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).

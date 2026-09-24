@@ -85,8 +85,53 @@ class MemberText {
       );
   String get check => _t('जाँचें', S.lookupSubmit);
   String get checkAnother => _t('दूसरी जाँच करें', S.lookupAgain);
-  String get staffSignIn =>
-      _t('स्टाफ और एजेंट: साइन इन', 'Staff and agents: sign in');
+  String get memberSignIn =>
+      _t('ईमेल से सदस्य लॉगिन', 'Member sign in with email');
+
+  // ---- Member sign-in (/m) ----------------------------------------------
+  String get signInTitle => _t('सदस्य लॉगिन', 'Member sign in');
+  String get signInSub => _t(
+        'अपना ईमेल डालें। हम उस पर 6 अंकों का कोड भेजेंगे।',
+        'Enter your email and we will send a 6-digit code to it.',
+      );
+  String get email => _t('ईमेल', S.emailLabel);
+  String get enterEmail => _t('सही ईमेल डालें।', S.invalidEmail);
+  String get sendCode => _t('कोड भेजें', 'Send code');
+  String get checkEmail => _t('अपना ईमेल देखें', 'Check your email');
+  String get codeSentTo => _t('6 अंकों का कोड भेजा गया:', S.otpSentTo);
+  String get code => _t('6 अंकों का कोड', '6-digit code');
+  String get enterCode => _t('6 अंकों का कोड डालें', 'Enter the 6-digit code');
+  String get signInButton => _t('लॉगिन करें', 'Sign in');
+  String get changeEmail => _t('ईमेल बदलें', S.changeEmail);
+  String get resendCode => _t('कोड दोबारा भेजें', S.resendOtp);
+  String get noEmailLookup => _t(
+        'ईमेल नहीं है? मोबाइल नंबर से सदस्यता जाँचें',
+        'No email? Check your membership by phone',
+      );
+  String get noMemberLogin => _t(
+        'इस ईमेल से सदस्य लॉगिन नहीं है। ट्रस्ट कार्यालय से संपर्क करें।',
+        'This email has no member login. Contact the trust office.',
+      );
+  String get codeWrong => _t(
+        'कोड गलत है या उसका समय खत्म हो गया। नया कोड मँगाएँ।',
+        'The code is wrong or has expired. Request a new code.',
+      );
+  String get codeNotSent => _t(
+        'अभी कोड नहीं भेजा जा सका। थोड़ी देर बाद फिर कोशिश करें।',
+        'The code could not be sent. Try again in a little while.',
+      );
+  String get signInTooMany => _t(
+        'बहुत बार कोशिश हुई। कुछ मिनट बाद फिर कोशिश करें।',
+        'Too many attempts. Please try again in a few minutes.',
+      );
+  String get signInNetworkError => _t(
+        'इंटरनेट कनेक्शन जाँचें और फिर कोशिश करें।',
+        'Network error. Check your internet connection and try again.',
+      );
+  String get signInUnavailable => _t(
+        'इस ऐप में अभी ईमेल लॉगिन चालू नहीं है।',
+        'Email sign-in is not set up in this build.',
+      );
 
   /// The lookup's server messages are English; the ones a member can meet
   /// are given in Hindi too. Anything else is shown as it came.

@@ -6,10 +6,12 @@
 // → 200 { user_id, email_sent }  or  4xx/5xx { error: "<readable message>" }
 //   email_sent is false when the person already had an account, so no invite
 //   email was needed. A failed send is a 502, never a 200.
+//   The login is confirmed at once: the person signs in with an email code
+//   straight away, whether or not they open the invite email.
 //
 // Deploy: supabase functions deploy invite_user   (docs/RUNBOOK.md 3)
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided by Supabase.
-// Optional secret SITE_URL (default https://rudransh-ct.pages.dev).
+// Optional secret SITE_URL (default https://rudransh-green.vercel.app).
 
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 
@@ -21,6 +23,14 @@ const corsHeaders = {
 
 const roles = ["owner", "staff", "agent", "member"] as const;
 type Role = (typeof roles)[number];
+
+/// Each role's own login page in the app (lib/core/router/routes.dart).
+const loginPaths: Record<Role, string> = {
+  owner: "/login",
+  staff: "/login",
+  agent: "/a",
+  member: "/m",
+};
 
 class HttpError extends Error {
   constructor(readonly status: number, message: string) {
@@ -63,7 +73,9 @@ Deno.serve(async (req) => {
     const siteUrl = Deno.env.get("SITE_URL") ?? "https://rudransh-green.vercel.app";
     const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(
       input.email,
-      { redirectTo: siteUrl, data: { role: input.role, invited_by: callerId } },
+      // `role` also picks the login page the invite email links to
+      // (supabase/templates/invite.html): members /m, agents /a, office /login.
+      { redirectTo: `${siteUrl}${loginPaths[input.role]}`, data: { role: input.role, invited_by: callerId } },
     );
 
     let userId = invited?.user?.id;
@@ -92,6 +104,21 @@ Deno.serve(async (req) => {
       }
       createdNow = false;
       emailSent = false;
+    }
+
+    // An invited account stays unconfirmed until its email link is clicked,
+    // and with sign-ups off Supabase refuses a sign-in code to an unconfirmed
+    // account ("Signups not allowed"). The link also dies after a day, or when
+    // a mail scanner opens it first. Confirm now, so the person signs in the
+    // usual way — email, then the 6-digit code — and the email is only a
+    // welcome note pointing at the login page (supabase/templates/invite.html).
+    const { error: confirmError } = await admin.auth.admin.updateUserById(
+      userId!,
+      { email_confirm: true },
+    );
+    if (confirmError) {
+      if (createdNow) await admin.auth.admin.deleteUser(userId!);
+      throw new HttpError(500, `Could not activate the login: ${confirmError.message}`);
     }
 
     const { error: profileError } = await admin.from("profiles").insert({

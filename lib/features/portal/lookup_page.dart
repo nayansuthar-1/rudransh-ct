@@ -139,9 +139,11 @@ class _LookupPageState extends ConsumerState<LookupPage> {
                   ] else
                     _form(context, t),
                   const SizedBox(height: Space.xl),
+                  // The member login, never the office's: a public page does
+                  // not point at the office sign-in.
                   TextButton(
-                    onPressed: () => context.go(AppRoutes.login),
-                    child: Text(t.staffSignIn),
+                    onPressed: () => context.go(AppRoutes.memberLogin),
+                    child: Text(t.memberSignIn),
                   ),
                 ],
               ),
