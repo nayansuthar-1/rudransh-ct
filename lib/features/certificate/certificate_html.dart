@@ -199,9 +199,10 @@ String buildCertificateHtml(CertificateData d, {required String baseUrl}) {
     ]),
   ].join('\n  ');
 
-  // The trust's rule, centred under the fields as the reference prints its
-  // own. The lines sit centred on the reference's two-line block, so a
-  // single line lands midway between its two.
+  // The trust's rule, under the fields on the left, so the space above the
+  // अध्यक्ष line stays clear for the trust's stamp. The lines sit centred on
+  // the reference's two-line block, so a single line lands midway between
+  // its two.
   final ruleLines = TrustInfo.certificateRule;
   final rule = [
     for (final (i, line) in ruleLines.indexed)
@@ -350,11 +351,12 @@ html, body {
 
 .rule-line {
   position: absolute;
-  /* Clear of the frame's side lines (at about 26pt and 573pt) by 8pt. */
-  left: 34pt;
-  width: 527.28pt;
+  /* In line with the field labels, and ending short of the अध्यक्ष
+     signature (from 370.44pt) so the stamp has the space above it. */
+  left: 38pt;
+  width: 317pt;
   font-size: 8.5pt;
-  text-align: center;
+  text-align: left;
   white-space: nowrap;
 }
 
@@ -391,9 +393,15 @@ function fitValues() {
   document.querySelectorAll('.v').forEach(function (el) {
     fit(el, function () { return el.parentNode.clientWidth; }, 10, 6);
   });
-  document.querySelectorAll('.rule-line').forEach(function (el) {
+  // The rule's lines share the size the longest one needs, so they read as
+  // one block.
+  var rules = document.querySelectorAll('.rule-line');
+  var ruleSize = 8.5;
+  rules.forEach(function (el) {
     fit(el, function () { return el.clientWidth; }, 8.5, 6);
+    ruleSize = Math.min(ruleSize, parseFloat(el.style.fontSize) || 8.5);
   });
+  rules.forEach(function (el) { el.style.fontSize = ruleSize + 'pt'; });
   document.querySelectorAll('.sig .name').forEach(function (el) {
     fit(el, function () { return el.clientWidth; }, 9.5, 6);
   });
