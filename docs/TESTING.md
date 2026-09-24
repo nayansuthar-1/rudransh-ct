@@ -3,6 +3,12 @@
 How to walk through every built feature by hand, role by role. Written against
 the code as of 20 Sep 2026 (Release 2, Phases 10-16 built and not yet deployed).
 
+> **For a start-to-finish run on the live site, use
+> [TEST_WALKTHROUGH.md](TEST_WALKTHROUGH.md) (25 Sep).** This guide is the
+> per-screen reference. It predates the separate login pages, the member invite
+> button and the invite fix: there is no "Activate account" step any more, and
+> `DEMO_ROLE` no longer does anything.
+
 ---
 
 ## 1. Where to test
