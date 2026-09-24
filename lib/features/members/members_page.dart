@@ -288,12 +288,21 @@ class _MemberActions extends ConsumerWidget {
               success: 'Member data erased',
             );
             ref.invalidate(membersPageProvider);
+          case 6:
+            await _inviteMember(context, ref, member);
         }
       },
       itemBuilder: (context) => [
         const PopupMenuItem(value: 0, child: Text(S.view)),
         const PopupMenuItem(value: 1, child: Text(S.edit)),
         const PopupMenuItem(value: 2, child: Text(S.addPayment)),
+        // Only the owner hands out logins, as for agents. A pending member
+        // has no registration number yet, so there is nothing to sign in to.
+        if (ref.watch(currentUserProvider).isOwner &&
+            member.status != MemberStatus.pending &&
+            !(ref.watch(memberAccessProvider).value ?? const {})
+                .containsKey(member.id))
+          const PopupMenuItem(value: 6, child: Text(S.inviteToApp)),
         // A data request under the DPDP Act is the owner's call, not staff's
         // (IMPLEMENTATION_PLAN §7).
         if (ref.watch(currentUserProvider).isOwner) ...[
@@ -310,6 +319,91 @@ class _MemberActions extends ConsumerWidget {
       ],
     );
   }
+}
+
+/// Emails the member an invite; after accepting it they sign in to the member
+/// screens (their dues, receipts and certificate) with an email code. Members
+/// have no email on their record, so the owner types it here.
+Future<void> _inviteMember(
+  BuildContext context,
+  WidgetRef ref,
+  Member member,
+) async {
+  final email = await _memberEmailDialog(context, member);
+  if (email == null || !context.mounted) return;
+  await runWithToast(
+    context,
+    () async {
+      await ref.read(accessRepositoryProvider).inviteMember(member, email);
+      ref.invalidate(memberAccessProvider);
+    },
+    success: S.inviteSent,
+  );
+}
+
+final _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
+Future<String?> _memberEmailDialog(BuildContext context, Member member) {
+  final c = context.colors;
+  final controller = TextEditingController();
+  final formKey = GlobalKey<FormState>();
+
+  void submit(BuildContext dialogContext) {
+    if (formKey.currentState?.validate() ?? false) {
+      Navigator.of(dialogContext).pop(controller.text.trim().toLowerCase());
+    }
+  }
+
+  return showDialog<String>(
+    context: context,
+    barrierColor: Colors.black.withValues(alpha: 0.32),
+    builder: (dialogContext) => AlertDialog(
+      constraints: const BoxConstraints(maxWidth: 420),
+      titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+      actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      title: const Text(S.inviteToApp),
+      content: Form(
+        key: formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${member.name} (${member.regNo}) will be able to sign in with '
+              'this email to see their dues, receipts and certificate.',
+              style: TextStyle(
+                fontSize: 13.5,
+                color: c.textSecondary,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(hintText: 'Email address'),
+              validator: (v) => _emailPattern.hasMatch((v ?? '').trim())
+                  ? null
+                  : 'Enter a valid email address.',
+              onFieldSubmitted: (_) => submit(dialogContext),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        OutlinedButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: const Text(S.cancel),
+        ),
+        FilledButton(
+          onPressed: () => submit(dialogContext),
+          child: const Text('Send invite'),
+        ),
+      ],
+    ),
+  );
 }
 
 /// Hands the member's own data back to them, as JSON they can keep. Shown in a
@@ -422,6 +516,16 @@ void showMemberDetails(BuildContext context, WidgetRef ref, Member m) {
           if (m.state.isNotEmpty) DetailRow(label: S.fldState, value: m.state),
           DetailRow(label: S.agent, value: agent?.name ?? '—'),
           DetailRow(label: S.joinedOn, value: Fmt.date(m.joinDate)),
+          if (ref.read(currentUserProvider).isOwner)
+            DetailRow(
+              label: S.appAccess,
+              value: switch ((ref.read(memberAccessProvider).value ??
+                  const <String, bool>{})[m.id]) {
+                null => S.accessNone,
+                true => S.accessActive,
+                false => S.accessOff,
+              },
+            ),
           if (m.closingDate != null)
             DetailRow(label: S.closingDate, value: Fmt.date(m.closingDate)),
           _MemberRecentPayments(memberId: m.id),

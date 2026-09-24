@@ -221,7 +221,8 @@ final agentByIdProvider = Provider<Map<String, Agent>>((ref) {
   return {for (final a in agents) a.id: a};
 });
 
-/// Invites and login status for agents (owner tools on the Agents page).
+/// Invites and login status for agents and members (owner tools on the Agents
+/// and Members pages).
 final accessRepositoryProvider = Provider<AccessRepository>((ref) {
   if (Env.hasSupabase) {
     return SupabaseAccessRepository(Supabase.instance.client);
@@ -234,6 +235,13 @@ final agentAccessProvider = FutureProvider<Map<String, bool>>((ref) {
   watchBackendData(ref);
   if (!ref.watch(currentUserProvider).isAdmin) return const {};
   return ref.read(accessRepositoryProvider).fetchAgentAccess();
+});
+
+/// Member id → login switched on. Members never invited are absent.
+final memberAccessProvider = FutureProvider<Map<String, bool>>((ref) {
+  watchBackendData(ref);
+  if (!ref.watch(currentUserProvider).isAdmin) return const {};
+  return ref.read(accessRepositoryProvider).fetchMemberAccess();
 });
 
 // ---------------------------------------------------------------------------

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rudransh_ct/app.dart';
@@ -7,6 +8,9 @@ import 'package:rudransh_ct/core/l10n/strings.dart';
 import 'package:rudransh_ct/core/router/app_router.dart';
 import 'package:rudransh_ct/core/router/routes.dart';
 import 'package:rudransh_ct/data/models/models.dart';
+import 'package:rudransh_ct/data/repositories/access_repository.dart';
+import 'package:rudransh_ct/data/repositories/trust_repository.dart'
+    show RepositoryException;
 import 'package:rudransh_ct/features/agents/agents_page.dart';
 import 'package:rudransh_ct/state/auth_controller.dart';
 import 'package:rudransh_ct/state/providers.dart';
@@ -185,6 +189,88 @@ void main() {
       expect(find.text(S.inviteToApp), visible ? findsOneWidget : findsNothing);
     });
   }
+
+  group('inviting a member to the app', () {
+    /// Opens the actions menu of each visible member row in turn and returns
+    /// the index of the first that offers the invite, or -1. Leaves that
+    /// menu open.
+    Future<int> openRowWithInvite(WidgetTester tester) async {
+      final buttons = find.byTooltip(S.actions);
+      final count = buttons.evaluate().length;
+      for (var i = 0; i < count; i++) {
+        await tester.tap(buttons.at(i));
+        await tester.pumpAndSettle();
+        if (find.text(S.inviteToApp).evaluate().isNotEmpty) return i;
+        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+        await tester.pumpAndSettle();
+      }
+      return -1;
+    }
+
+    testWidgets('staff never see the invite', (tester) async {
+      final container =
+          await _pumpAs(tester, UserRole.staff, size: const Size(1600, 1000));
+      container.read(routerProvider).go(AppRoutes.members);
+      await tester.pumpAndSettle();
+      expect(find.byTooltip(S.actions), findsWidgets);
+      expect(await openRowWithInvite(tester), -1);
+    });
+
+    testWidgets('the owner invites a member by email', (tester) async {
+      final container =
+          await _pumpAs(tester, UserRole.owner, size: const Size(1600, 1000));
+      container.read(routerProvider).go(AppRoutes.members);
+      await tester.pumpAndSettle();
+
+      final row = await openRowWithInvite(tester);
+      expect(row, isNot(-1), reason: 'an approved member offers the invite');
+      await tester.tap(find.text(S.inviteToApp));
+      await tester.pumpAndSettle();
+
+      // An email is required before anything is sent.
+      await tester.tap(find.text('Send invite'));
+      await tester.pumpAndSettle();
+      expect(find.text('Enter a valid email address.'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextFormField).last, 'Member@Example.com');
+      await tester.tap(find.text('Send invite'));
+      await tester.pumpAndSettle();
+      expect(find.text(S.inviteSent), findsOneWidget);
+      expect(await container.read(memberAccessProvider.future), hasLength(1));
+
+      // Once invited, that member no longer offers it.
+      await tester.tap(find.byTooltip(S.actions).at(row));
+      await tester.pumpAndSettle();
+      expect(find.text(S.inviteToApp), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('member invites in memory', () {
+    final member = seededRepository()
+        .membersView
+        .firstWhere((m) => m.status == MemberStatus.active);
+
+    test('a pending member cannot be invited', () {
+      expect(
+        () => InMemoryAccessRepository().inviteMember(
+          member.copyWith(status: MemberStatus.pending),
+          'a@example.com',
+        ),
+        throwsA(isA<RepositoryException>()),
+      );
+    });
+
+    test('a member is invited once', () async {
+      final repo = InMemoryAccessRepository();
+      await repo.inviteMember(member, 'a@example.com');
+      expect(await repo.fetchMemberAccess(), {member.id: true});
+      expect(
+        () => repo.inviteMember(member, 'a@example.com'),
+        throwsA(isA<RepositoryException>()),
+      );
+    });
+  });
 
   // Tests build without Supabase defines, so OTP must fail closed instead of
   // accepting a fake local code.
