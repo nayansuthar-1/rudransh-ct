@@ -9,6 +9,8 @@
 //   or 4xx/5xx { error: "<readable message>" }
 //
 // One phone can hold more than one membership, so every match comes back.
+// Each row carries `details`: the fields the member's certificate prints and
+// their approved receipts (migration 20260927000100), passed through as is.
 // `member` repeats the first for a page built before the lookup dropped the
 // registration number.
 //

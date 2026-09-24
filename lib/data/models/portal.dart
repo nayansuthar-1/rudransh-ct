@@ -2,12 +2,14 @@ import 'package:flutter/foundation.dart';
 
 import 'dues.dart';
 import 'member.dart';
+import 'payment.dart';
 
 /// What the public `/lookup` page shows (IMPLEMENTATION_PLAN Phase 15).
 ///
-/// Deliberately thin: no Aadhaar, no address, no agent. Anyone with a
-/// registration number and phone can see this, so it holds only what a member
-/// needs to confirm their own standing.
+/// A member's standing, plus their own papers: [member] carries the fields
+/// their certificate prints and [receipts] their approved receipts, so a
+/// member with no login can print both. Never the Aadhaar number — [member]
+/// is built without it.
 @immutable
 class MemberLookup {
   const MemberLookup({
@@ -19,6 +21,11 @@ class MemberLookup {
     required this.contributionAmount,
     this.duesCount = 0,
     this.duesAmount = 0,
+    this.member,
+    this.payoutNote = '',
+    this.yojnaStartedOn,
+    this.agentName = '',
+    this.receipts = const [],
   });
 
   final String regNo;
@@ -34,15 +41,86 @@ class MemberLookup {
 
   bool get owesNothing => duesAmount <= 0;
 
-  static MemberLookup fromRow(Map<String, dynamic> r) => MemberLookup(
-        regNo: (r['reg_no'] ?? '') as String,
-        name: (r['name'] ?? '') as String,
-        yojnaName: (r['yojna_name'] ?? '') as String,
-        status: MemberStatus.fromName(r['status'] as String?),
-        joinDate: DateTime.parse(r['join_date'] as String),
-        contributionAmount: _num(r['contribution_amount']),
-        duesCount: (r['dues_count'] as num?)?.toInt() ?? 0,
-        duesAmount: _num(r['dues_amount']),
+  /// The member as their certificate and receipts print them. Null from a
+  /// server that predates the `details` column.
+  final Member? member;
+
+  /// The Yojna's `नोंध` and start date, for the certificate.
+  final String payoutNote;
+  final DateTime? yojnaStartedOn;
+
+  final String agentName;
+
+  /// Approved, not cancelled, newest first.
+  final List<Payment> receipts;
+
+  static MemberLookup fromRow(Map<String, dynamic> r) {
+    final regNo = (r['reg_no'] ?? '') as String;
+    final name = (r['name'] ?? '') as String;
+    final status = MemberStatus.fromName(r['status'] as String?);
+    final joinDate = DateTime.parse(r['join_date'] as String);
+    final details = r['details'] is Map
+        ? Map<String, dynamic>.from(r['details'] as Map)
+        : null;
+    final cert = details?['certificate'] is Map
+        ? Map<String, dynamic>.from(details!['certificate'] as Map)
+        : null;
+    String text(String key) => (cert?[key] ?? '') as String;
+
+    return MemberLookup(
+      regNo: regNo,
+      name: name,
+      yojnaName: (r['yojna_name'] ?? '') as String,
+      status: status,
+      joinDate: joinDate,
+      contributionAmount: _num(r['contribution_amount']),
+      duesCount: (r['dues_count'] as num?)?.toInt() ?? 0,
+      duesAmount: _num(r['dues_amount']),
+      member: cert == null
+          ? null
+          : Member(
+              id: '',
+              yojnaId: '',
+              regNo: regNo,
+              name: name,
+              fatherOrHusbandName: text('father_or_husband_name'),
+              jati: text('jati'),
+              gotra: text('gotra'),
+              dob: _date(cert['dob']),
+              warisName: text('waris_name'),
+              warisRelation: text('waris_relation'),
+              primaryPhone: text('primary_phone'),
+              aadhaar: '',
+              village: text('village'),
+              tehsil: text('tehsil'),
+              district: text('district'),
+              state: text('state'),
+              pincode: text('pincode'),
+              joinDate: joinDate,
+              status: status,
+              photoUrl: text('photo_url'),
+            ),
+      payoutNote: text('yojna_description'),
+      yojnaStartedOn: _date(cert?['yojna_start_date']),
+      agentName: text('agent_name'),
+      receipts: [
+        for (final p in (details?['receipts'] as List?) ?? const [])
+          _receipt(Map<String, dynamic>.from(p as Map)),
+      ],
+    );
+  }
+
+  static Payment _receipt(Map<String, dynamic> p) => Payment(
+        id: (p['receipt_no'] ?? '') as String,
+        receiptNo: (p['receipt_no'] ?? '') as String,
+        memberId: '',
+        yojnaId: '',
+        amount: _num(p['amount']),
+        date: DateTime.parse(p['date'] as String),
+        mode: PaymentMode.fromName(p['mode'] as String?),
+        kind: PaymentKind.fromName(p['kind'] as String?),
+        reference: (p['reference'] ?? '') as String,
+        closingGroup: (p['closing_group'] ?? '') as String,
       );
 }
 
@@ -181,3 +259,6 @@ class ChangeRequest {
 }
 
 double _num(Object? v) => v == null ? 0 : (v as num).toDouble();
+
+DateTime? _date(Object? v) =>
+    v is String && v.isNotEmpty ? DateTime.parse(v) : null;

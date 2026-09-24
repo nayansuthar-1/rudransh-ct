@@ -27,10 +27,93 @@ void main() {
         () => repo.membersView,
         () => repo.yojnasView,
         repo.allDues,
+        payments: () => repo.paymentsView,
+        agents: () => repo.agentsView,
       );
       member = repo.membersView.firstWhere(
         (m) => m.status == MemberStatus.active && m.aadhaar.isNotEmpty,
       );
+    });
+
+    test('the member gets their own papers, without the Aadhaar', () async {
+      final found = (await lookup.find(
+        phone: member.primaryPhone,
+        aadhaar4: member.aadhaar.substring(member.aadhaar.length - 4),
+        turnstileToken: 'test',
+      ))
+          .single;
+      expect(found.member, isNotNull);
+      expect(found.member!.regNo, member.regNo);
+      expect(found.member!.fatherOrHusbandName, member.fatherOrHusbandName);
+      expect(found.member!.aadhaar, isEmpty);
+
+      final approved = repo.paymentsView.where((p) =>
+          p.memberId == member.id &&
+          p.status == PaymentStatus.paid &&
+          !p.isCancelled);
+      expect(
+        found.receipts.map((p) => p.receiptNo).toSet(),
+        approved.map((p) => p.receiptNo).toSet(),
+      );
+      for (var i = 1; i < found.receipts.length; i++) {
+        expect(
+          found.receipts[i - 1].date.isBefore(found.receipts[i].date),
+          isFalse,
+          reason: 'newest first',
+        );
+      }
+    });
+
+    test('the server row carries receipts and certificate fields', () {
+      final l = MemberLookup.fromRow({
+        'reg_no': 'SSY-2026-0001',
+        'name': 'Ramesh',
+        'yojna_name': 'Sahyog',
+        'status': 'active',
+        'join_date': '2026-07-01',
+        'contribution_amount': 200,
+        'dues_count': 0,
+        'dues_amount': 0,
+        'details': {
+          'certificate': {
+            'father_or_husband_name': 'Farhan',
+            'gotra': 'Keshav',
+            'dob': '1960-01-01',
+            'yojna_description': 'note',
+            'yojna_start_date': '2026-07-01',
+            'agent_name': 'Agent A',
+          },
+          'receipts': [
+            {
+              'receipt_no': 'R-0007',
+              'date': '2026-09-01',
+              'amount': 200,
+              'kind': 'contribution',
+              'mode': 'upi',
+              'reference': 'UTR1',
+              'closing_group': 'A-1',
+            },
+          ],
+        },
+      });
+      expect(l.member!.gotra, 'Keshav');
+      expect(l.member!.dob, DateTime(1960, 1, 1));
+      expect(l.payoutNote, 'note');
+      expect(l.agentName, 'Agent A');
+      expect(l.receipts.single.receiptNo, 'R-0007');
+      expect(l.receipts.single.mode, PaymentMode.upi);
+      expect(l.receipts.single.closingGroup, 'A-1');
+    });
+
+    test('an older server without details still gives the summary', () {
+      final l = MemberLookup.fromRow({
+        'reg_no': 'X',
+        'name': 'Y',
+        'status': 'active',
+        'join_date': '2026-07-01',
+      });
+      expect(l.member, isNull);
+      expect(l.receipts, isEmpty);
     });
 
     String last4(Member m) => m.aadhaar.substring(m.aadhaar.length - 4);
@@ -370,6 +453,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text(member.name), findsOneWidget);
+      expect(find.text(S.printCertificate), findsOneWidget);
+      expect(find.text('Receipts'), findsOneWidget);
       expect(find.widgetWithText(OutlinedButton, S.lookupAgain), findsOneWidget);
       expect(tester.takeException(), isNull);
     });

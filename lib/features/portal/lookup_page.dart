@@ -15,6 +15,9 @@ import '../../state/providers.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/inputs.dart';
 import '../../widgets/primitives.dart';
+import '../certificate/certificate_data.dart';
+import '../certificate/certificate_printer.dart';
+import '../receipt/receipt_action.dart';
 import 'turnstile.dart';
 
 /// Public membership check (IMPLEMENTATION_PLAN Phase 15).
@@ -280,9 +283,116 @@ class _Result extends StatelessWidget {
               tone: c.warning,
               background: c.warningSoft,
             ),
+          if (member.member != null) ...[
+            const SizedBox(height: Space.md),
+            OutlinedButton.icon(
+              onPressed: () => _printCertificate(context, member),
+              icon: const Icon(Icons.workspace_premium_outlined, size: 17),
+              label: const Text(S.printCertificate),
+            ),
+            const SizedBox(height: Space.lg),
+            Text(
+              'Receipts',
+              style: text.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: Space.xs),
+            if (member.receipts.isEmpty)
+              Text(
+                'No approved receipts yet.',
+                style: TextStyle(fontSize: 13, color: c.textSecondary),
+              )
+            else
+              for (final p in member.receipts)
+                _ReceiptRow(payment: p, lookup: member),
+          ],
         ],
       ),
     );
+  }
+}
+
+/// One approved receipt, with a button to print it.
+class _ReceiptRow extends StatelessWidget {
+  const _ReceiptRow({required this.payment, required this.lookup});
+
+  final Payment payment;
+  final MemberLookup lookup;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final text = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: Space.xs),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  payment.receiptNo,
+                  style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  '${Fmt.date(payment.date)} · ${payment.kind.label}',
+                  style: text.bodySmall?.copyWith(color: c.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            Fmt.money(payment.amount),
+            style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          IconButton(
+            icon: const Icon(Icons.print_outlined, size: 20),
+            tooltip: 'Print receipt',
+            onPressed: () => printPaymentReceipt(
+              context,
+              payment: payment,
+              member: lookup.member,
+              yojnaName: lookup.yojnaName,
+              agentName: lookup.agentName,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The certificate, from what the lookup returned. Built here rather than
+/// through `printMemberCertificate`, which wants the full Yojna record a
+/// signed-out visitor never gets.
+Future<void> _printCertificate(BuildContext context, MemberLookup l) async {
+  final m = l.member!;
+  final opened = await openCertificateForPrint(
+    CertificateData(
+      regNo: m.regNo,
+      issuedOn: DateTime.now(),
+      name: m.name,
+      fatherOrHusbandName: m.fatherOrHusbandName,
+      yojnaName: l.yojnaName,
+      yojnaStartedOn: l.yojnaStartedOn,
+      contributionAmount: l.contributionAmount,
+      payoutNote: l.payoutNote,
+      gotra: m.gotra,
+      jati: m.jati,
+      dob: m.dob,
+      village: m.village,
+      district: m.district,
+      state: m.state,
+      address: m.address,
+      phone: m.primaryPhone,
+      warisName: m.warisName,
+      warisRelation: m.warisRelation,
+      agentName: l.agentName,
+      photoUrl: m.photoUrl,
+    ),
+  );
+  if (!opened && context.mounted) {
+    showToast(context, S.certificateFailed, error: true);
   }
 }
 

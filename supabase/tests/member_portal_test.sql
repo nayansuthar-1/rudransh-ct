@@ -56,6 +56,13 @@ begin
   assert r.dues_count = 1, 'one closing group owed: ' || r.dues_count;
   assert r.dues_amount = 100, 'owed amount: ' || r.dues_amount;
 
+  -- The member's own papers come with it: certificate fields and receipts,
+  -- and nothing that carries the Aadhaar.
+  assert r.details ? 'certificate', 'certificate fields returned';
+  assert jsonb_typeof(r.details -> 'receipts') = 'array', 'receipts returned';
+  assert r.details::text not like '%aadhaar%', 'no Aadhaar key in details';
+  assert r.details::text not like '%123456789012%', 'no Aadhaar number in details';
+
   -- The alternate phone works too.
   select count(*) into n from public.member_lookup('9400000091', '9012');
   assert n = 1, 'the alternate phone is accepted';

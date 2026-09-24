@@ -60,11 +60,20 @@ class EdgeLookupRepository implements LookupRepository {
 /// Demo mode and widget tests: matches against the in-memory records with the
 /// same rules as the database function, including the five-try lock.
 class InMemoryLookupRepository implements LookupRepository {
-  InMemoryLookupRepository(this._members, this._yojnas, this._dues);
+  InMemoryLookupRepository(
+    this._members,
+    this._yojnas,
+    this._dues, {
+    List<Payment> Function()? payments,
+    List<Agent> Function()? agents,
+  })  : _payments = payments ?? (() => const []),
+        _agents = agents ?? (() => const []);
 
   final List<Member> Function() _members;
   final List<Yojna> Function() _yojnas;
   final List<MemberDue> Function() _dues;
+  final List<Payment> Function() _payments;
+  final List<Agent> Function() _agents;
 
   final _failures = <String, List<DateTime>>{};
 
@@ -112,6 +121,14 @@ class InMemoryLookupRepository implements LookupRepository {
   MemberLookup _summary(Member m) {
     final yojna = _yojnas().firstWhere((y) => y.id == m.yojnaId);
     final owed = _dues().where((d) => d.memberId == m.id && d.due > 0);
+    final agent = _agents().where((a) => a.id == m.agentId).firstOrNull;
+    final receipts = _payments()
+        .where((p) =>
+            p.memberId == m.id &&
+            p.status == PaymentStatus.paid &&
+            !p.isCancelled)
+        .toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
     return MemberLookup(
       regNo: m.regNo,
       name: m.name,
@@ -121,6 +138,12 @@ class InMemoryLookupRepository implements LookupRepository {
       contributionAmount: yojna.contributionAmount,
       duesCount: owed.length,
       duesAmount: owed.fold<double>(0, (sum, d) => sum + d.due),
+      // As the database function: the member without their Aadhaar.
+      member: m.copyWith(aadhaar: ''),
+      payoutNote: yojna.description,
+      yojnaStartedOn: yojna.startDate ?? yojna.createdAt,
+      agentName: agent?.name ?? '',
+      receipts: receipts,
     );
   }
 

@@ -636,6 +636,8 @@ final lookupRepositoryProvider = Provider<LookupRepository>((ref) {
     () => repo.membersView,
     () => repo.yojnasView,
     repo.allDues,
+    payments: () => repo.paymentsView,
+    agents: () => repo.agentsView,
   );
 });
 

@@ -938,6 +938,8 @@ class InMemoryTrustRepository implements TrustRepository {
   /// without awaiting the fake latency.
   List<Member> get membersView => List.unmodifiable(_members);
   List<Yojna> get yojnasView => List.unmodifiable(_yojnas);
+  List<Payment> get paymentsView => List.unmodifiable(_payments);
+  List<Agent> get agentsView => List.unmodifiable(_agents);
 
   final List<ChangeRequest> _changeRequests = [];
 
