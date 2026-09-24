@@ -64,6 +64,7 @@ class ReceiptData {
       PaymentMode.upi => 'यूपीआई (UPI)',
       PaymentMode.bank => 'बैंक ट्रांसफर (Bank)',
       PaymentMode.cheque => 'चेक (Cheque)',
+      PaymentMode.online => 'ऑनलाइन (Online)',
     };
 
     final effectiveMemberName = member?.name ??

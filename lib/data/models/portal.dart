@@ -124,6 +124,50 @@ class MemberLookup {
       );
 }
 
+/// An online payment the server has opened with Razorpay, ready for the
+/// checkout. [amountPaise] is what the member will be charged.
+@immutable
+class OnlineOrder {
+  const OnlineOrder({
+    required this.orderId,
+    required this.amountPaise,
+    required this.keyId,
+    this.currency = 'INR',
+    this.name = '',
+    this.description = '',
+    this.prefillName = '',
+    this.prefillEmail = '',
+    this.prefillContact = '',
+  });
+
+  final String orderId;
+  final int amountPaise;
+  final String keyId;
+  final String currency;
+  final String name;
+  final String description;
+  final String prefillName;
+  final String prefillEmail;
+  final String prefillContact;
+
+  static OnlineOrder fromJson(Map<String, dynamic> j) {
+    final prefill = j['prefill'] is Map
+        ? Map<String, dynamic>.from(j['prefill'] as Map)
+        : const <String, dynamic>{};
+    return OnlineOrder(
+      orderId: j['order_id'] as String,
+      amountPaise: (j['amount'] as num).toInt(),
+      keyId: j['key_id'] as String,
+      currency: (j['currency'] ?? 'INR') as String,
+      name: (j['name'] ?? '') as String,
+      description: (j['description'] ?? '') as String,
+      prefillName: (prefill['name'] ?? '') as String,
+      prefillEmail: (prefill['email'] ?? '') as String,
+      prefillContact: (prefill['contact'] ?? '') as String,
+    );
+  }
+}
+
 /// A signed-in member's own record, as `my_membership` returns it.
 @immutable
 class Membership {

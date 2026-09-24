@@ -20,4 +20,5 @@ flutter build web --release \
   --dart-define=CLOUDINARY_UPLOAD_PRESET="${CLOUDINARY_UPLOAD_PRESET:-}" \
   --dart-define=UPI_ID="${UPI_ID:-}" \
   --dart-define=UPI_PAYEE="${UPI_PAYEE:-}" \
+  --dart-define=RAZORPAY_KEY_ID="${RAZORPAY_KEY_ID:-}" \
   --dart-define=TURNSTILE_SITE_KEY="${TURNSTILE_SITE_KEY:-0x4AAAAAAE_MTddf-fDjScJ1}"

@@ -180,6 +180,48 @@ trust's UPI address) and `UPI_PAYEE` (the name shown in a payment app). Leaving
 A member enters the UTR after paying; it lands as a **pending** receipt that an
 admin approves, so nothing counts until the office has seen the money.
 
+### 1.8 Online payments (Razorpay) and member email sign-in
+
+**Razorpay.** Members pay what they owe for a closing through Razorpay's
+checkout (UPI, card, netbanking). The trust pays Razorpay's fee (about 2%);
+the member pays exactly the due. A paid order becomes a **Paid** receipt with
+mode *Online* straight away — Razorpay has confirmed the money, so there is
+nothing for the office to approve. Until the steps below are done the button
+stays hidden and the manual UPI + UTR flow is unchanged.
+
+1. The trust opens a Razorpay account and completes KYC (trust PAN, bank
+   account, registration certificate). Test with **Test mode** keys first.
+2. Razorpay → Account & Settings → API Keys → generate a key. You get a
+   **Key Id** (`rzp_test_…` / `rzp_live_…`, public) and a **Key Secret**.
+3. Razorpay → Webhooks → Add: URL
+   `https://<project-ref>.supabase.co/functions/v1/razorpay_webhook`, events
+   **payment.captured** and **order.paid**, and type a long random
+   **secret**.
+4. Give the functions their secrets and deploy them:
+   ```sh
+   supabase secrets set RAZORPAY_KEY_ID=rzp_... RAZORPAY_KEY_SECRET=... \
+     RAZORPAY_WEBHOOK_SECRET=...
+   supabase functions deploy razorpay_order
+   supabase functions deploy razorpay_verify
+   supabase functions deploy razorpay_webhook --no-verify-jwt
+   ```
+5. Vercel → Settings → Environments: `RAZORPAY_KEY_ID` = the Key Id, then
+   redeploy. The **Pay online** button appears on members' dues.
+
+Switching from test to live keys means repeating steps 2–5 with live keys and
+a live-mode webhook.
+
+**Member email sign-in.** A member whose email is on their record signs in on
+the normal sign-in page without an invite. Deploy once:
+
+```sh
+supabase functions deploy member_sign_in --no-verify-jwt
+```
+
+Until Release 2 only the trust's own login and members may use the app;
+agents and staff who sign in are signed out with a message
+(`AuthController.mayUseApp`).
+
 ---
 
 ## 2. Deploying

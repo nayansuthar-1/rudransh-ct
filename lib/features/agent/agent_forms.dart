@@ -749,7 +749,7 @@ class _AgentPaymentFormState extends ConsumerState<_AgentPaymentForm> {
                 GridItem(AppDropdown<PaymentMode>(
                   label: S.mode,
                   value: _mode,
-                  items: PaymentMode.values,
+                  items: PaymentMode.manual,
                   itemLabel: (m) => m.label,
                   onChanged: (v) => setState(() => _mode = v ?? _mode),
                 )),

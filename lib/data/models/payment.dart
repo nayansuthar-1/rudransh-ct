@@ -4,10 +4,17 @@ enum PaymentMode {
   cash('Cash'),
   upi('UPI'),
   bank('Bank Transfer'),
-  cheque('Cheque');
+  cheque('Cheque'),
+
+  /// Paid through Razorpay's checkout (card, UPI or netbanking). Only the
+  /// gateway records these; the office and agents never pick it.
+  online('Online');
 
   const PaymentMode(this.label);
   final String label;
+
+  /// The modes a person records by hand. [online] is the gateway's alone.
+  static const manual = [cash, upi, bank, cheque];
 
   static PaymentMode fromName(String? value) => PaymentMode.values
       .firstWhere((m) => m.name == value, orElse: () => PaymentMode.cash);

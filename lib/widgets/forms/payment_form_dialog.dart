@@ -301,7 +301,12 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
                   AppDropdown<PaymentMode>(
                     label: S.mode,
                     value: _mode,
-                    items: PaymentMode.values,
+                    // An online receipt keeps its mode when edited; nobody
+                    // records a new one by hand.
+                    items: [
+                      ...PaymentMode.manual,
+                      if (_mode == PaymentMode.online) PaymentMode.online,
+                    ],
                     itemLabel: (m) => m.label,
                     onChanged: (v) => setState(() => _mode = v ?? _mode),
                   ),

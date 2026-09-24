@@ -152,6 +152,11 @@ class MemberText {
         S.upiSentForApproval,
       );
   String get payByUpi => _t('UPI से भुगतान करें', S.payByUpi);
+  String get payOnline => _t('ऑनलाइन भुगतान करें', 'Pay online');
+  String paidOnline(String receiptNo) => _t(
+        'भुगतान हो गया। रसीद $receiptNo',
+        'Paid. Receipt $receiptNo',
+      );
   String get payOffline => _t(
         'अपने एजेंट या कार्यालय में जमा करें। ऑनलाइन भुगतान अभी चालू नहीं है।',
         'Pay your agent or the office. Online payment is not switched on yet.',

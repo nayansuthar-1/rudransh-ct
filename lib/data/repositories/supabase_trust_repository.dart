@@ -653,6 +653,50 @@ class SupabaseTrustRepository implements TrustRepository {
           }) as String);
 
   @override
+  Future<OnlineOrder> startOnlinePayment(String closingCaseId) async {
+    final data = await _invoke('razorpay_order', {
+      'closing_case_id': closingCaseId,
+    });
+    return OnlineOrder.fromJson(data);
+  }
+
+  @override
+  Future<String> confirmOnlinePayment({
+    required String orderId,
+    required String paymentId,
+    required String signature,
+  }) async {
+    final data = await _invoke('razorpay_verify', {
+      'order_id': orderId,
+      'payment_id': paymentId,
+      'signature': signature,
+    });
+    return (data['receipt_no'] ?? '') as String;
+  }
+
+  /// Calls an Edge Function, turning its `{ error }` into a readable
+  /// [RepositoryException].
+  Future<Map<String, dynamic>> _invoke(
+    String name,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final res = await _db.functions.invoke(name, body: body);
+      final data = res.data;
+      if (data is! Map) {
+        throw const RepositoryException('Something went wrong. Try again.');
+      }
+      return Map<String, dynamic>.from(data);
+    } on FunctionException catch (e) {
+      final details = e.details;
+      final message = details is Map ? details['error'] as String? : null;
+      throw RepositoryException(
+        message ?? 'Something went wrong (${e.status}). Try again.',
+      );
+    }
+  }
+
+  @override
   Future<String> requestChange(ChangeField field, String newValue) =>
       _guard(() async => await _db.rpc('request_change', params: {
             'p_field': field.column,

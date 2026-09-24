@@ -190,6 +190,18 @@ abstract class TrustRepository {
     String? closingCaseId,
   });
 
+  /// Opens a Razorpay order for what the member owes on [closingCaseId]. The
+  /// server works out the amount.
+  Future<OnlineOrder> startOnlinePayment(String closingCaseId);
+
+  /// Confirms a checkout Razorpay reported as paid; returns the receipt
+  /// number. The server checks Razorpay's signature before recording it.
+  Future<String> confirmOnlinePayment({
+    required String orderId,
+    required String paymentId,
+    required String signature,
+  });
+
   /// Asks the office to correct one detail. One pending request per field.
   Future<String> requestChange(ChangeField field, String newValue);
 

@@ -1004,6 +1004,65 @@ class InMemoryTrustRepository implements TrustRepository {
     return _delayed(_closingCases.where((c) => c.memberId == id).firstOrNull);
   }
 
+  /// Demo orders, by id: the closing each one pays for.
+  final _onlineOrders = <String, String>{};
+
+  @override
+  Future<OnlineOrder> startOnlinePayment(String closingCaseId) async {
+    final m = _portalMember;
+    final due = allDues()
+        .where((d) => d.memberId == m.id && d.closingCaseId == closingCaseId)
+        .firstOrNull;
+    if (due == null || due.due <= 0) {
+      throw const RepositoryException('Nothing is owed for this closing.');
+    }
+    if (due.pending > 0) {
+      throw const RepositoryException(
+        'A payment for this closing is already waiting for approval.',
+      );
+    }
+    final id = 'order_demo_${_onlineOrders.length + 1}';
+    _onlineOrders[id] = closingCaseId;
+    return OnlineOrder(
+      orderId: id,
+      amountPaise: (due.due * 100).round(),
+      keyId: 'rzp_test_demo',
+      name: 'Rudransh Charitable Trust',
+      prefillName: m.name,
+      prefillContact: m.primaryPhone,
+    );
+  }
+
+  @override
+  Future<String> confirmOnlinePayment({
+    required String orderId,
+    required String paymentId,
+    required String signature,
+  }) async {
+    final closingCaseId = _onlineOrders.remove(orderId);
+    if (closingCaseId == null) {
+      throw const RepositoryException('Order not found.');
+    }
+    final m = _portalMember;
+    final due = allDues().firstWhere(
+      (d) => d.memberId == m.id && d.closingCaseId == closingCaseId,
+    );
+    final created = await createPayment(Payment(
+      id: '',
+      receiptNo: await nextReceiptNo(),
+      memberId: m.id,
+      yojnaId: m.yojnaId,
+      amount: due.due,
+      date: DateTime.now(),
+      mode: PaymentMode.online,
+      kind: PaymentKind.contribution,
+      reference: paymentId,
+      source: PaymentSource.member,
+      closingCaseId: closingCaseId,
+    ));
+    return created.receiptNo;
+  }
+
   @override
   Future<String> submitUpiPayment({
     required double amount,

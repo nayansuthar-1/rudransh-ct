@@ -702,6 +702,27 @@ class PortalActions {
     _touch();
   }
 
+  /// Pays what is owed on [closingCaseId] through Razorpay. [checkout] opens
+  /// the gateway's window; it gives back null when the member closes it
+  /// without paying, and so does this. Otherwise, the receipt number.
+  Future<String?> payOnline(
+    String closingCaseId, {
+    required Future<({String orderId, String paymentId, String signature})?>
+            Function(OnlineOrder order)
+        checkout,
+  }) async {
+    final order = await _repo.startOnlinePayment(closingCaseId);
+    final paid = await checkout(order);
+    if (paid == null) return null;
+    final receipt = await _repo.confirmOnlinePayment(
+      orderId: paid.orderId,
+      paymentId: paid.paymentId,
+      signature: paid.signature,
+    );
+    _touch();
+    return receipt;
+  }
+
   Future<void> requestChange(ChangeField field, String newValue) async {
     await _repo.requestChange(field, newValue);
     _touch();

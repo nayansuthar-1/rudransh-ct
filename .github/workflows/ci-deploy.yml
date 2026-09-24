@@ -212,6 +212,7 @@ jobs:
           --dart-define=TURNSTILE_SITE_KEY=${{ vars.TURNSTILE_SITE_KEY }}
           --dart-define=UPI_ID=${{ vars.UPI_ID }}
           --dart-define=UPI_PAYEE=${{ vars.UPI_PAYEE }}
+          --dart-define=RAZORPAY_KEY_ID=${{ vars.RAZORPAY_KEY_ID }}
 
       - name: Refuse a build without Supabase config
         if: steps.env.outputs.deploy == 'true'

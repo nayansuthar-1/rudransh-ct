@@ -7,6 +7,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/models.dart';
+import '../../data/repositories/trust_repository.dart' show RepositoryException;
 import '../../state/member_lang.dart';
 import '../../state/providers.dart';
 import '../../widgets/app_dialog.dart';
@@ -14,6 +15,7 @@ import '../../widgets/app_shell.dart';
 import '../../widgets/inputs.dart';
 import '../../widgets/primitives.dart';
 import '../receipt/receipt_action.dart';
+import 'razorpay_checkout.dart';
 
 /// What the member owes, and how to pay it (IMPLEMENTATION_PLAN Phase 15).
 class MemberDuesPage extends ConsumerWidget {
@@ -101,15 +103,28 @@ class _DueCard extends ConsumerWidget {
               t.sentForApproval,
               style: TextStyle(fontSize: 13, color: c.textSecondary),
             )
-          else if (Env.hasUpi)
-            FilledButton.icon(
-              onPressed: () => showUpiDialog(
-                context,
-                amount: due.amount,
-                closingCaseId: due.closingCaseId,
-              ),
-              icon: const Icon(Icons.qr_code_2_rounded, size: 18),
-              label: Text(t.payByUpi),
+          else if (Env.hasRazorpay || Env.hasUpi)
+            Wrap(
+              spacing: Space.sm,
+              runSpacing: Space.sm,
+              children: [
+                if (Env.hasRazorpay)
+                  FilledButton.icon(
+                    onPressed: () => _payOnline(context, ref, due),
+                    icon: const Icon(Icons.payments_outlined, size: 18),
+                    label: Text(t.payOnline),
+                  ),
+                if (Env.hasUpi)
+                  (Env.hasRazorpay ? OutlinedButton.icon : FilledButton.icon)(
+                    onPressed: () => showUpiDialog(
+                      context,
+                      amount: due.amount,
+                      closingCaseId: due.closingCaseId,
+                    ),
+                    icon: const Icon(Icons.qr_code_2_rounded, size: 18),
+                    label: Text(t.payByUpi),
+                  ),
+              ],
             )
           else
             Text(
@@ -119,6 +134,42 @@ class _DueCard extends ConsumerWidget {
         ],
       ),
     );
+  }
+}
+
+/// Razorpay checkout for one due. Paid is final: Razorpay has confirmed the
+/// money and the server checked its signature, so no office approval.
+Future<void> _payOnline(
+  BuildContext context,
+  WidgetRef ref,
+  MemberDue due,
+) async {
+  final t = ref.read(memberTextProvider);
+  try {
+    final receipt = await ref.read(portalActionsProvider).payOnline(
+      due.closingCaseId,
+      checkout: (order) async {
+        final r = await openRazorpayCheckout(order);
+        return r == null
+            ? null
+            : (
+                orderId: r.orderId,
+                paymentId: r.paymentId,
+                signature: r.signature,
+              );
+      },
+    );
+    if (receipt != null && context.mounted) {
+      showToast(context, t.paidOnline(receipt));
+    }
+  } catch (e) {
+    if (context.mounted) {
+      showToast(
+        context,
+        e is RepositoryException ? e.message : '$e',
+        error: true,
+      );
+    }
   }
 }
 

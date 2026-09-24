@@ -61,6 +61,13 @@ abstract final class Env {
 
   static bool get hasTurnstile => turnstileSiteKey.isNotEmpty;
 
+  /// Razorpay's public key id (`rzp_live_…` / `rzp_test_…`). Set, it shows
+  /// members a **Pay online** button; the secret stays in the Edge Functions
+  /// (docs/RUNBOOK.md 1.8).
+  static const razorpayKeyId = String.fromEnvironment('RAZORPAY_KEY_ID');
+
+  static bool get hasRazorpay => razorpayKeyId.isNotEmpty;
+
   /// The trust's UPI address, shown to members paying from the portal. Empty
   /// hides the UPI option; members can still pay through their agent.
   static const upiId = String.fromEnvironment('UPI_ID');
