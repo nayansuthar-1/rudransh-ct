@@ -142,7 +142,7 @@ void main() {
       expect(html, contains('${TrustInfo.place} - ${TrustInfo.state}'));
       expect(html, contains(TrustInfo.headOfficeAddress));
       expect(html, contains(TrustInfo.headOfficePhones.first));
-      expect(html, contains(TrustInfo.slogan));
+      expect(html, isNot(contains('आपका साथ सहयोग वही समाज का कल्याण')));
       for (final line in TrustInfo.invocations) {
         expect(html, contains(line));
       }

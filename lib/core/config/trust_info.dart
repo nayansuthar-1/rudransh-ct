@@ -63,15 +63,15 @@ class TrustInfo {
   ];
 
   /// The payout rule printed under the certificate's fields, one entry per
-  /// line, worded as the reference certificate has it.
+  /// line.
   static const certificateRule = <String>[
-    'जुड़ने की तिथि से 12 माह पहले मायरा 00 एवं 12 माह से 18 माह तक 101000 '
-        'एवं 18 माह बाद सदस्यों के हिसाब से नियमानुसार राशि दी जाएगी।',
-    'यह नियम 13-5-2026 से लागू है |',
+    'जुड़ने की तिथि से 9 महीने तक — सदस्य: 00 — राशि: 00 | '
+        '10 से 12 महीने — सदस्य: 00 — राशि: 51,000/- | '
+        '13 से 16 महीने — सदस्य: 00 — राशि: 81,000/- |',
+    '17 महीने बाद — सदस्य: सभी समूहों के सदस्यों के अनुसार — '
+        'राशि: सभी समूहों के सदस्यों के अनुसार | '
+        'संस्था के प्रबंधन एवं व्यवस्था संचालन के लिए 10% कटौती कर सहायता राशि दी जाएगी।',
   ];
-
-  /// The line across the foot of the certificate.
-  static const slogan = 'आपका साथ सहयोग वही समाज का कल्याण';
 
   /// Images served from the app's own assets, declared in `pubspec.yaml`.
   /// Replacing the logo means dropping a new file in `assets/brand/` — the

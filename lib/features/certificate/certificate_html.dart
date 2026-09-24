@@ -348,24 +348,14 @@ html, body {
 
 .rule-line {
   position: absolute;
-  left: 28pt;
-  width: 539.28pt;
+  /* Clear of the frame's side lines and corner flourishes. */
+  left: 40pt;
+  width: 515.28pt;
   font-size: 8.5pt;
   text-align: center;
   white-space: nowrap;
 }
 .rule-line.first { letter-spacing: 0.29pt; }
-
-.slogan {
-  position: absolute;
-  left: 0;
-  width: 100%;
-  top: ${(388.55 - 0.896 * 11).toStringAsFixed(2)}pt;
-  text-align: center;
-  font-size: 11pt;
-  font-weight: 700;
-  color: #1a0f5e;
-}
 
 /* Signatures: the name over a dotted line, the role under it. */
 .sig { position: absolute; top: 0; height: 100%; text-align: center; font-weight: 700; }
@@ -384,7 +374,6 @@ html, body {
   <div class="sig" style="left:77.09pt;width:155.49pt">
     <div class="name">${_esc(d.agentName)}</div><div class="rule"></div><div class="role">कार्यकर्ता</div>
   </div>
-  <div class="slogan">${_esc(TrustInfo.slogan)}</div>
   <div class="sig" style="left:370.44pt;width:140pt">
     <div class="name"></div><div class="rule"></div><div class="role">अध्यक्ष</div>
   </div>
