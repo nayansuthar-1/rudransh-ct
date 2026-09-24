@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rudransh_ct/app.dart';
 import 'package:rudransh_ct/core/config/env.dart';
+import 'package:rudransh_ct/core/l10n/member_text.dart';
 import 'package:rudransh_ct/core/l10n/strings.dart';
 import 'package:rudransh_ct/core/router/app_router.dart';
 import 'package:rudransh_ct/core/router/routes.dart';
@@ -142,7 +143,11 @@ void main() {
     await _pumpAs(tester, UserRole.member);
 
     expect(find.byType(RoleShell), findsOneWidget);
-    expect(find.text(S.myPayments), findsWidgets);
+    // The member side opens in Hindi.
+    expect(
+      find.text(const MemberText(MemberLang.hi).navPayments),
+      findsWidgets,
+    );
     expect(find.text(S.collections), findsNothing);
     expect(tester.takeException(), isNull);
   });

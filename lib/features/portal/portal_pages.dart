@@ -9,6 +9,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/models.dart';
 import '../../state/auth_controller.dart';
+import '../../state/member_lang.dart';
 import '../../state/providers.dart';
 import '../../widgets/app_shell.dart';
 import '../../widgets/primitives.dart';
@@ -30,15 +31,21 @@ class _PortalHome extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     final user = ref.watch(currentUserProvider);
-    final sections = user.role.nav.skip(1).toList();
     final isMember = user.role == UserRole.member;
+    final t = ref.watch(memberTextProvider);
+    // Members read their screens in the language they chose; agents in English.
+    final sections = [
+      for (final item in user.role.nav.skip(1)) isMember ? t.nav(item) : item,
+    ];
 
     return PageBody(
       maxWidth: 720,
       children: [
         SectionHeader(
-          title: 'Namaste, ${user.name}',
-          subtitle: '${S.trustName} · ${user.role.label}',
+          title: isMember ? t.namaste(user.name) : 'Namaste, ${user.name}',
+          subtitle: isMember
+              ? '${t.trustName} · ${t.member}'
+              : '${S.trustName} · ${user.role.label}',
         ),
         const SizedBox(height: Space.xl),
         if (isMember) ...[
@@ -110,6 +117,7 @@ class _MembershipCard extends ConsumerWidget {
     if (m == null) return const AppCard(child: LoadingState(height: 120));
 
     final text = Theme.of(context).textTheme;
+    final t = ref.watch(memberTextProvider);
     return AppCard(
       padding: const EdgeInsets.all(Space.lg),
       child: Column(
@@ -119,12 +127,12 @@ class _MembershipCard extends ConsumerWidget {
             children: [
               Expanded(
                 child: Text(
-                  S.myMembership,
+                  t.myMembership,
                   style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
               StatusPill(
-                m.status.label,
+                t.memberStatus(m.status),
                 tone: m.status == MemberStatus.active
                     ? PillTone.success
                     : PillTone.neutral,
@@ -132,20 +140,20 @@ class _MembershipCard extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: Space.sm),
-          DetailRow(label: S.lookupRegNo, value: m.regNo),
-          DetailRow(label: S.yojna, value: m.yojnaName),
-          DetailRow(label: 'Contribution', value: Fmt.money(m.contributionAmount)),
-          DetailRow(label: 'Member since', value: Fmt.date(m.joinDate)),
-          DetailRow(label: 'Phone', value: Fmt.phone(m.primaryPhone)),
-          DetailRow(label: 'Address', value: m.address),
+          DetailRow(label: t.regNo, value: m.regNo),
+          DetailRow(label: t.yojna, value: m.yojnaName),
+          DetailRow(label: t.contribution, value: Fmt.money(m.contributionAmount)),
+          DetailRow(label: t.memberSince, value: Fmt.date(m.joinDate)),
+          DetailRow(label: t.phoneShort, value: Fmt.phone(m.primaryPhone)),
+          DetailRow(label: t.address, value: m.address),
           DetailRow(
-            label: 'Nominee',
+            label: t.nominee,
             value: m.warisRelation.isEmpty
                 ? m.warisName
                 : '${m.warisName} (${m.warisRelation})',
           ),
           if (m.agentName.isNotEmpty)
-            DetailRow(label: 'Your agent', value: m.agentName),
+            DetailRow(label: t.yourAgent, value: m.agentName),
           if (m.regNo.isNotEmpty) ...[
             const SizedBox(height: Space.md),
             OutlinedButton.icon(
@@ -173,7 +181,7 @@ class _MembershipCard extends ConsumerWidget {
                 agentName: m.agentName,
               ),
               icon: const Icon(Icons.print_outlined, size: 17),
-              label: const Text(S.printCertificate),
+              label: Text(t.printCertificate),
             ),
           ],
         ],
@@ -191,6 +199,7 @@ class _CorrectionsCard extends ConsumerWidget {
     final c = context.colors;
     final text = Theme.of(context).textTheme;
     final items = ref.watch(myChangeRequestsProvider).value ?? const [];
+    final t = ref.watch(memberTextProvider);
 
     return AppCard(
       padding: const EdgeInsets.all(Space.lg),
@@ -205,19 +214,19 @@ class _CorrectionsCard extends ConsumerWidget {
             spacing: Space.md,
             children: [
               Text(
-                S.myCorrections,
+                t.myCorrections,
                 style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700),
               ),
               TextButton.icon(
                 onPressed: () => showCorrectionDialog(context),
                 icon: const Icon(Icons.edit_outlined, size: 16),
-                label: const Text(S.requestCorrection),
+                label: Text(t.requestCorrection),
               ),
             ],
           ),
           if (items.isEmpty)
             Text(
-              S.noCorrections,
+              t.noCorrections,
               style: TextStyle(fontSize: 13, color: c.textSecondary),
             )
           else
@@ -227,12 +236,12 @@ class _CorrectionsCard extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      '${r.field.label}: ${r.newValue}',
+                      '${t.changeField(r.field)}: ${r.newValue}',
                       style: text.bodySmall,
                     ),
                   ),
                   StatusPill(
-                    r.status.label,
+                    t.requestStatus(r.status),
                     tone: switch (r.status) {
                       RequestStatus.approved => PillTone.success,
                       RequestStatus.rejected => PillTone.danger,

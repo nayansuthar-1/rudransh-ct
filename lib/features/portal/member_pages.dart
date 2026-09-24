@@ -3,11 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/env.dart';
-import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/models.dart';
+import '../../state/member_lang.dart';
 import '../../state/providers.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_shell.dart';
@@ -23,11 +23,12 @@ class MemberDuesPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(myDuesProvider);
     final dues = async.value;
+    final t = ref.watch(memberTextProvider);
 
     return PageBody(
       maxWidth: 720,
       children: [
-        const SectionHeader(title: S.myDues, subtitle: S.myDuesSub),
+        SectionHeader(title: t.navDues, subtitle: t.navDuesSub),
         const SizedBox(height: Space.xl),
         if (dues == null && async.hasError)
           AppCard(
@@ -39,10 +40,10 @@ class MemberDuesPage extends ConsumerWidget {
         else if (dues == null)
           const AppCard(child: LoadingState())
         else if (dues.isEmpty)
-          const AppCard(
+          AppCard(
             child: EmptyState(
               icon: Icons.task_alt_rounded,
-              message: S.nothingOwed,
+              message: t.nothingOwed,
             ),
           )
         else
@@ -65,6 +66,7 @@ class _DueCard extends ConsumerWidget {
     final c = context.colors;
     final text = Theme.of(context).textTheme;
     final waiting = due.pending > 0;
+    final t = ref.watch(memberTextProvider);
 
     return AppCard(
       padding: const EdgeInsets.all(Space.lg),
@@ -75,28 +77,28 @@ class _DueCard extends ConsumerWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Closing ${due.closingGroup}',
+                  t.closing(due.closingGroup),
                   style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
               StatusPill(
-                due.state.label,
+                t.dueState(due.state),
                 tone: waiting ? PillTone.warning : PillTone.danger,
               ),
             ],
           ),
           const SizedBox(height: Space.sm),
-          DetailRow(label: 'Closing date', value: Fmt.date(due.closingDate)),
-          DetailRow(label: 'Amount', value: Fmt.money(due.amount)),
+          DetailRow(label: t.closingDate, value: Fmt.date(due.closingDate)),
+          DetailRow(label: t.amount, value: Fmt.money(due.amount)),
           if (waiting)
             DetailRow(
-              label: 'Waiting for approval',
+              label: t.waitingForApproval,
               value: Fmt.money(due.pending),
             ),
           const SizedBox(height: Space.md),
           if (waiting)
             Text(
-              S.upiSentForApproval,
+              t.sentForApproval,
               style: TextStyle(fontSize: 13, color: c.textSecondary),
             )
           else if (Env.hasUpi)
@@ -107,12 +109,11 @@ class _DueCard extends ConsumerWidget {
                 closingCaseId: due.closingCaseId,
               ),
               icon: const Icon(Icons.qr_code_2_rounded, size: 18),
-              label: const Text(S.payByUpi),
+              label: Text(t.payByUpi),
             )
           else
             Text(
-              'Pay your agent or the office. '
-              'Online payment is not switched on yet.',
+              t.payOffline,
               style: TextStyle(fontSize: 13, color: c.textSecondary),
             ),
         ],
@@ -129,11 +130,12 @@ class MemberPaymentsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(myPaymentsProvider);
     final items = async.value;
+    final t = ref.watch(memberTextProvider);
 
     return PageBody(
       maxWidth: 720,
       children: [
-        const SectionHeader(title: S.myPayments, subtitle: S.myPaymentsSub),
+        SectionHeader(title: t.navPayments, subtitle: t.navPaymentsSub),
         const SizedBox(height: Space.xl),
         if (items != null && items.isNotEmpty) ...[
           Builder(builder: (context) {
@@ -155,7 +157,7 @@ class MemberPaymentsPage extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Total Contributed',
+                          t.totalContributed,
                           style: TextStyle(
                             fontSize: 12.5,
                             color: context.colors.textSecondary,
@@ -183,7 +185,7 @@ class MemberPaymentsPage extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Approved Receipts',
+                          t.approvedReceipts,
                           style: TextStyle(
                             fontSize: 12.5,
                             color: context.colors.textSecondary,
@@ -191,7 +193,7 @@ class MemberPaymentsPage extends ConsumerWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '$paidCount issued',
+                          t.issued(paidCount),
                           style: text.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
@@ -215,10 +217,10 @@ class MemberPaymentsPage extends ConsumerWidget {
         else if (items == null)
           const AppCard(child: LoadingState())
         else if (items.isEmpty)
-          const AppCard(
+          AppCard(
             child: EmptyState(
               icon: Icons.receipt_long_outlined,
-              message: 'No receipts yet.',
+              message: t.noReceipts,
             ),
           )
         else
@@ -248,6 +250,7 @@ class _PaymentRow extends ConsumerWidget {
     final c = context.colors;
     final text = Theme.of(context).textTheme;
     final cancelled = payment.isCancelled;
+    final t = ref.watch(memberTextProvider);
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -268,7 +271,7 @@ class _PaymentRow extends ConsumerWidget {
                   ),
                 ),
                 Text(
-                  '${Fmt.date(payment.date)} · ${payment.kind.label}',
+                  '${Fmt.date(payment.date)} · ${t.paymentKind(payment.kind)}',
                   style: text.bodySmall?.copyWith(color: c.textSecondary),
                 ),
                 if (payment.rejectReason.isNotEmpty)
@@ -289,7 +292,7 @@ class _PaymentRow extends ConsumerWidget {
               ),
               const SizedBox(height: 2),
               StatusPill(
-                cancelled ? 'Cancelled' : payment.status.label,
+                t.paymentStatus(payment),
                 tone: switch (payment.status) {
                   PaymentStatus.paid => PillTone.success,
                   PaymentStatus.pending => PillTone.warning,
@@ -302,7 +305,7 @@ class _PaymentRow extends ConsumerWidget {
             const SizedBox(width: Space.sm),
             IconButton(
               icon: const Icon(Icons.print_outlined, size: 20),
-              tooltip: 'Print receipt',
+              tooltip: t.printReceipt,
               onPressed: () {
                 final membership = ref.read(myMembershipProvider).value;
                 printPaymentReceipt(
@@ -406,18 +409,19 @@ class _UpiDialogState extends ConsumerState<_UpiDialog> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final t = ref.watch(memberTextProvider);
 
     return AppDialog(
-      title: S.payByUpi,
+      title: t.payByUpi,
       maxWidth: 460,
       actions: [
         TextButton(
           onPressed: _saving ? null : () => Navigator.of(context).pop(),
-          child: const Text(S.cancel),
+          child: Text(t.cancel),
         ),
         FilledButton(
           onPressed: _saving ? null : _save,
-          child: _saving ? const ButtonSpinner() : const Text(S.save),
+          child: _saving ? const ButtonSpinner() : Text(t.send),
         ),
       ],
       child: Form(
@@ -436,7 +440,7 @@ class _UpiDialogState extends ConsumerState<_UpiDialog> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Pay to',
+                    t.payTo,
                     style: TextStyle(fontSize: 12, color: c.onBrandSoft),
                   ),
                   const SizedBox(height: 2),
@@ -458,29 +462,29 @@ class _UpiDialogState extends ConsumerState<_UpiDialog> {
             ),
             const SizedBox(height: Space.md),
             Text(
-              'Pay in your UPI app first, then enter the reference below.',
+              t.payFirst,
               style: TextStyle(fontSize: 13, color: c.textSecondary),
             ),
             const SizedBox(height: Space.md),
             AppTextField(
-              label: S.upiAmount,
+              label: t.amountPaid,
               controller: _amount,
               required: true,
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               validator: (v) {
                 final n = double.tryParse((v ?? '').trim());
-                return n == null || n <= 0 ? 'Enter the amount you paid.' : null;
+                return n == null || n <= 0 ? t.enterAmount : null;
               },
             ),
             const SizedBox(height: Space.md),
             AppTextField(
-              label: S.upiReference,
+              label: t.upiReference,
               controller: _reference,
-              hint: S.upiReferenceHint,
+              hint: t.upiReferenceHint,
               required: true,
               validator: (v) => (v ?? '').trim().length < 6
-                  ? 'Enter the UPI reference (UTR) from your payment app.'
+                  ? t.enterUtr
                   : null,
             ),
             if (_error != null) ...[
@@ -546,18 +550,19 @@ class _CorrectionDialogState extends ConsumerState<_CorrectionDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final t = ref.watch(memberTextProvider);
     return AppDialog(
-      title: S.requestCorrection,
-      subtitle: S.requestCorrectionSub,
+      title: t.requestCorrection,
+      subtitle: t.requestCorrectionSub,
       maxWidth: 460,
       actions: [
         TextButton(
           onPressed: _saving ? null : () => Navigator.of(context).pop(),
-          child: const Text(S.cancel),
+          child: Text(t.cancel),
         ),
         FilledButton(
           onPressed: _saving ? null : _save,
-          child: _saving ? const ButtonSpinner() : const Text(S.save),
+          child: _saving ? const ButtonSpinner() : Text(t.send),
         ),
       ],
       child: Form(
@@ -567,21 +572,21 @@ class _CorrectionDialogState extends ConsumerState<_CorrectionDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             AppDropdown<ChangeField>(
-              label: S.whatToChange,
+              label: t.whatToChange,
               value: _field,
               items: ChangeField.values,
-              itemLabel: (f) => f.label,
+              itemLabel: t.changeField,
               required: true,
               onChanged: (f) => setState(() => _field = f ?? _field),
             ),
             const SizedBox(height: Space.md),
             AppTextField(
-              label: S.newValue,
+              label: t.newValue,
               controller: _value,
               required: true,
               autofocus: true,
               validator: (v) =>
-                  (v ?? '').trim().isEmpty ? 'Enter the new value.' : null,
+                  (v ?? '').trim().isEmpty ? t.enterNewValue : null,
             ),
             if (_error != null) ...[
               const SizedBox(height: Space.md),

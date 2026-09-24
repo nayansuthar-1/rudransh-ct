@@ -6,9 +6,12 @@ import '../core/l10n/strings.dart';
 import '../core/router/routes.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_theme.dart';
+import '../data/models/models.dart';
 import '../state/auth_controller.dart';
+import '../state/member_lang.dart';
 import '../state/providers.dart';
 import 'app_sidebar.dart';
+import 'member_lang_toggle.dart';
 
 /// Frame for agent and member screens (IMPLEMENTATION_PLAN §11.5).
 ///
@@ -26,7 +29,12 @@ class RoleShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     final user = ref.watch(currentUserProvider);
-    final items = user.role.nav;
+    final isMember = user.role == UserRole.member;
+    final t = ref.watch(memberTextProvider);
+    // Members read their screens in the language they chose; agents in English.
+    final items = [
+      for (final item in user.role.nav) isMember ? t.nav(item) : item,
+    ];
     // Longest matching path wins, so `/agent/members` does not select `/agent`.
     var selected = 0;
     for (var i = 0; i < items.length; i++) {
@@ -80,6 +88,8 @@ class _Header extends ConsumerWidget {
     final c = context.colors;
     final user = ref.watch(currentUserProvider);
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final isMember = user.role == UserRole.member;
+    final t = ref.watch(memberTextProvider);
 
     return Container(
       decoration: BoxDecoration(
@@ -112,7 +122,7 @@ class _Header extends ConsumerWidget {
                         ),
                       ),
                       Text(
-                        '${S.appName} · ${user.role.label}',
+                        '${S.appName} · ${isMember ? t.member : user.role.label}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 12, color: c.textMuted),
@@ -120,8 +130,9 @@ class _Header extends ConsumerWidget {
                     ],
                   ),
                 ),
+                if (isMember) const MemberLangToggle(),
                 IconButton(
-                  tooltip: S.toggleTheme,
+                  tooltip: isMember ? t.toggleTheme : S.toggleTheme,
                   onPressed: () =>
                       ref.read(themeModeProvider.notifier).toggle(),
                   icon: Icon(
@@ -156,13 +167,13 @@ class _Header extends ConsumerWidget {
                       ),
                     ),
                     const PopupMenuDivider(),
-                    const PopupMenuItem<int>(
+                    PopupMenuItem<int>(
                       value: 0,
                       child: Row(
                         children: [
-                          Icon(Icons.logout_rounded, size: 17),
-                          SizedBox(width: 10),
-                          Text(S.logout),
+                          const Icon(Icons.logout_rounded, size: 17),
+                          const SizedBox(width: 10),
+                          Text(isMember ? t.logout : S.logout),
                         ],
                       ),
                     ),

@@ -4,16 +4,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/config/env.dart';
-import '../../core/l10n/strings.dart';
 import '../../core/router/routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/models.dart';
 import '../../data/repositories/trust_repository.dart' show RepositoryException;
+import '../../core/l10n/member_text.dart';
+import '../../state/member_lang.dart';
 import '../../state/providers.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/inputs.dart';
+import '../../widgets/member_lang_toggle.dart';
 import '../../widgets/primitives.dart';
 import '../certificate/certificate_data.dart';
 import '../certificate/certificate_printer.dart';
@@ -74,7 +76,9 @@ class _LookupPageState extends ConsumerState<LookupPage> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = e is RepositoryException ? e.message : '$e';
+        _error = ref
+            .read(memberTextProvider)
+            .serverMessage(e is RepositoryException ? e.message : '$e');
       });
     }
   }
@@ -97,6 +101,7 @@ class _LookupPageState extends ConsumerState<LookupPage> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final t = ref.watch(memberTextProvider);
     return Scaffold(
       backgroundColor: c.canvas,
       body: SafeArea(
@@ -109,8 +114,12 @@ class _LookupPageState extends ConsumerState<LookupPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const Align(
+                    alignment: Alignment.centerRight,
+                    child: MemberLangToggle(),
+                  ),
                   Text(
-                    S.trustName,
+                    t.trustName,
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
@@ -120,19 +129,19 @@ class _LookupPageState extends ConsumerState<LookupPage> {
                   const SizedBox(height: Space.xl),
                   if (_found.isNotEmpty) ...[
                     for (final m in _found) ...[
-                      _Result(m),
+                      _Result(m, t: t),
                       const SizedBox(height: Space.md),
                     ],
                     OutlinedButton(
                       onPressed: _reset,
-                      child: const Text(S.lookupAgain),
+                      child: Text(t.checkAnother),
                     ),
                   ] else
-                    _form(context),
+                    _form(context, t),
                   const SizedBox(height: Space.xl),
                   TextButton(
                     onPressed: () => context.go(AppRoutes.login),
-                    child: const Text('Staff and agents: sign in'),
+                    child: Text(t.staffSignIn),
                   ),
                 ],
               ),
@@ -143,7 +152,7 @@ class _LookupPageState extends ConsumerState<LookupPage> {
     );
   }
 
-  Widget _form(BuildContext context) {
+  Widget _form(BuildContext context, MemberText t) {
     final c = context.colors;
     return AppCard(
       child: Form(
@@ -153,7 +162,7 @@ class _LookupPageState extends ConsumerState<LookupPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              S.lookupTitle,
+              t.lookupTitle,
               style: Theme.of(context)
                   .textTheme
                   .titleMedium
@@ -161,12 +170,12 @@ class _LookupPageState extends ConsumerState<LookupPage> {
             ),
             const SizedBox(height: Space.xs),
             Text(
-              S.lookupSub,
+              t.lookupSub,
               style: TextStyle(fontSize: 13, color: c.textSecondary),
             ),
             const SizedBox(height: Space.lg),
             AppTextField(
-              label: S.lookupPhone,
+              label: t.phone,
               controller: _phone,
               required: true,
               autofocus: true,
@@ -177,12 +186,12 @@ class _LookupPageState extends ConsumerState<LookupPage> {
               ],
               textInputAction: TextInputAction.next,
               validator: (v) => (v ?? '').trim().length != 10
-                  ? 'Enter the 10-digit phone number.'
+                  ? t.enterPhone
                   : null,
             ),
             const SizedBox(height: Space.md),
             AppTextField(
-              label: S.lookupAadhaar,
+              label: t.aadhaar4,
               controller: _aadhaar,
               required: true,
               keyboardType: TextInputType.number,
@@ -191,13 +200,13 @@ class _LookupPageState extends ConsumerState<LookupPage> {
                 LengthLimitingTextInputFormatter(4),
               ],
               validator: (v) => (v ?? '').trim().length != 4
-                  ? 'Enter the last 4 digits of your Aadhaar.'
+                  ? t.enterAadhaar4
                   : null,
               onSubmitted: (_) => _submit(),
             ),
             if (_searched && _found.isEmpty) ...[
               const SizedBox(height: Space.md),
-              _Notice(S.lookupNotFound, tone: c.warning, background: c.warningSoft),
+              _Notice(t.notFound, tone: c.warning, background: c.warningSoft),
             ],
             if (_error != null) ...[
               const SizedBox(height: Space.md),
@@ -213,7 +222,7 @@ class _LookupPageState extends ConsumerState<LookupPage> {
             ] else if (Env.hasSupabase) ...[
               const SizedBox(height: Space.md),
               _Notice(
-                'This check is not switched on yet. Please contact the office.',
+                t.lookupOff,
                 tone: c.textSecondary,
                 background: c.surfaceMuted,
               ),
@@ -225,7 +234,7 @@ class _LookupPageState extends ConsumerState<LookupPage> {
               onPressed: _busy || (Env.hasTurnstile && _turnstileToken.isEmpty)
                   ? null
                   : _submit,
-              child: _busy ? const ButtonSpinner() : const Text(S.lookupSubmit),
+              child: _busy ? const ButtonSpinner() : Text(t.check),
             ),
           ],
         ),
@@ -235,9 +244,10 @@ class _LookupPageState extends ConsumerState<LookupPage> {
 }
 
 class _Result extends StatelessWidget {
-  const _Result(this.member);
+  const _Result(this.member, {required this.t});
 
   final MemberLookup member;
+  final MemberText t;
 
   @override
   Widget build(BuildContext context) {
@@ -257,7 +267,7 @@ class _Result extends StatelessWidget {
                 ),
               ),
               StatusPill(
-                member.status.label,
+                t.memberStatus(member.status),
                 tone: member.status == MemberStatus.active
                     ? PillTone.success
                     : PillTone.neutral,
@@ -265,45 +275,43 @@ class _Result extends StatelessWidget {
             ],
           ),
           const SizedBox(height: Space.md),
-          DetailRow(label: S.lookupRegNo, value: member.regNo),
-          DetailRow(label: S.yojna, value: member.yojnaName),
-          DetailRow(label: 'Member since', value: Fmt.date(member.joinDate)),
+          DetailRow(label: t.regNo, value: member.regNo),
+          DetailRow(label: t.yojna, value: member.yojnaName),
+          DetailRow(label: t.memberSince, value: Fmt.date(member.joinDate)),
           DetailRow(
-            label: 'Contribution',
+            label: t.contribution,
             value: Fmt.money(member.contributionAmount),
           ),
           const SizedBox(height: Space.md),
           if (member.owesNothing)
-            _Notice(S.nothingOwed, tone: c.success, background: c.successSoft)
+            _Notice(t.nothingOwed, tone: c.success, background: c.successSoft)
           else
             _Notice(
-              'You owe ${Fmt.money(member.duesAmount)} '
-              'for ${member.duesCount} closing(s). '
-              'Pay your agent or the office.',
+              t.youOwe(member.duesAmount, member.duesCount),
               tone: c.warning,
               background: c.warningSoft,
             ),
           if (member.member != null) ...[
             const SizedBox(height: Space.md),
             OutlinedButton.icon(
-              onPressed: () => _printCertificate(context, member),
+              onPressed: () => _printCertificate(context, member, t),
               icon: const Icon(Icons.workspace_premium_outlined, size: 17),
-              label: const Text(S.printCertificate),
+              label: Text(t.printCertificate),
             ),
             const SizedBox(height: Space.lg),
             Text(
-              'Receipts',
+              t.receipts,
               style: text.titleSmall?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: Space.xs),
             if (member.receipts.isEmpty)
               Text(
-                'No approved receipts yet.',
+                t.noApprovedReceipts,
                 style: TextStyle(fontSize: 13, color: c.textSecondary),
               )
             else
               for (final p in member.receipts)
-                _ReceiptRow(payment: p, lookup: member),
+                _ReceiptRow(payment: p, lookup: member, t: t),
           ],
         ],
       ),
@@ -313,10 +321,15 @@ class _Result extends StatelessWidget {
 
 /// One approved receipt, with a button to print it.
 class _ReceiptRow extends StatelessWidget {
-  const _ReceiptRow({required this.payment, required this.lookup});
+  const _ReceiptRow({
+    required this.payment,
+    required this.lookup,
+    required this.t,
+  });
 
   final Payment payment;
   final MemberLookup lookup;
+  final MemberText t;
 
   @override
   Widget build(BuildContext context) {
@@ -335,7 +348,7 @@ class _ReceiptRow extends StatelessWidget {
                   style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 Text(
-                  '${Fmt.date(payment.date)} · ${payment.kind.label}',
+                  '${Fmt.date(payment.date)} · ${t.paymentKind(payment.kind)}',
                   style: text.bodySmall?.copyWith(color: c.textSecondary),
                 ),
               ],
@@ -347,7 +360,7 @@ class _ReceiptRow extends StatelessWidget {
           ),
           IconButton(
             icon: const Icon(Icons.print_outlined, size: 20),
-            tooltip: 'Print receipt',
+            tooltip: t.printReceipt,
             onPressed: () => printPaymentReceipt(
               context,
               payment: payment,
@@ -365,7 +378,11 @@ class _ReceiptRow extends StatelessWidget {
 /// The certificate, from what the lookup returned. Built here rather than
 /// through `printMemberCertificate`, which wants the full Yojna record a
 /// signed-out visitor never gets.
-Future<void> _printCertificate(BuildContext context, MemberLookup l) async {
+Future<void> _printCertificate(
+  BuildContext context,
+  MemberLookup l,
+  MemberText t,
+) async {
   final m = l.member!;
   final opened = await openCertificateForPrint(
     CertificateData(
@@ -392,7 +409,7 @@ Future<void> _printCertificate(BuildContext context, MemberLookup l) async {
     ),
   );
   if (!opened && context.mounted) {
-    showToast(context, S.certificateFailed, error: true);
+    showToast(context, t.certificateFailed, error: true);
   }
 }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rudransh_ct/app.dart';
+import 'package:rudransh_ct/core/l10n/member_text.dart';
 import 'package:rudransh_ct/core/l10n/strings.dart';
 import 'package:rudransh_ct/core/router/app_router.dart';
 import 'package:rudransh_ct/core/router/routes.dart';
@@ -10,9 +11,14 @@ import 'package:rudransh_ct/data/repositories/in_memory_trust_repository.dart';
 import 'package:rudransh_ct/data/repositories/lookup_repository.dart';
 import 'package:rudransh_ct/data/repositories/trust_repository.dart';
 import 'package:rudransh_ct/state/auth_controller.dart';
+import 'package:rudransh_ct/state/member_lang.dart';
 import 'package:rudransh_ct/state/providers.dart';
 
 import 'support/seed_data.dart';
+
+/// The member side opens in Hindi.
+const _hi = MemberText(MemberLang.hi);
+const _en = MemberText(MemberLang.en);
 
 /// Mirrors `supabase/tests/member_portal_test.sql`: the same rules, in memory.
 void main() {
@@ -398,8 +404,8 @@ void main() {
         container.read(routerProvider).go(AppRoutes.memberHome);
         await tester.pumpAndSettle();
 
-        expect(find.text(S.myMembership), findsOneWidget);
-        expect(find.text(S.myCorrections), findsOneWidget);
+        expect(find.text(_hi.myMembership), findsOneWidget);
+        expect(find.text(_hi.myCorrections), findsOneWidget);
         expect(tester.takeException(), isNull);
       });
 
@@ -424,8 +430,53 @@ void main() {
       container.read(routerProvider).go(AppRoutes.lookup);
       await tester.pumpAndSettle();
 
-      expect(find.text(S.lookupTitle), findsOneWidget);
+      expect(find.text(_hi.lookupTitle), findsOneWidget);
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the lookup switches to English and back', (tester) async {
+      final (container, _) = await pump(
+        tester,
+        const Size(390, 844),
+        role: UserRole.member,
+        signedIn: false,
+      );
+      container.read(routerProvider).go(AppRoutes.lookup);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text(_hi.switchLabel));
+      await tester.pumpAndSettle();
+      expect(find.text(_en.lookupTitle), findsOneWidget);
+      expect(container.read(memberLangProvider), MemberLang.en);
+
+      await tester.tap(find.text(_en.switchLabel));
+      await tester.pumpAndSettle();
+      expect(find.text(_hi.lookupTitle), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a member switches their screens to English', (tester) async {
+      final (container, _) =
+          await pump(tester, const Size(390, 844), role: UserRole.member);
+      container.read(routerProvider).go(AppRoutes.memberHome);
+      await tester.pumpAndSettle();
+      expect(find.text(_hi.myMembership), findsOneWidget);
+      expect(find.text(_hi.navPayments), findsWidgets);
+
+      await tester.tap(find.text(_hi.switchLabel));
+      await tester.pumpAndSettle();
+      expect(find.text(_en.myMembership), findsOneWidget);
+      expect(find.text(_en.navPayments), findsWidgets);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('agents never see the language switch', (tester) async {
+      final (container, _) =
+          await pump(tester, const Size(390, 844), role: UserRole.agent);
+      container.read(routerProvider).go(AppRoutes.agentHome);
+      await tester.pumpAndSettle();
+      expect(find.text(_hi.switchLabel), findsNothing);
+      expect(find.text(_en.switchLabel), findsNothing);
     });
 
     testWidgets('the lookup finds a member and shows their standing',
@@ -449,13 +500,13 @@ void main() {
         fields.at(1),
         member.aadhaar.substring(member.aadhaar.length - 4),
       );
-      await tester.tap(find.widgetWithText(FilledButton, S.lookupSubmit));
+      await tester.tap(find.widgetWithText(FilledButton, _hi.check));
       await tester.pumpAndSettle();
 
       expect(find.text(member.name), findsOneWidget);
-      expect(find.text(S.printCertificate), findsOneWidget);
-      expect(find.text('Receipts'), findsOneWidget);
-      expect(find.widgetWithText(OutlinedButton, S.lookupAgain), findsOneWidget);
+      expect(find.text(_hi.printCertificate), findsOneWidget);
+      expect(find.text(_hi.receipts), findsOneWidget);
+      expect(find.widgetWithText(OutlinedButton, _hi.checkAnother), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -475,10 +526,10 @@ void main() {
       final fields = find.byType(TextFormField);
       await tester.enterText(fields.at(0), '9999999999');
       await tester.enterText(fields.at(1), '1234');
-      await tester.tap(find.widgetWithText(FilledButton, S.lookupSubmit));
+      await tester.tap(find.widgetWithText(FilledButton, _hi.check));
       await tester.pumpAndSettle();
 
-      expect(find.text(S.lookupNotFound), findsOneWidget);
+      expect(find.text(_hi.notFound), findsOneWidget);
       expect(find.text(member.name), findsNothing);
     });
 

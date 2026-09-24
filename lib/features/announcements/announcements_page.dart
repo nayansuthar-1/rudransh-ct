@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/models.dart';
 import '../../state/auth_controller.dart';
+import '../../state/member_lang.dart';
 import '../../state/providers.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_shell.dart';
@@ -23,18 +24,22 @@ class AnnouncementsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(announcementsProvider);
-    final isAdmin = ref.watch(currentUserProvider).isAdmin;
+    final user = ref.watch(currentUserProvider);
+    final isAdmin = user.isAdmin;
     final items = async.value;
+    // Members read this page in the language they chose; everyone else in
+    // English.
+    final t = user.role == UserRole.member ? ref.watch(memberTextProvider) : null;
 
     return PageBody(
       maxWidth: 860,
       children: [
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: SectionHeader(
-                title: S.announcements,
-                subtitle: S.announcementsSub,
+                title: t?.navAnnouncements ?? S.announcements,
+                subtitle: t?.navAnnouncementsSub ?? S.announcementsSub,
               ),
             ),
             if (isAdmin)
@@ -59,7 +64,9 @@ class AnnouncementsPage extends ConsumerWidget {
           AppCard(
             child: EmptyState(
               icon: Icons.campaign_outlined,
-              message: isAdmin ? S.noAnnouncementsHint : S.noAnnouncements,
+              message: isAdmin
+                  ? S.noAnnouncementsHint
+                  : t?.noAnnouncements ?? S.noAnnouncements,
             ),
           )
         else
