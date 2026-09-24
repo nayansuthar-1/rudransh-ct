@@ -4,9 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rudransh_ct/app.dart';
 import 'package:rudransh_ct/core/l10n/strings.dart';
 import 'package:rudransh_ct/core/router/routes.dart';
+import 'package:rudransh_ct/data/models/models.dart';
 import 'package:rudransh_ct/state/providers.dart';
 import 'package:rudransh_ct/widgets/app_sidebar.dart';
 import 'support/seed_data.dart';
+import 'support/signed_in.dart';
 
 /// Widths that bracket every breakpoint the shell reacts to, plus the
 /// 390 / 768 / 1440 px sizes from the Phase 8 QA checklist.
@@ -36,6 +38,7 @@ Future<void> _pumpApp(
         repositoryProvider.overrideWithValue(
           seededRepository(),
         ),
+        signedInAs(UserRole.owner),
       ],
       child: const RudranshAdminApp(),
     ),

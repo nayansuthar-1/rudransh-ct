@@ -19,6 +19,7 @@ import '../../widgets/responsive_table.dart';
 import '../../widgets/stat_card.dart';
 import '../dashboard/dashboard_page.dart' show PaymentStatusPill;
 import '../export/export_actions.dart';
+import '../export/export_button.dart';
 import '../receipt/receipt_action.dart';
 
 class PaymentsPage extends ConsumerWidget {
@@ -39,11 +40,7 @@ class PaymentsPage extends ConsumerWidget {
           title: S.payments,
           subtitle: yojna?.name ?? S.allYojnas,
           actions: [
-            OutlinedButton.icon(
-              onPressed: () => exportPaymentsCsv(context, ref),
-              icon: const Icon(Icons.download_outlined, size: 17),
-              label: const Text(S.exportCsv),
-            ),
+            ExportCsvButton(onPressed: () => exportPaymentsCsv(context, ref)),
             FilledButton.icon(
               onPressed: () => showPaymentFormDialog(context),
               icon: const Icon(Icons.add, size: 17),

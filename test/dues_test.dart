@@ -16,6 +16,7 @@ import 'package:rudransh_ct/data/repositories/upload_repository.dart';
 import 'package:rudransh_ct/state/auth_controller.dart';
 import 'package:rudransh_ct/state/providers.dart';
 import 'support/seed_data.dart';
+import 'support/signed_in.dart';
 
 /// The same closing group as `supabase/tests/dues_test.sql`, in memory.
 ///
@@ -423,7 +424,10 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [repositoryProvider.overrideWithValue(s.base)],
+          overrides: [
+            repositoryProvider.overrideWithValue(s.base),
+            signedInAs(UserRole.owner),
+          ],
           child: const RudranshAdminApp(),
         ),
       );

@@ -12,6 +12,8 @@ import 'package:rudransh_ct/data/repositories/trust_repository.dart';
 import 'package:rudransh_ct/state/auth_controller.dart';
 import 'package:rudransh_ct/state/providers.dart';
 
+import 'support/signed_in.dart';
+
 /// The same money as `supabase/tests/commission_test.sql`, in memory.
 ///
 /// Agent A collects at 10%. This month: 100 and 200 cash, 300 UPI, 400 cash
@@ -391,7 +393,10 @@ void main() {
         ProviderScope(
           overrides: [
             repositoryProvider.overrideWithValue(s.base),
-            if (auth != null) authControllerProvider.overrideWith(auth),
+            if (auth != null)
+              authControllerProvider.overrideWith(auth)
+            else
+              signedInAs(UserRole.owner),
           ],
           child: const RudranshAdminApp(),
         ),

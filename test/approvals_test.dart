@@ -10,6 +10,7 @@ import 'package:rudransh_ct/data/repositories/in_memory_trust_repository.dart';
 import 'package:rudransh_ct/data/repositories/trust_repository.dart';
 import 'package:rudransh_ct/state/providers.dart';
 import 'support/seed_data.dart';
+import 'support/signed_in.dart';
 
 InMemoryTrustRepository _repo() =>
     seededRepository();
@@ -139,7 +140,10 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [repositoryProvider.overrideWithValue(repo)],
+        overrides: [
+          repositoryProvider.overrideWithValue(repo),
+          signedInAs(UserRole.owner),
+        ],
         child: const RudranshAdminApp(),
       ),
     );
