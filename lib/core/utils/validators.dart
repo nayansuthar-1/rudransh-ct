@@ -34,6 +34,11 @@ class V {
         : S.invalidEmail;
   }
 
+  static String? optionalEmail(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    return email(value);
+  }
+
   static String? amount(String? value) {
     if (value == null || value.trim().isEmpty) return S.required;
     final parsed = num.tryParse(value.replaceAll(',', '').trim());

@@ -1033,6 +1033,7 @@ class SupabaseTrustRepository implements TrustRepository {
         'closing_date': m.closingDate == null ? null : _date(m.closingDate!),
         'closing_group': m.closingGroup,
         'photo_url': m.photoUrl,
+        'email': m.email.trim().toLowerCase(),
       });
 
   static Member _memberFromRow(Map<String, dynamic> r) => Member(
@@ -1066,6 +1067,7 @@ class SupabaseTrustRepository implements TrustRepository {
         reviewNote: r['review_note'] as String? ?? '',
         consentAt: _parseTimestamp(r['consent_at']),
         photoUrl: r['photo_url'] as String? ?? '',
+        email: r['email'] as String? ?? '',
       );
 
   static Map<String, dynamic> _agentToRow(Agent a) => _withId(a.id, {

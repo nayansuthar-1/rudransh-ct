@@ -182,6 +182,7 @@ class S {
   static const fldDob = 'Date of birth';
   static const fldPrimaryPhone = 'Phone';
   static const fldAltPhone = 'Alternate phone (optional)';
+  static const fldMemberEmail = 'Email (optional)';
   static const fldAadhaar = 'Aadhaar number';
   static const fldVillage = 'Village / city';
   static const fldTehsil = 'Tehsil';

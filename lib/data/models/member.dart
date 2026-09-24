@@ -59,6 +59,7 @@ class Member {
     this.reviewNote = '',
     this.consentAt,
     this.photoUrl = '',
+    this.email = '',
   });
 
   final String id;
@@ -121,6 +122,10 @@ class Member {
 
   final String photoUrl;
 
+  /// Optional, stored lowercase. A member whose email is on file can sign in
+  /// with it without an invite.
+  final String email;
+
   bool get isClosed => status == MemberStatus.closed;
   bool get isPending => status == MemberStatus.pending;
 
@@ -171,6 +176,7 @@ class Member {
     String? reviewNote,
     DateTime? consentAt,
     String? photoUrl,
+    String? email,
   }) {
     return Member(
       id: id ?? this.id,
@@ -201,6 +207,7 @@ class Member {
       reviewNote: reviewNote ?? this.reviewNote,
       consentAt: consentAt ?? this.consentAt,
       photoUrl: photoUrl ?? this.photoUrl,
+      email: email ?? this.email,
     );
   }
 
@@ -231,6 +238,7 @@ class Member {
         'closingGroup': closingGroup,
         'reviewNote': reviewNote,
         'photoUrl': photoUrl,
+        'email': email,
       };
 
   factory Member.fromMap(Map<String, dynamic> map) => Member(
@@ -262,6 +270,7 @@ class Member {
         closingGroup: map['closingGroup'] as String?,
         reviewNote: map['reviewNote'] as String? ?? '',
         photoUrl: map['photoUrl'] as String? ?? '',
+        email: map['email'] as String? ?? '',
       );
 
   @override

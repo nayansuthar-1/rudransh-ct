@@ -31,14 +31,14 @@ List<List<Object?>> memberCsvRows(
     [
       const [
         'Reg no', 'Name', 'Father/Husband', 'Jati', 'Gotra', 'Date of birth',
-        'Gender', 'Phone', 'Alt phone', 'Aadhaar', 'Village', 'Tehsil',
+        'Gender', 'Phone', 'Alt phone', 'Email', 'Aadhaar', 'Village', 'Tehsil',
         'District', 'State', 'Pincode', 'Waris', 'Relation', 'Yojna', 'Agent',
         'Joined', 'Status', 'Closing date',
       ],
       for (final m in members)
         [
           m.regNo, m.name, m.fatherOrHusbandName, m.jati, m.gotra, _date(m.dob),
-          m.gender.label, m.primaryPhone, m.altPhone, _maskedAadhaar(m),
+          m.gender.label, m.primaryPhone, m.altPhone, m.email, _maskedAadhaar(m),
           m.village, m.tehsil, m.district, m.state, m.pincode, m.warisName,
           m.warisRelation, yojnas[m.yojnaId]?.name ?? '',
           agents[m.agentId]?.name ?? '', _date(m.joinDate), m.status.label,

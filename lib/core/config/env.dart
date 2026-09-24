@@ -39,12 +39,10 @@ abstract final class Env {
   static bool get hasCloudinary =>
       cloudinaryCloudName.isNotEmpty && cloudinaryUploadPreset.isNotEmpty;
 
-  /// The trust's own login. It is always allowed to ask for a sign-in code,
-  /// and in a demo build it is the *only* address that is: anything else is
-  /// turned away without a code, so a preview build is not an open door.
-  ///
-  /// Invited agents and members are unaffected — a real build still decides
-  /// access from `public.profiles`, not from this list.
+  /// The trust's own login: the one office account that may use the app until
+  /// agents and staff are switched on in Release 2. Everyone else who signs in
+  /// must be a member (`AuthController`); `public.profiles` still decides what
+  /// each login may see.
   ///
   /// Override per build with `--dart-define=ADMIN_EMAIL=someone@example.com`.
   static const adminEmail = String.fromEnvironment(

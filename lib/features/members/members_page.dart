@@ -351,7 +351,7 @@ final _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
 Future<String?> _memberEmailDialog(BuildContext context, Member member) {
   final c = context.colors;
-  final controller = TextEditingController();
+  final controller = TextEditingController(text: member.email);
   final formKey = GlobalKey<FormState>();
 
   void submit(BuildContext dialogContext) {
@@ -517,6 +517,7 @@ void showMemberDetails(BuildContext context, WidgetRef ref, Member m) {
           DetailRow(label: S.fldPrimaryPhone, value: Fmt.phone(m.primaryPhone)),
           if (m.altPhone.isNotEmpty)
             DetailRow(label: S.fldAltPhone, value: Fmt.phone(m.altPhone)),
+          if (m.email.isNotEmpty) DetailRow(label: 'Email', value: m.email),
           _AadhaarRow(member: m),
           DetailRow(label: S.addressInfo, value: m.address),
           if (m.state.isNotEmpty) DetailRow(label: S.fldState, value: m.state),

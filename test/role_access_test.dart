@@ -251,6 +251,40 @@ void main() {
     });
   });
 
+  group('who may use the app until Release 2', () {
+    AppUser user(UserRole role, String email) =>
+        AppUser(id: 'u', name: 'U', email: email, role: role);
+
+    test('members may sign in, from any address', () {
+      expect(
+        AuthController.mayUseApp(user(UserRole.member, 'ram@example.com')),
+        isTrue,
+      );
+    });
+
+    test("the trust's own login may sign in", () {
+      expect(
+        AuthController.mayUseApp(user(UserRole.owner, Env.adminEmail)),
+        isTrue,
+      );
+    });
+
+    test('agents and other staff wait for Release 2', () {
+      expect(
+        AuthController.mayUseApp(user(UserRole.agent, 'agent@example.com')),
+        isFalse,
+      );
+      expect(
+        AuthController.mayUseApp(user(UserRole.staff, 'staff@example.com')),
+        isFalse,
+      );
+      expect(
+        AuthController.mayUseApp(user(UserRole.owner, 'other@example.com')),
+        isFalse,
+      );
+    });
+  });
+
   group('member invites in memory', () {
     final member = seededRepository()
         .membersView

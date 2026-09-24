@@ -49,6 +49,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   late final TextEditingController _waris;
   late final TextEditingController _primaryPhone;
   late final TextEditingController _altPhone;
+  late final TextEditingController _email;
   late final TextEditingController _aadhaar;
   late final TextEditingController _village;
   late final TextEditingController _tehsil;
@@ -97,6 +98,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     _waris = TextEditingController(text: m?.warisName ?? '');
     _primaryPhone = TextEditingController(text: m?.primaryPhone ?? '');
     _altPhone = TextEditingController(text: m?.altPhone ?? '');
+    _email = TextEditingController(text: m?.email ?? '');
     _aadhaar = TextEditingController(text: m?.aadhaar ?? '');
     _village = TextEditingController(text: m?.village ?? '');
     _tehsil = TextEditingController(text: m?.tehsil ?? '');
@@ -124,6 +126,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       _waris,
       _primaryPhone,
       _altPhone,
+      _email,
       _aadhaar,
       _village,
       _tehsil,
@@ -200,6 +203,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             gender: _gender,
             primaryPhone: _primaryPhone.text.trim(),
             altPhone: _altPhone.text.trim(),
+            email: _email.text.trim().toLowerCase(),
             aadhaar: _aadhaar.text.trim(),
             village: _village.text.trim(),
             tehsil: _tehsil.text.trim(),
@@ -230,6 +234,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             gender: _gender,
             primaryPhone: _primaryPhone.text.trim(),
             altPhone: _altPhone.text.trim(),
+            email: _email.text.trim().toLowerCase(),
             aadhaar: _aadhaar.text.trim(),
             village: _village.text.trim(),
             tehsil: _tehsil.text.trim(),
@@ -418,6 +423,17 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                       keyboardType: TextInputType.phone,
                       inputFormatters: Fmts.phone(),
                       validator: V.optionalPhone,
+                    ),
+                  ),
+                  // Lets the member sign in with it, without an invite.
+                  GridItem(
+                    AppTextField(
+                      label: S.fldMemberEmail,
+                      controller: _email,
+                      hint: 'name@example.com',
+                      prefixIcon: Icons.mail_outline,
+                      keyboardType: TextInputType.emailAddress,
+                      validator: V.optionalEmail,
                     ),
                   ),
                   GridItem(

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rudransh_ct/core/utils/csv.dart';
+import 'package:rudransh_ct/core/utils/validators.dart';
 import 'package:rudransh_ct/data/models/models.dart';
 import 'package:rudransh_ct/features/export/export_actions.dart';
 
@@ -69,6 +70,22 @@ void main() {
       expect(rows[1][status], p.isCancelled ? 'Cancelled' : p.status.label);
       expect(rows[2][status], 'Cancelled');
       expect(rows[1][rows.first.indexOf('Amount')], p.amount.toStringAsFixed(2));
+    });
+  });
+
+  group('member email', () {
+    test('is optional, but must look like an address when given', () {
+      expect(V.optionalEmail(''), isNull);
+      expect(V.optionalEmail('  '), isNull);
+      expect(V.optionalEmail('ram@example.com'), isNull);
+      expect(V.optionalEmail('ram@'), isNotNull);
+    });
+
+    test('goes out in the members sheet', () {
+      final repo = seededRepository();
+      final m = repo.membersView.first.copyWith(email: 'ram@example.com');
+      final rows = memberCsvRows([m], yojnas: const {}, agents: const {});
+      expect(rows[1][rows.first.indexOf('Email')], 'ram@example.com');
     });
   });
 }

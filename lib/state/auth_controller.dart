@@ -81,20 +81,23 @@ class AuthController extends Notifier<AuthState> {
 
   Future<void> requestOtp(String email) async {
     final address = email.trim().toLowerCase();
+    final isAdmin = Env.isAdminEmail(address);
     state = state.copyWith(busy: true, clearError: true);
 
-    if (!Env.isAdminEmail(address)) {
-      state = state.copyWith(busy: false, error: _wrongAdminEmail);
-      return;
-    }
-
     if (!Env.hasSupabase) {
-      state = state.copyWith(busy: false, error: _otpUnavailable);
+      state = state.copyWith(
+        busy: false,
+        error: isAdmin ? _otpUnavailable : _noAccess,
+      );
       return;
     }
 
     try {
-      // shouldCreateUser: false — an uninvited email is rejected, not signed up.
+      // Anyone but the trust's own login is taken to be a member (agents and
+      // staff sign in from Release 2; see [mayUseApp]). A member whose email
+      // is on their record may have no login yet: the function makes one.
+      if (!isAdmin) await _prepareMemberLogin(address);
+      // shouldCreateUser: false — an unknown email is rejected, not signed up.
       await _auth.signInWithOtp(email: address, shouldCreateUser: false);
       state = state.copyWith(
         stage: AuthStage.awaitingOtp,
@@ -102,11 +105,31 @@ class AuthController extends Notifier<AuthState> {
         busy: false,
       );
     } on sb.AuthException catch (e) {
-      state = state.copyWith(busy: false, error: _describeRequestError(e));
+      state = state.copyWith(
+        busy: false,
+        error: _describeRequestError(e, isAdmin: isAdmin),
+      );
     } catch (_) {
       state = state.copyWith(busy: false, error: _networkError);
     }
   }
+
+  /// Makes a login for a member whose email is on their record, if they have
+  /// none yet. It answers the same for any address, and a failure (function
+  /// not deployed, offline) only means an uninvited member gets no code.
+  Future<void> _prepareMemberLogin(String email) async {
+    try {
+      await sb.Supabase.instance.client.functions
+          .invoke('member_sign_in', body: {'email': email});
+    } catch (_) {}
+  }
+
+  /// Who may use the app for now: the trust's own login, and members. Agents
+  /// and staff have logins but wait for Release 2 (client decision,
+  /// 24 Sep 2026).
+  @visibleForTesting
+  static bool mayUseApp(AppUser user) =>
+      user.role == UserRole.member || Env.isAdminEmail(user.email);
 
   Future<bool> verifyOtp(String code) async {
     state = state.copyWith(busy: true, clearError: true);
@@ -135,6 +158,11 @@ class AuthController extends Notifier<AuthState> {
       if (appUser == null) {
         await _auth.signOut();
         state = const AuthState(error: _noAccess);
+        return false;
+      }
+      if (!mayUseApp(appUser)) {
+        await _auth.signOut();
+        state = const AuthState(error: _membersOnly);
         return false;
       }
 
@@ -201,9 +229,11 @@ class AuthController extends Notifier<AuthState> {
     try {
       final appUser = await _loadProfile(user);
       if (!ref.mounted || !state.isSignedIn) return;
-      if (appUser == null) {
+      if (appUser == null || !mayUseApp(appUser)) {
         await _auth.signOut();
-        if (ref.mounted) state = const AuthState(error: _noAccess);
+        if (ref.mounted) {
+          state = AuthState(error: appUser == null ? _noAccess : _membersOnly);
+        }
       } else {
         state = state.copyWith(
           user: appUser,
@@ -263,13 +293,16 @@ class AuthController extends Notifier<AuthState> {
     );
   }
 
-  static String _describeRequestError(sb.AuthException e) {
+  static String _describeRequestError(
+    sb.AuthException e, {
+    required bool isAdmin,
+  }) {
     if (e.statusCode == '429') return _tooManyAttempts;
     final message = e.message.toLowerCase();
     if (e.code == 'otp_disabled' ||
         e.code == 'user_not_found' ||
         message.contains('signups not allowed')) {
-      return _adminNotRegistered;
+      return isAdmin ? _adminNotRegistered : _noAccess;
     }
     if (e.code == 'unexpected_failure' ||
         message.contains('error sending magic link email')) {
@@ -280,8 +313,9 @@ class AuthController extends Notifier<AuthState> {
 
   static const _noAccess =
       'This email does not have access. Contact the trust office.';
-  static const _wrongAdminEmail =
-      'Use the admin email configured for this production build.';
+  static const _membersOnly =
+      'Only the trust office and members can sign in for now. Agents and '
+      'staff: ask the trust office.';
   static const _adminNotRegistered =
       'This admin email is not registered in Supabase Auth.';
   static const _emailProviderError =
