@@ -22,6 +22,7 @@ import '../../widgets/inputs.dart';
 import '../../widgets/primitives.dart';
 import '../../widgets/responsive_table.dart';
 import '../certificate/certificate_action.dart';
+import '../export/export_actions.dart';
 
 class MembersPage extends ConsumerWidget {
   const MembersPage({super.key});
@@ -46,6 +47,11 @@ class MembersPage extends ConsumerWidget {
             selectedYojna?.name ?? S.allYojnas,
           ].join(' · '),
           actions: [
+            OutlinedButton.icon(
+              onPressed: () => exportMembersCsv(context, ref),
+              icon: const Icon(Icons.download_outlined, size: 17),
+              label: const Text(S.exportCsv),
+            ),
             FilledButton.icon(
               onPressed: () =>
                   showMemberFormDialog(context, presetYojnaId: yojnaId),

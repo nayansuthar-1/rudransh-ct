@@ -236,6 +236,7 @@ class S {
 
   // App access (invites)
   static const inviteToApp = 'Invite to app';
+  static const exportCsv = 'Export CSV';
   static const appAccess = 'App access';
   static const accessNone = 'Not invited';
   static const accessActive = 'Invited';
