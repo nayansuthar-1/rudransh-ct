@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +17,7 @@ import '../../widgets/app_dialog.dart';
 import '../../widgets/inputs.dart';
 import '../../widgets/primitives.dart';
 import '../receipt/receipt_action.dart';
+import '../../widgets/forms/member_photo_picker.dart';
 
 // ---------------------------------------------------------------------------
 // Add member
@@ -155,7 +155,10 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
                     ),
                   ),
                   GridItem(
-                    _photoPicker(),
+                    MemberPhotoPicker(
+                      url: _photoUrl,
+                      onChanged: (u) => setState(() => _photoUrl = u),
+                    ),
                   ),
                   GridItem(AppTextField(
                     label: S.fldName,
@@ -231,69 +234,6 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _photoPicker() {
-    final c = context.colors;
-    final hasPhoto = _photoUrl.isNotEmpty;
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const FieldLabel('Member Photo'),
-        const SizedBox(height: 8),
-        InkWell(
-          onTap: () async {
-            final file = await FilePicker.pickFile(
-              type: FileType.image,
-            );
-            if (file != null) {
-              final bytes = await file.readAsBytes();
-              final b64 = base64Encode(bytes);
-              setState(() {
-                _photoUrl = 'data:image/jpeg;base64,$b64';
-              });
-            }
-          },
-          borderRadius: BorderRadius.circular(Radii.panel),
-          child: Container(
-            height: 120,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: hasPhoto ? c.brand.withValues(alpha: 0.5) : c.border,
-                width: 1,
-              ),
-              borderRadius: BorderRadius.circular(Radii.panel),
-              color: c.surface,
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: hasPhoto
-                ? Image.memory(
-                    base64Decode(_photoUrl.split(',').last),
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        const Center(child: Icon(Icons.broken_image)),
-                  )
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.add_a_photo, color: c.textMuted, size: 28),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Upload Photo',
-                        style: TextStyle(
-                          color: c.textMuted,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
-        ),
-      ],
     );
   }
 }

@@ -5,7 +5,8 @@ import 'package:http/http.dart' as http;
 
 import 'trust_repository.dart' show RepositoryException;
 
-/// Stores death certificates on Cloudinary (IMPLEMENTATION_PLAN Phase 13).
+/// Stores death certificates and member photos on Cloudinary (IMPLEMENTATION_PLAN
+/// Phase 13).
 /// The database keeps only the returned `https://res.cloudinary.com/...` URL.
 abstract class CertificateUploader {
   static const allowedExtensions = ['jpg', 'jpeg', 'png', 'pdf'];
@@ -57,7 +58,7 @@ class CloudinaryUploader implements CertificateUploader {
       response = await http.Response.fromStream(await _client.send(request));
     } catch (_) {
       throw const RepositoryException(
-        'Could not upload the certificate. Check the internet and try again.',
+        'Could not upload the file. Check the internet and try again.',
       );
     }
     final body = _decode(response.body);
@@ -66,7 +67,7 @@ class CloudinaryUploader implements CertificateUploader {
       final error = body['error'];
       debugPrint('Cloudinary upload failed (${response.statusCode}): $error');
       throw const RepositoryException(
-        'Could not upload the certificate. Try again, or send it to the office.',
+        'Could not upload the file. Try again, or send it to the office.',
       );
     }
     return url;
@@ -95,7 +96,7 @@ class UnconfiguredCertificateUploader implements CertificateUploader {
   @override
   Future<String> upload(Uint8List bytes, String fileName) async {
     throw const RepositoryException(
-      'Certificate upload is not set up yet. Send the certificate to the office.',
+      'File upload is not set up yet. Send it to the office.',
     );
   }
 }
