@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/config/env.dart';
+import '../../core/router/routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
@@ -14,7 +17,8 @@ import '../../widgets/app_dialog.dart';
 import '../../widgets/app_shell.dart';
 import '../../widgets/inputs.dart';
 import '../../widgets/primitives.dart';
-import '../receipt/receipt_action.dart';
+import '../../widgets/stat_card.dart';
+import 'member_widgets.dart';
 import 'razorpay_checkout.dart';
 
 /// What the member owes, and how to pay it (IMPLEMENTATION_PLAN Phase 15).
@@ -26,6 +30,7 @@ class MemberDuesPage extends ConsumerWidget {
     final async = ref.watch(myDuesProvider);
     final dues = async.value;
     final t = ref.watch(memberTextProvider);
+    final c = context.colors;
 
     return PageBody(
       maxWidth: 720,
@@ -42,26 +47,203 @@ class MemberDuesPage extends ConsumerWidget {
         else if (dues == null)
           const AppCard(child: LoadingState())
         else if (dues.isEmpty)
-          AppCard(
-            child: EmptyState(
-              icon: Icons.task_alt_rounded,
-              message: t.nothingOwed,
-            ),
-          )
-        else
-          for (final d in dues) ...[
-            _DueCard(d),
+          const _AllPaid()
+        else ...[
+          _DueSummary(dues),
+          const SizedBox(height: Space.xl),
+          for (final (i, d) in dues.indexed) ...[
+            _DueCard(d, oldest: i == 0 && dues.length > 1),
             const SizedBox(height: Space.md),
           ],
+          const SizedBox(height: Space.sm),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info_outline_rounded, size: 16, color: c.textMuted),
+              const SizedBox(width: Space.sm),
+              Expanded(
+                child: Text(
+                  t.receiptHint,
+                  style: TextStyle(fontSize: 12.5, color: c.textSecondary),
+                ),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
 }
 
+/// Nothing owed: say thank you, and point at the receipts.
+class _AllPaid extends ConsumerWidget {
+  const _AllPaid();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colors;
+    final t = ref.watch(memberTextProvider);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: Space.xl,
+        vertical: Space.xxl,
+      ),
+      decoration: BoxDecoration(
+        color: accentBackground(context, StatAccent.green),
+        borderRadius: BorderRadius.circular(Radii.dialog),
+      ),
+      child: Column(
+        children: [
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.6, end: 1),
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeOutBack,
+            builder: (_, s, child) => Transform.scale(scale: s, child: child),
+            child: Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: StatAccent.green.color,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check_rounded,
+                color: Colors.white,
+                size: 40,
+              ),
+            ),
+          ),
+          const SizedBox(height: Space.lg),
+          Text(
+            t.allPaidTitle,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: c.textPrimary,
+            ),
+          ),
+          const SizedBox(height: Space.xs),
+          Text(
+            t.nothingOwed,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: c.textSecondary),
+          ),
+          const SizedBox(height: Space.xs),
+          Text(
+            t.allPaidSub,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: c.textSecondary),
+          ),
+          const SizedBox(height: Space.lg),
+          OutlinedButton.icon(
+            onPressed: () => context.go(AppRoutes.memberPayments),
+            icon: const Icon(Icons.receipt_long_outlined, size: 18),
+            label: Text(t.navPayments),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The total owed, large, above the closings that make it up.
+class _DueSummary extends ConsumerWidget {
+  const _DueSummary(this.dues);
+
+  final List<MemberDue> dues;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colors;
+    final t = ref.watch(memberTextProvider);
+    final open = dues.where((d) => d.due > 0 && d.pending <= 0).toList();
+    final owed = open.fold<double>(0, (s, d) => s + d.due);
+    final waiting = dues.fold<double>(0, (s, d) => s + d.pending);
+    final accent = owed > 0 ? StatAccent.amber : StatAccent.blue;
+
+    return Container(
+      padding: const EdgeInsets.all(Space.xl - 4),
+      decoration: BoxDecoration(
+        color: accentBackground(context, accent),
+        borderRadius: BorderRadius.circular(Radii.dialog),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  t.totalDue,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: c.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: Space.xs),
+                CountUp(
+                  value: owed,
+                  builder: (_, v) => FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      Fmt.money(v.round()),
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w700,
+                        color: c.textPrimary,
+                        height: 1.15,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: Space.xs),
+                Text(
+                  open.isEmpty
+                      ? t.pendingSub
+                      : '${t.closingsLeft(open.length)} · '
+                          '${t.eachClosing(open.first.amount)}',
+                  style: TextStyle(fontSize: 13, color: c.textSecondary),
+                ),
+                if (waiting > 0 && open.isNotEmpty) ...[
+                  const SizedBox(height: Space.sm),
+                  StatusPill(t.pendingTitle(waiting), tone: PillTone.info),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: Space.md),
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: accent.color,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              owed > 0
+                  ? Icons.account_balance_wallet_outlined
+                  : Icons.hourglass_top_rounded,
+              color: Colors.white,
+              size: 26,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _DueCard extends ConsumerWidget {
-  const _DueCard(this.due);
+  const _DueCard(this.due, {this.oldest = false});
 
   final MemberDue due;
+
+  /// The first of several: the one to pay first.
+  final bool oldest;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -76,32 +258,67 @@ class _DueCard extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _DateTile(
+                due.closingDate,
+                accent: waiting ? StatAccent.blue : StatAccent.amber,
+              ),
+              const SizedBox(width: Space.md),
               Expanded(
-                child: Text(
-                  t.closing(due.closingGroup),
-                  style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      t.closing(due.closingGroup),
+                      style: text.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${t.closingDate}: ${Fmt.date(due.closingDate)}',
+                      style: TextStyle(fontSize: 13, color: c.textSecondary),
+                    ),
+                    if (oldest) ...[
+                      const SizedBox(height: Space.xs),
+                      StatusPill(t.oldestFirst, tone: PillTone.danger),
+                    ],
+                  ],
                 ),
               ),
-              StatusPill(
-                t.dueState(due.state),
-                tone: waiting ? PillTone.warning : PillTone.danger,
+              const SizedBox(width: Space.sm),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    Fmt.money(waiting ? due.pending : due.due),
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  StatusPill(
+                    t.dueState(due.state),
+                    tone: waiting ? PillTone.warning : PillTone.danger,
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: Space.sm),
-          DetailRow(label: t.closingDate, value: Fmt.date(due.closingDate)),
-          DetailRow(label: t.amount, value: Fmt.money(due.amount)),
-          if (waiting)
-            DetailRow(
-              label: t.waitingForApproval,
-              value: Fmt.money(due.pending),
-            ),
           const SizedBox(height: Space.md),
           if (waiting)
-            Text(
-              t.sentForApproval,
-              style: TextStyle(fontSize: 13, color: c.textSecondary),
+            Row(
+              children: [
+                Icon(Icons.hourglass_top_rounded, size: 16, color: c.info),
+                const SizedBox(width: Space.sm),
+                Expanded(
+                  child: Text(
+                    t.sentForApproval,
+                    style: TextStyle(fontSize: 13, color: c.textSecondary),
+                  ),
+                ),
+              ],
             )
           else if (Env.hasRazorpay || Env.hasUpi)
             Wrap(
@@ -118,7 +335,7 @@ class _DueCard extends ConsumerWidget {
                   (Env.hasRazorpay ? OutlinedButton.icon : FilledButton.icon)(
                     onPressed: () => showUpiDialog(
                       context,
-                      amount: due.amount,
+                      amount: due.due,
                       closingCaseId: due.closingCaseId,
                     ),
                     icon: const Icon(Icons.qr_code_2_rounded, size: 18),
@@ -131,6 +348,49 @@ class _DueCard extends ConsumerWidget {
               t.payOffline,
               style: TextStyle(fontSize: 13, color: c.textSecondary),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A calendar leaf: the day large, month and year under it.
+class _DateTile extends StatelessWidget {
+  const _DateTile(this.date, {required this.accent});
+
+  final DateTime date;
+  final StatAccent accent;
+
+  static final _monthYear = DateFormat('MMM yy');
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 56,
+      padding: const EdgeInsets.symmetric(vertical: Space.sm),
+      decoration: BoxDecoration(
+        color: accentBackground(context, accent),
+        borderRadius: BorderRadius.circular(Radii.control),
+      ),
+      child: Column(
+        children: [
+          Text(
+            '${date.day}',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: accent.color,
+              height: 1.1,
+            ),
+          ),
+          Text(
+            _monthYear.format(date),
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w500,
+              color: accent.color,
+            ),
+          ),
         ],
       ),
     );
@@ -173,90 +433,64 @@ Future<void> _payOnline(
   }
 }
 
-/// The member's receipts.
-class MemberPaymentsPage extends ConsumerWidget {
+enum _ReceiptFilter { all, approved, pending }
+
+/// The member's receipts: totals on top, then every receipt by year.
+class MemberPaymentsPage extends ConsumerStatefulWidget {
   const MemberPaymentsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MemberPaymentsPage> createState() => _MemberPaymentsPageState();
+}
+
+class _MemberPaymentsPageState extends ConsumerState<MemberPaymentsPage> {
+  _ReceiptFilter _filter = _ReceiptFilter.all;
+
+  @override
+  Widget build(BuildContext context) {
     final async = ref.watch(myPaymentsProvider);
     final items = async.value;
     final t = ref.watch(memberTextProvider);
+    final c = context.colors;
+
+    final shown = (items ?? const <Payment>[])
+        .where((p) => switch (_filter) {
+              _ReceiptFilter.all => true,
+              _ReceiptFilter.approved => isApproved(p),
+              _ReceiptFilter.pending =>
+                p.status == PaymentStatus.pending && !p.isCancelled,
+            })
+        .toList();
+    final years = <int, List<Payment>>{};
+    for (final p in shown) {
+      years.putIfAbsent(p.date.year, () => []).add(p);
+    }
 
     return PageBody(
-      maxWidth: 720,
+      maxWidth: 880,
       children: [
         SectionHeader(title: t.navPayments, subtitle: t.navPaymentsSub),
         const SizedBox(height: Space.xl),
         if (items != null && items.isNotEmpty) ...[
-          Builder(builder: (context) {
-            final totalPaid = items
-                .where((p) => p.status == PaymentStatus.paid)
-                .fold<double>(0, (sum, p) => sum + p.amount);
-            final paidCount =
-                items.where((p) => p.status == PaymentStatus.paid).length;
-            final text = Theme.of(context).textTheme;
-            return AppCard(
-              padding: const EdgeInsets.symmetric(
-                horizontal: Space.lg,
-                vertical: Space.md,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          t.totalContributed,
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            color: context.colors.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          Fmt.money(totalPaid),
-                          style: text.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: context.colors.brand,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    height: 36,
-                    width: 1,
-                    color: context.colors.border,
-                  ),
-                  const SizedBox(width: Space.lg),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          t.approvedReceipts,
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            color: context.colors.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          t.issued(paidCount),
-                          style: text.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
-          const SizedBox(height: Space.md),
+          _PaymentStats(items),
+          const SizedBox(height: Space.xl),
+          Wrap(
+            spacing: Space.sm,
+            runSpacing: Space.sm,
+            children: [
+              for (final (f, label) in [
+                (_ReceiptFilter.all, t.filterAll),
+                (_ReceiptFilter.approved, t.filterApproved),
+                (_ReceiptFilter.pending, t.pendingShort),
+              ])
+                ChoiceChip(
+                  label: Text(label),
+                  selected: _filter == f,
+                  onSelected: (_) => setState(() => _filter = f),
+                ),
+            ],
+          ),
+          const SizedBox(height: Space.lg),
         ],
         if (items == null && async.hasError)
           AppCard(
@@ -274,103 +508,91 @@ class MemberPaymentsPage extends ConsumerWidget {
               message: t.noReceipts,
             ),
           )
-        else
+        else if (shown.isEmpty)
           AppCard(
-            child: Column(
-              children: [
-                for (final (i, p) in items.indexed) ...[
-                  if (i > 0)
-                    Divider(height: 1, color: context.colors.border),
-                  _PaymentRow(p),
-                ],
-              ],
+            child: EmptyState(
+              icon: Icons.filter_alt_off_outlined,
+              message: t.noMatchingReceipts,
             ),
-          ),
+          )
+        else
+          for (final MapEntry(key: year, value: list) in years.entries) ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: Space.sm, left: 2),
+              child: Text(
+                '$year',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: c.textSecondary,
+                ),
+              ),
+            ),
+            AppCard(
+              child: Column(
+                children: [
+                  for (final (i, p) in list.indexed) ...[
+                    if (i > 0) Divider(height: 1, color: c.border),
+                    MemberPaymentTile(p),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: Space.lg),
+          ],
       ],
     );
   }
 }
 
-class _PaymentRow extends ConsumerWidget {
-  const _PaymentRow(this.payment);
+/// Total given, receipts, this year, and anything still with the office.
+class _PaymentStats extends ConsumerWidget {
+  const _PaymentStats(this.items);
 
-  final Payment payment;
+  final List<Payment> items;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.colors;
-    final text = Theme.of(context).textTheme;
-    final cancelled = payment.isCancelled;
     final t = ref.watch(memberTextProvider);
+    final approved = items.where(isApproved).toList();
+    final total = approved.fold<double>(0, (s, p) => s + p.amount);
+    final year = DateTime.now().year;
+    final thisYear = approved
+        .where((p) => p.date.year == year)
+        .fold<double>(0, (s, p) => s + p.amount);
+    final pending = items
+        .where((p) => p.status == PaymentStatus.pending && !p.isCancelled)
+        .length;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: Space.lg,
-        vertical: Space.md,
+    return StatGrid(children: [
+      CountUp(
+        value: total,
+        builder: (_, v) => StatCard(
+          label: t.totalContributed,
+          value: Fmt.money(v.round()),
+          icon: Icons.volunteer_activism_outlined,
+          accent: StatAccent.green,
+        ),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  payment.receiptNo.isEmpty ? '—' : payment.receiptNo,
-                  style: text.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    decoration: cancelled ? TextDecoration.lineThrough : null,
-                  ),
-                ),
-                Text(
-                  '${Fmt.date(payment.date)} · ${t.paymentKind(payment.kind)}',
-                  style: text.bodySmall?.copyWith(color: c.textSecondary),
-                ),
-                if (payment.rejectReason.isNotEmpty)
-                  Text(
-                    payment.rejectReason,
-                    style: text.bodySmall?.copyWith(color: c.danger),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: Space.md),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                Fmt.money(payment.amount),
-                style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 2),
-              StatusPill(
-                t.paymentStatus(payment),
-                tone: switch (payment.status) {
-                  PaymentStatus.paid => PillTone.success,
-                  PaymentStatus.pending => PillTone.warning,
-                  PaymentStatus.failed => PillTone.danger,
-                },
-              ),
-            ],
-          ),
-          if (!cancelled && payment.receiptNo.isNotEmpty) ...[
-            const SizedBox(width: Space.sm),
-            IconButton(
-              icon: const Icon(Icons.print_outlined, size: 20),
-              tooltip: t.printReceipt,
-              onPressed: () {
-                final membership = ref.read(myMembershipProvider).value;
-                printPaymentReceipt(
-                  context,
-                  payment: payment,
-                  member: membership?.toMember(),
-                  yojnaName: membership?.yojnaName ?? '',
-                );
-              },
-            ),
-          ],
-        ],
+      StatCard(
+        label: t.approvedReceipts,
+        value: '${approved.length}',
+        icon: Icons.receipt_long_outlined,
+        accent: StatAccent.blue,
       ),
-    );
+      StatCard(
+        label: '${t.thisYear} ($year)',
+        value: Fmt.money(thisYear),
+        icon: Icons.calendar_month_outlined,
+        accent: StatAccent.purple,
+      ),
+      StatCard(
+        label: t.pendingShort,
+        value: '$pending',
+        icon: Icons.schedule_rounded,
+        accent: StatAccent.amber,
+      ),
+    ]);
   }
 }
 

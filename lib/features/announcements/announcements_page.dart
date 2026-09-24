@@ -89,6 +89,12 @@ class _AnnouncementCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     final text = Theme.of(context).textTheme;
+    // Members read the pill in their language, and see what is new this week.
+    final t = ref.watch(currentUserProvider).role == UserRole.member
+        ? ref.watch(memberTextProvider)
+        : null;
+    final fresh = t != null &&
+        DateTime.now().difference(item.publishedAt).inDays < 7;
 
     return AppCard(
       padding: const EdgeInsets.all(Space.lg),
@@ -104,8 +110,14 @@ class _AnnouncementCard extends ConsumerWidget {
                   style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
+              if (fresh) ...[
+                StatusPill(t.newBadge, tone: PillTone.danger),
+                const SizedBox(width: Space.xs),
+              ],
               StatusPill(
-                item.isForEveryone ? S.forEveryYojna : item.yojnaName,
+                item.isForEveryone
+                    ? t?.everyYojna ?? S.forEveryYojna
+                    : item.yojnaName,
                 tone: item.isForEveryone ? PillTone.info : PillTone.brand,
               ),
               if (canDelete)

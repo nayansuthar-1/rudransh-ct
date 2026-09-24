@@ -176,6 +176,83 @@ class MemberText {
         S.certificateFailed,
       );
 
+  // ---- Dashboard --------------------------------------------------------
+  /// Greeting for the hour of the day.
+  String greeting(String name, int hour) => hour < 12
+      ? _t('सुप्रभात, $name', 'Good morning, $name')
+      : hour < 17
+          ? _t('नमस्ते, $name', 'Good afternoon, $name')
+          : _t('शुभ संध्या, $name', 'Good evening, $name');
+  String get myDetails => _t('मेरी जानकारी', 'My details');
+  String get fatherOrHusband => _t('पिता / पति', 'Father / husband');
+  String get memberFor => _t('सदस्यता अवधि', 'Member for');
+  String membershipAge(DateTime joined) {
+    final now = DateTime.now();
+    var months = (now.year - joined.year) * 12 + now.month - joined.month;
+    if (now.day < joined.day) months--;
+    if (months < 1) return _t('इस माह से', 'This month');
+    final (y, m) = (months ~/ 12, months % 12);
+    if (y == 0) return _t('$m माह', '$m mo');
+    if (m == 0) return _t('$y वर्ष', '$y yr');
+    return _t('$y वर्ष $m माह', '$y yr $m mo');
+  }
+
+  String get perClosing => _t('प्रति क्लोजिंग', 'Per closing');
+  String get thisYear => _t('इस वर्ष', 'This year');
+  String get pendingShort => _t('लंबित', 'Pending');
+  String get seeAll => _t('सभी देखें', 'See all');
+  String get latestNotice => _t('नई सूचना', 'Latest notice');
+  String get recentPayments => _t('हाल के भुगतान', 'Recent payments');
+  String get certificate => _t('प्रमाण पत्र', 'Certificate');
+  String get correction => _t('सुधार', 'Correction');
+
+  // Standing: what the member owes right now.
+  String owedTitle(double amount) =>
+      _t('${Fmt.money(amount)} बकाया है', '${Fmt.money(amount)} due');
+  String owedSub(int closings, DateTime oldest) => _t(
+        '$closings क्लोजिंग बाकी · सबसे पुरानी ${Fmt.date(oldest)}',
+        '$closings closing${closings == 1 ? '' : 's'} to pay · '
+            'oldest ${Fmt.date(oldest)}',
+      );
+  String get payNow => _t('अभी जमा करें', 'Pay now');
+  String get allPaidTitle => _t('सब जमा है', "You're all paid up");
+  String get allPaidSub => _t(
+        'धन्यवाद! आपका सहयोग किसी ज़रूरतमंद परिवार का सहारा बनता है।',
+        'Thank you. Your contribution helps a family when they need it most.',
+      );
+  String pendingTitle(double amount) => _t(
+        '${Fmt.money(amount)} स्वीकृति में',
+        '${Fmt.money(amount)} waiting for approval',
+      );
+  String get pendingSub => _t(
+        'कार्यालय जाँच के बाद रसीद जारी करेगा।',
+        'The office will issue your receipt once it checks the payment.',
+      );
+
+  // Dues page.
+  String get totalDue => _t('कुल बकाया', 'Total due');
+  String closingsLeft(int n) =>
+      _t('$n क्लोजिंग बाकी', '$n closing${n == 1 ? '' : 's'} to pay');
+  String eachClosing(double amount) => _t(
+        'हर क्लोजिंग पर ${Fmt.money(amount)} सहयोग',
+        '${Fmt.money(amount)} for each closing',
+      );
+  String get oldestFirst => _t('सबसे पुराना', 'Oldest');
+  String get receiptHint => _t(
+        'भुगतान स्वीकृत होते ही रसीद "मेरे भुगतान" में मिलेगी।',
+        'Your receipt appears under "My payments" once the payment is approved.',
+      );
+
+  // Payments filter.
+  String get filterAll => _t('सभी', 'All');
+  String get filterApproved => _t('स्वीकृत', 'Approved');
+  String get noMatchingReceipts =>
+      _t('इस फ़िल्टर में कोई रसीद नहीं है।', 'No receipts match this filter.');
+
+  // Announcements.
+  String get everyYojna => _t('सभी योजनाएँ', S.forEveryYojna);
+  String get newBadge => _t('नई', 'New');
+
   // ---- Receipts ---------------------------------------------------------
   String get receipts => _t('रसीदें', 'Receipts');
   String get noApprovedReceipts =>
