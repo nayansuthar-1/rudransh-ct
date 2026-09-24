@@ -14,6 +14,7 @@ import '../../state/providers.dart';
 import '../../widgets/app_shell.dart';
 import '../../widgets/primitives.dart';
 import '../certificate/certificate_action.dart';
+import '../certificate/certificate_data.dart';
 import 'member_pages.dart';
 
 /// Member landing page. Dues, receipts and announcements arrive in Phase 15.
@@ -157,29 +158,35 @@ class _MembershipCard extends ConsumerWidget {
           if (m.regNo.isNotEmpty) ...[
             const SizedBox(height: Space.md),
             OutlinedButton.icon(
-              onPressed: () => printMemberCertificate(
-                context,
-                member: Member(
-                  id: m.memberId,
-                  yojnaId: m.yojnaId,
-                  regNo: m.regNo,
-                  name: m.name,
-                  fatherOrHusbandName: m.fatherOrHusbandName,
-                  jati: '',
-                  warisName: m.warisName,
-                  warisRelation: m.warisRelation,
-                  primaryPhone: m.primaryPhone,
-                  altPhone: m.altPhone,
-                  aadhaar: '',
-                  village: m.village,
-                  tehsil: m.tehsil,
-                  district: m.district,
-                  pincode: m.pincode,
-                  joinDate: m.joinDate,
-                  status: m.status,
-                ),
-                agentName: m.agentName,
-              ),
+              onPressed: () {
+                final member = m.toMember();
+                printCertificateData(
+                  context,
+                  CertificateData(
+                    regNo: member.regNo,
+                    issuedOn: DateTime.now(),
+                    name: member.name,
+                    fatherOrHusbandName: member.fatherOrHusbandName,
+                    yojnaName: m.yojnaName,
+                    yojnaStartedOn: m.yojnaStartedOn,
+                    contributionAmount: m.contributionAmount,
+                    payoutNote: m.payoutNote,
+                    gotra: member.gotra,
+                    jati: member.jati,
+                    dob: member.dob,
+                    village: member.village,
+                    district: member.district,
+                    state: member.state,
+                    address: member.address,
+                    phone: member.primaryPhone,
+                    warisName: member.warisName,
+                    warisRelation: member.warisRelation,
+                    agentName: m.agentName,
+                    photoUrl: member.photoUrl,
+                  ),
+                  failedMessage: t.certificateFailed,
+                );
+              },
               icon: const Icon(Icons.print_outlined, size: 17),
               label: Text(t.printCertificate),
             ),

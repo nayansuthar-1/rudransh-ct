@@ -978,6 +978,14 @@ class InMemoryTrustRepository implements TrustRepository {
       joinDate: m.joinDate,
       status: m.status,
       agentName: agent?.name ?? '',
+      jati: m.jati,
+      gotra: m.gotra,
+      dob: m.dob,
+      state: m.state,
+      email: m.email,
+      photoUrl: m.photoUrl,
+      payoutNote: yojna.description,
+      yojnaStartedOn: yojna.startDate ?? yojna.createdAt,
     ));
   }
 

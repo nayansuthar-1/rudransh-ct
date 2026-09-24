@@ -362,27 +362,7 @@ class _PaymentRow extends ConsumerWidget {
                 printPaymentReceipt(
                   context,
                   payment: payment,
-                  member: membership != null
-                      ? Member(
-                          id: membership.memberId,
-                          yojnaId: membership.yojnaId,
-                          regNo: membership.regNo,
-                          name: membership.name,
-                          fatherOrHusbandName: membership.fatherOrHusbandName,
-                          jati: '',
-                          warisName: membership.warisName,
-                          warisRelation: membership.warisRelation,
-                          primaryPhone: membership.primaryPhone,
-                          altPhone: membership.altPhone,
-                          aadhaar: '',
-                          village: membership.village,
-                          tehsil: membership.tehsil,
-                          district: membership.district,
-                          pincode: membership.pincode,
-                          joinDate: membership.joinDate,
-                          status: membership.status,
-                        )
-                      : null,
+                  member: membership?.toMember(),
                   yojnaName: membership?.yojnaName ?? '',
                 );
               },

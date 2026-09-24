@@ -12,6 +12,19 @@ import 'certificate_printer.dart';
 /// Callers pass whatever context they already hold: the admin screens have the
 /// Yojna and the agent record to hand, the agent screens have their own name.
 /// Anything not passed prints as a blank dotted line.
+/// Prints [data] as it stands: for the member's own screens, which have the
+/// certificate's fields but not the full Yojna and agent records.
+Future<void> printCertificateData(
+  BuildContext context,
+  CertificateData data, {
+  String failedMessage = S.certificateFailed,
+}) async {
+  final opened = await openCertificateForPrint(data);
+  if (!opened && context.mounted) {
+    showToast(context, failedMessage, error: true);
+  }
+}
+
 Future<void> printMemberCertificate(
   BuildContext context, {
   required Member member,

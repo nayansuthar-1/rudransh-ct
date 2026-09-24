@@ -251,6 +251,43 @@ void main() {
       expect(m.yojnaName, isNotEmpty);
     });
 
+    test('carries everything the certificate prints, but no Aadhaar', () async {
+      final record =
+          repo.membersView.firstWhere((x) => x.id == repo.portalMemberId);
+      final m = await repo.fetchMyMembership();
+      expect(m.gotra, record.gotra);
+      expect(m.jati, record.jati);
+      expect(m.dob, record.dob);
+      expect(m.state, record.state);
+
+      final member = m.toMember();
+      expect(member.fatherOrHusbandName, record.fatherOrHusbandName);
+      expect(member.aadhaar, isEmpty);
+    });
+
+    test('the server row brings the certificate fields', () {
+      final m = Membership.fromRow({
+        'member_id': 'm1',
+        'reg_no': 'SSY-1',
+        'name': 'Ram',
+        'yojna_id': 'y1',
+        'join_date': '2026-07-01',
+        'status': 'active',
+        'gotra': 'Keshav',
+        'jati': 'Luhar',
+        'dob': '1960-01-01',
+        'state': 'Gujarat',
+        'photo_url': 'https://res.cloudinary.com/x/p.jpg',
+        'yojna_description': 'note',
+        'yojna_start_date': '2026-07-01',
+      });
+      expect(m.gotra, 'Keshav');
+      expect(m.dob, DateTime(1960, 1, 1));
+      expect(m.photoUrl, contains('cloudinary'));
+      expect(m.payoutNote, 'note');
+      expect(m.yojnaStartedOn, DateTime(2026, 7, 1));
+    });
+
     test('paying by UPI leaves a pending receipt', () async {
       final before = (await repo.fetchMyPayments()).length;
       await repo.submitUpiPayment(amount: 100, reference: 'UTR123456789');

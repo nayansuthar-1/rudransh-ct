@@ -18,7 +18,7 @@ import '../../widgets/inputs.dart';
 import '../../widgets/member_lang_toggle.dart';
 import '../../widgets/primitives.dart';
 import '../certificate/certificate_data.dart';
-import '../certificate/certificate_printer.dart';
+import '../certificate/certificate_action.dart';
 import '../receipt/receipt_action.dart';
 import 'turnstile.dart';
 
@@ -384,7 +384,8 @@ Future<void> _printCertificate(
   MemberText t,
 ) async {
   final m = l.member!;
-  final opened = await openCertificateForPrint(
+  await printCertificateData(
+    context,
     CertificateData(
       regNo: m.regNo,
       issuedOn: DateTime.now(),
@@ -407,10 +408,8 @@ Future<void> _printCertificate(
       agentName: l.agentName,
       photoUrl: m.photoUrl,
     ),
+    failedMessage: t.certificateFailed,
   );
-  if (!opened && context.mounted) {
-    showToast(context, t.certificateFailed, error: true);
-  }
 }
 
 class _Notice extends StatelessWidget {

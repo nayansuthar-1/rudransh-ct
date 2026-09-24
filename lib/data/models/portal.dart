@@ -190,6 +190,14 @@ class Membership {
     this.district = '',
     this.pincode = '',
     this.agentName = '',
+    this.jati = '',
+    this.gotra = '',
+    this.dob,
+    this.state = '',
+    this.email = '',
+    this.photoUrl = '',
+    this.payoutNote = '',
+    this.yojnaStartedOn,
   });
 
   final String memberId;
@@ -210,6 +218,45 @@ class Membership {
   final DateTime joinDate;
   final MemberStatus status;
   final String agentName;
+
+  /// The rest of what the member's certificate prints.
+  final String jati;
+  final String gotra;
+  final DateTime? dob;
+  final String state;
+  final String email;
+  final String photoUrl;
+
+  /// The Yojna's `नोंध` and start date, for the certificate.
+  final String payoutNote;
+  final DateTime? yojnaStartedOn;
+
+  /// The member as the certificate and receipts print them. Never carries
+  /// the Aadhaar number.
+  Member toMember() => Member(
+        id: memberId,
+        yojnaId: yojnaId,
+        regNo: regNo,
+        name: name,
+        fatherOrHusbandName: fatherOrHusbandName,
+        jati: jati,
+        gotra: gotra,
+        dob: dob,
+        warisName: warisName,
+        warisRelation: warisRelation,
+        primaryPhone: primaryPhone,
+        altPhone: altPhone,
+        aadhaar: '',
+        village: village,
+        tehsil: tehsil,
+        district: district,
+        state: state,
+        pincode: pincode,
+        joinDate: joinDate,
+        status: status,
+        photoUrl: photoUrl,
+        email: email,
+      );
 
   String get address => [village, tehsil, district, pincode]
       .where((p) => p.trim().isNotEmpty)
@@ -234,6 +281,14 @@ class Membership {
         joinDate: DateTime.parse(r['join_date'] as String),
         status: MemberStatus.fromName(r['status'] as String?),
         agentName: (r['agent_name'] ?? '') as String,
+        jati: (r['jati'] ?? '') as String,
+        gotra: (r['gotra'] ?? '') as String,
+        dob: _date(r['dob']),
+        state: (r['state'] ?? '') as String,
+        email: (r['email'] ?? '') as String,
+        photoUrl: (r['photo_url'] ?? '') as String,
+        payoutNote: (r['yojna_description'] ?? '') as String,
+        yojnaStartedOn: _date(r['yojna_start_date']),
       );
 }
 
