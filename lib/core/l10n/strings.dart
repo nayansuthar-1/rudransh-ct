@@ -250,6 +250,12 @@ class S {
   static const accessOff = 'Turned off';
   static const inviteNeedsEmail = "Add the agent's email address first.";
   static const inviteSent = 'Invite email sent';
+  static const inviteNoEmailTitle = 'Access given, no email sent';
+  static String inviteNoEmail(String loginUrl) =>
+      'This email address already had a login, so it now opens this '
+      'person\'s screens and no invite email was sent. Tell them to open '
+      '$loginUrl, enter this email and type the 6-digit code they receive.';
+  static const ok = 'OK';
 
   // Approvals
   static const newMembers = 'New members';

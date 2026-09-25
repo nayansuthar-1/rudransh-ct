@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/l10n/strings.dart';
+import '../../core/router/routes.dart';
 import '../../core/utils/extensions.dart';
 import '../../core/responsive/breakpoints.dart';
 import '../../core/theme/app_colors.dart';
@@ -334,13 +335,15 @@ Future<void> _inviteMember(
 ) async {
   final email = await memberEmailDialog(context, member);
   if (email == null || !context.mounted) return;
-  await runWithToast(
+  await runInvite(
     context,
     () async {
-      await ref.read(accessRepositoryProvider).inviteMember(member, email);
+      final sent =
+          await ref.read(accessRepositoryProvider).inviteMember(member, email);
       ref.invalidate(memberAccessProvider);
+      return sent;
     },
-    success: S.inviteSent,
+    loginPath: AppRoutes.memberLogin,
   );
 }
 

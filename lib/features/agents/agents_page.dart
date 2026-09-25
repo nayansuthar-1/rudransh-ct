@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/l10n/strings.dart';
+import '../../core/router/routes.dart';
 import '../../core/responsive/breakpoints.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
@@ -300,13 +301,14 @@ Future<void> _inviteAgent(BuildContext context, WidgetRef ref, Agent agent) asyn
     destructive: false,
   );
   if (!ok || !context.mounted) return;
-  await runWithToast(
+  await runInvite(
     context,
     () async {
-      await ref.read(accessRepositoryProvider).inviteAgent(agent);
+      final sent = await ref.read(accessRepositoryProvider).inviteAgent(agent);
       ref.invalidate(agentAccessProvider);
+      return sent;
     },
-    success: S.inviteSent,
+    loginPath: AppRoutes.login,
   );
 }
 

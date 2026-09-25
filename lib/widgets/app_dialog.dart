@@ -272,6 +272,45 @@ Future<void> runWithToast(
   }
 }
 
+/// Runs an invite and says whether an email actually went out. An address
+/// that already had a login is given access without one, so the person must
+/// be told where to sign in instead of waiting for an email.
+Future<void> runInvite(
+  BuildContext context,
+  Future<bool> Function() invite, {
+  required String loginPath,
+}) async {
+  final bool sent;
+  try {
+    sent = await invite();
+  } catch (e) {
+    if (context.mounted) showToast(context, '$e', error: true);
+    return;
+  }
+  if (!context.mounted) return;
+  if (sent) return showToast(context, S.inviteSent);
+
+  // Something the office has to pass on, so it stays until read.
+  await showDialog<void>(
+    context: context,
+    barrierColor: Colors.black.withValues(alpha: 0.32),
+    builder: (dialogContext) => AlertDialog(
+      constraints: const BoxConstraints(maxWidth: 420),
+      title: const Text(S.inviteNoEmailTitle),
+      content: SelectableText(
+        S.inviteNoEmail('${Uri.base.origin}$loginPath'),
+        style: const TextStyle(height: 1.5),
+      ),
+      actions: [
+        FilledButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: const Text(S.ok),
+        ),
+      ],
+    ),
+  );
+}
+
 /// Asks for a short reason (reject, cancel). Returns null when dismissed.
 Future<String?> reasonDialog(
   BuildContext context, {

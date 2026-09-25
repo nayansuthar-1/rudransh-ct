@@ -10,7 +10,9 @@ abstract class AccessRepository {
   Future<Map<String, bool>> fetchAgentAccess();
 
   /// Emails [agent] an invite and gives them an agent login. Owner only.
-  Future<void> inviteAgent(Agent agent);
+  /// False when no email went out because the address already had a login,
+  /// which the login now uses: they sign in with a code straight away.
+  Future<bool> inviteAgent(Agent agent);
 
   /// Member id → whether their login profile is switched on. Members who were
   /// never invited are absent.
@@ -18,8 +20,8 @@ abstract class AccessRepository {
 
   /// Emails [member] an invite at [email] and gives them a member login.
   /// Members have no email on their record, so the office supplies it. Owner
-  /// only.
-  Future<void> inviteMember(Member member, String email);
+  /// only, or the member's own agent. Returns false as [inviteAgent] does.
+  Future<bool> inviteMember(Member member, String email);
 }
 
 class SupabaseAccessRepository implements AccessRepository {
@@ -45,14 +47,15 @@ class SupabaseAccessRepository implements AccessRepository {
   }
 
   @override
-  Future<void> inviteAgent(Agent agent) async {
+  Future<bool> inviteAgent(Agent agent) async {
     try {
-      await _client.functions.invoke('invite_user', body: {
+      final res = await _client.functions.invoke('invite_user', body: {
         'role': 'agent',
         'agent_id': agent.id,
         'email': agent.email.trim().toLowerCase(),
         'name': agent.name,
       });
+      return _emailSent(res.data);
     } on FunctionException catch (e) {
       final details = e.details;
       final message = details is Map ? details['error'] as String? : null;
@@ -80,14 +83,15 @@ class SupabaseAccessRepository implements AccessRepository {
   }
 
   @override
-  Future<void> inviteMember(Member member, String email) async {
+  Future<bool> inviteMember(Member member, String email) async {
     try {
-      await _client.functions.invoke('invite_user', body: {
+      final res = await _client.functions.invoke('invite_user', body: {
         'role': 'member',
         'member_id': member.id,
         'email': email.trim().toLowerCase(),
         'name': member.name,
       });
+      return _emailSent(res.data);
     } on FunctionException catch (e) {
       final details = e.details;
       final message = details is Map ? details['error'] as String? : null;
@@ -98,6 +102,11 @@ class SupabaseAccessRepository implements AccessRepository {
   }
 }
 
+/// `invite_user` answers `{user_id, email_sent}`; an older deployment sent
+/// no flag and always emailed.
+bool _emailSent(Object? data) =>
+    data is! Map || data['email_sent'] != false;
+
 /// Demo mode and widget tests: remembers invites in memory.
 class InMemoryAccessRepository implements AccessRepository {
   final _agents = <String, bool>{};
@@ -107,18 +116,19 @@ class InMemoryAccessRepository implements AccessRepository {
   Future<Map<String, bool>> fetchAgentAccess() async => Map.of(_agents);
 
   @override
-  Future<void> inviteAgent(Agent agent) async {
+  Future<bool> inviteAgent(Agent agent) async {
     if (_agents.containsKey(agent.id)) {
       throw const RepositoryException('This agent already has app access.');
     }
     _agents[agent.id] = true;
+    return true;
   }
 
   @override
   Future<Map<String, bool>> fetchMemberAccess() async => Map.of(_members);
 
   @override
-  Future<void> inviteMember(Member member, String email) async {
+  Future<bool> inviteMember(Member member, String email) async {
     if (member.status == MemberStatus.pending) {
       throw const RepositoryException('Approve the member before inviting them.');
     }
@@ -126,5 +136,6 @@ class InMemoryAccessRepository implements AccessRepository {
       throw const RepositoryException('This member already has app access.');
     }
     _members[member.id] = true;
+    return true;
   }
 }

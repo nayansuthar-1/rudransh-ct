@@ -448,13 +448,15 @@ Future<void> _inviteMember(
 ) async {
   final email = await memberEmailDialog(context, member);
   if (email == null || !context.mounted) return;
-  await runWithToast(
+  await runInvite(
     context,
     () async {
-      await ref.read(accessRepositoryProvider).inviteMember(member, email);
+      final sent =
+          await ref.read(accessRepositoryProvider).inviteMember(member, email);
       ref.invalidate(agentMembersProvider);
+      return sent;
     },
-    success: S.inviteSent,
+    loginPath: AppRoutes.memberLogin,
   );
 }
 
