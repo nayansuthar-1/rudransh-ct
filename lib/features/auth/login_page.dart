@@ -63,7 +63,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         children: [
           Row(
             children: [
-              const BrandMark(size: 36),
+              const BrandMark(size: 64),
               const Spacer(),
               if (isMember) const MemberLangToggle(),
             ],
@@ -234,12 +234,22 @@ class _Copy {
   /// The office and agent pages, in English like the rest of their screens.
   factory _Copy.forPortal(LoginPortal portal) {
     final agent = portal == LoginPortal.agent;
+    // The office page takes agents too, once they may sign in.
+    const agentsHere = AuthController.agentsMaySignIn;
+    final sub = agent
+        ? S.agentSignInSub
+        : agentsHere
+            ? S.officeAndAgentsSub
+            : S.officeSignInSub;
     return _Copy(
-      title: agent ? S.agentSignIn : S.officeSignIn,
-      subtitle:
-          '${S.trustName} · ${agent ? S.agentSignInSub : S.officeSignInSub}',
+      title: agent
+          ? S.agentSignIn
+          : agentsHere
+              ? S.signIn
+              : S.officeSignIn,
+      subtitle: '${S.trustName} · $sub',
       emailLabel: S.emailLabel,
-      emailHint: agent ? 'name@example.com' : S.emailHint,
+      emailHint: agent || agentsHere ? 'name@example.com' : S.emailHint,
       badEmail: S.invalidEmail,
       sendCode: S.sendOtp,
       checkEmail: S.checkEmail,

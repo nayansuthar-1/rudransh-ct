@@ -69,7 +69,7 @@ class AppTopBar extends ConsumerWidget {
                   tooltip: 'Menu',
                 ),
                 const SizedBox(width: Space.xs),
-                const BrandMark(size: 28),
+                const BrandMark(size: 32),
                 const SizedBox(width: Space.md),
                 Expanded(
                   child: Text(

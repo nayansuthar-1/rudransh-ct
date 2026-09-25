@@ -34,22 +34,19 @@ Signing in to a second role in the same window replaces the first sign-in. Use:
 ### 0.4 Test data on the live site
 Launch is 5 Oct and the live database is still empty, so testing there is fine. Keep all test records under one Yojna named **TEST**. Every test record uses up a reg number and a receipt number. To start numbering from 1 at launch, wipe the data before 5 Oct (see §8).
 
-### 0.5 Agents cannot sign in on the live site yet
-This is on purpose until Release 2 (`agentsMaySignIn = false`). `/a` says "not open yet", and **Invite to app** is hidden on the Agents page. So you can test agents in two ways (§6):
-- **A. Look at the screens:** the local preview on sample data (nothing saved).
-- **B. Test for real:** a local copy of the app, with agents switched on only on your computer, using live data (`.\scripts\run_production.ps1 -Agents`).
+### 0.5 Agents sign in on the live site
+Since 25 Sep, agents sign in on **`/login`** (the same page as the office) or on their own page **`/a`**, and they land on the agent panel. The office invites them from the Agents page (§2.2). To switch agent sign-in off again, set the Vercel environment variable `AGENTS_MAY_SIGN_IN` to `false` and redeploy.
 
 ---
 
 ## 1. Office: sign in and check the separation (window 1)
 
 1. Open `rudransh-green.vercel.app` → you land on **सदस्य लॉगिन** (the member page). This is right: the bare address is what members are given.
-2. Open `rudransh-green.vercel.app/login` → **Office sign in**. **Bookmark this address.**
-3. Type `rudranshct+m1@gmail.com` → **Send OTP**.
-   ✅ Pass if it says *"This sign-in is for the trust office only."* and no email arrives.
-4. Type `rudranshct@gmail.com` → Send OTP → enter the 6-digit code → **Verify**.
+2. Open `rudransh-green.vercel.app/login` → **Sign in**, *Rudransh Charitable Trust · Trust office and agents*, with the trust logo above it. **Bookmark this address.**
+3. Type `rudranshct@gmail.com` → Send OTP → enter the 6-digit code → **Verify**.
    ✅ Pass if you land on `/dashboard`.
-5. Check the browser tab: it says **Rudransh CT**, without "Admin Panel".
+4. Check the browser tab: it says **Rudransh CT**, and the tab icon is the trust logo (not the blue Flutter mark). The sidebar and top bar show the logo, not an "R".
+5. A member's login is refused here, but only after the code (the page can't tell a member from an agent until then). Check this in §3.2, once M1 exists: on `/login`, M1's code must end with *"This sign-in is for the trust office and agents. Members: use the member login."*
 
 ## 2. Office: build the test data
 
@@ -62,7 +59,7 @@ Do these in order, because each one needs the one before it.
 ### 2.2 Agent
 - **Agents → Add agent:** name *Test Agent*, email `rudranshct+agent@gmail.com`, commission 10%, Yojna TEST. Leave the code blank.
 - ✅ Pass if the code is filled in as `AG-001` (or the next free number).
-- ⋯ menu: **Invite to app is not there** (agents are not switched on yet). This is correct.
+- ⋯ menu → **Invite to app** → `rudranshct+agent@gmail.com` → **Send invite**. ✅ Pass if it says *"Invite email sent"*, and the email's **Open the app** button opens `…/a`.
 
 ### 2.3 Members
 Add three members under Yojna TEST, all with agent *Test Agent*:
@@ -113,6 +110,7 @@ Add three members under Yojna TEST, all with agent *Test Agent*:
    ✅ Pass if it says *"इस ईमेल से सदस्य लॉगिन नहीं है…"* (this email has no member login) and **no code arrives**. The member page must never let the office in.
 3. Type `rudranshct+m1@gmail.com` → **कोड भेजें** → enter the code from the inbox → **लॉगिन करें** (Sign in).
    ✅ Pass if you land on `/me`, the member home. M1 never had an invite: the email on their record was enough.
+4. Sign out, then try M1 on the office page `/login`: the code arrives, but after **Verify** it says *"This sign-in is for the trust office and agents. Members: use the member login."* and nothing opens.
 
 ### 3.3 The invited member (M2)
 Sign out of M1 first (you land back on `/m`). Then sign in as `rudranshct+m2@gmail.com` the same way.
@@ -173,16 +171,11 @@ npx http-server build/agent_preview -p 8095 --proxy http://localhost:8095?
 ```
 Then open `http://localhost:8095/agent`. The quick `flutter run` server cannot start this preview, because it can't reach the sample data. Nothing you do there is saved.
 
-### 6B. Test for real (live data, only on your computer)
-Agents are switched on **for this local copy only**; the live site stays closed to them. The root `.env` file already holds the live Supabase URL and publishable key. In a PowerShell terminal in the project folder:
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_production.ps1 -Agents
-```
-Chrome opens at `http://localhost:8080`. Keep the terminal open while you test.
-
-In that local app:
-1. `http://localhost:8080/login` → office → Agents → Test Agent ⋯ → **Invite to app** (it appears now).
-2. The invite email's button opens the **live** site, which still says agents are not open yet. Ignore the button. Instead, in a second browser (Edge), open `http://localhost:8080/a` → `rudranshct+agent@gmail.com` → **Send code** → enter the code → you land on `/agent`.
+### 6B. Test for real (live site)
+Test Agent was invited in §2.2. In the agent window (Edge):
+1. `rudransh-green.vercel.app/login` → `rudranshct+agent@gmail.com` → **Send OTP** → enter the code → **Verify**.
+   ✅ Pass if you land on the **agent panel** (`/agent`), not the office dashboard.
+2. Sign out, then do the same on `rudransh-green.vercel.app/a`. ✅ Pass if it also lands on `/agent`.
 3. Walk the screens:
 
 | Page | Check |
@@ -197,7 +190,7 @@ In that local app:
 
 4. Office window → **Approvals**: approve the new member (gets a reg no), the agent's payment, and the handover. Create a closing from the death report. Reject one item with a reason.
    ✅ Pass if the agent's bell shows each outcome, cash in hand goes down after the confirmed handover, and a rejected handover puts the money back.
-5. Access: as the agent, type `/dashboard` and `/me` → back to `/agent`. Sign out → `/a`.
+5. Access: as the agent, type `/dashboard`, `/members` and `/me` → back to `/agent`. Sign out → `/a`.
 
 ---
 

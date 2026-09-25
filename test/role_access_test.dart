@@ -341,7 +341,10 @@ void main() {
     testWidgets('the office login does not point members anywhere',
         (tester) async {
       await open(tester, AppRoutes.login);
-      expect(find.text(S.officeSignIn), findsOneWidget);
+      expect(
+        find.text(AuthController.agentsMaySignIn ? S.signIn : S.officeSignIn),
+        findsOneWidget,
+      );
       expect(find.text(const MemberText(MemberLang.hi).noEmailLookup),
           findsNothing);
       expect(find.byType(TextButton), findsNothing);
@@ -361,10 +364,13 @@ void main() {
     final member = user(UserRole.member, 'ram@example.com');
     final agent = user(UserRole.agent, 'agent@example.com');
 
-    test('the office page takes the office only', () {
+    test('the office page takes the office, and agents once they may', () {
       expect(AuthController.admits(LoginPortal.office, office), isTrue);
       expect(AuthController.admits(LoginPortal.office, member), isFalse);
-      expect(AuthController.admits(LoginPortal.office, agent), isFalse);
+      expect(
+        AuthController.admits(LoginPortal.office, agent),
+        AuthController.agentsMaySignIn,
+      );
     });
 
     test('the member page takes members only', () {
@@ -442,10 +448,14 @@ void main() {
       return container.read(authControllerProvider);
     }
 
+    // With agents on, the office page cannot tell a member from an agent
+    // before the code; [AuthController.admits] turns the member away after.
     test('the office page turns a member away', () async {
       final state = await request('ram@example.com', LoginPortal.office);
       expect(state.stage, AuthStage.signedOut);
-      expect(state.error, contains('trust office only'));
+      if (!AuthController.agentsMaySignIn) {
+        expect(state.error, contains('trust office only'));
+      }
     });
 
     test("the member page will not send the office's login a code", () async {

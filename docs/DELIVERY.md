@@ -88,9 +88,10 @@ On `rudransh-green.vercel.app`, on a phone and a laptop:
 >
 > - Office: open `/login`, enter the trust email, type the 6-digit code from the email.
 > - Members: open the site (or `/m`) and sign in with the email the office saved for them.
+> - Agents: open `/login` (or `/a`) and sign in with the email the office invited.
 > - Anyone can check a membership at `/lookup` with their phone number and the last 4 digits of their Aadhaar.
 >
-> Guides are attached. Agents get their own login in November.
+> Guides are attached.
 
 ---
 
@@ -100,5 +101,5 @@ On `rudransh-green.vercel.app`, on a phone and a laptop:
 | --- | --- | --- |
 | Razorpay online payments | After the trust's Razorpay KYC is approved | Supabase function secrets `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`; Vercel env `RAZORPAY_KEY_ID`; Razorpay webhook → the `razorpay_webhook` function URL; redeploy |
 | Pay by UPI button | When the trust gives a UPI ID | Vercel env `UPI_ID`, `UPI_PAYEE`; redeploy |
-| Agents (Release 2) | 6 Oct – 5 Nov | Vercel env `AGENTS_MAY_SIGN_IN` = `true`, redeploy (no code change); enable pg_cron and schedule the overdue-dues sweep (`docs/RUNBOOK.md` §2.1) |
+| Agents | Live since 25 Sep (sign in at `/login` or `/a`) | Schedule the overdue-dues sweep with pg_cron (`docs/RUNBOOK.md` §2.1), or agents are never told about stale dues. To close agent sign-in: Vercel env `AGENTS_MAY_SIGN_IN` = `false`, redeploy |
 | Cloudinary clean-up | Any time | Rotate the API secret exposed on 18 Sep; delete the test files in `rudransh/certificates` |

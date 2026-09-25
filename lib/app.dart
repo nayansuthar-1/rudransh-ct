@@ -54,7 +54,7 @@ class _AccessCheckSplash extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const BrandMark(size: 36),
+              const BrandMark(size: 72),
               const SizedBox(height: Space.xl),
               if (error == null) ...[
                 const SizedBox(

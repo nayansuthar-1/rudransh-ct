@@ -14,6 +14,7 @@ import '../../core/l10n/member_text.dart';
 import '../../state/member_lang.dart';
 import '../../state/providers.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/app_sidebar.dart' show BrandMark;
 import '../../widgets/inputs.dart';
 import '../../widgets/member_lang_toggle.dart';
 import '../../widgets/primitives.dart';
@@ -118,6 +119,8 @@ class _LookupPageState extends ConsumerState<LookupPage> {
                     alignment: Alignment.centerRight,
                     child: MemberLangToggle(),
                   ),
+                  const Center(child: BrandMark(size: 72)),
+                  const SizedBox(height: Space.md),
                   Text(
                     t.trustName,
                     textAlign: TextAlign.center,

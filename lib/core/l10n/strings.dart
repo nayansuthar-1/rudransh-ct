@@ -210,6 +210,7 @@ class S {
   static const signIn = 'Sign in';
   static const officeSignIn = 'Office sign in';
   static const officeSignInSub = 'Trust office only';
+  static const officeAndAgentsSub = 'Trust office and agents';
   static const agentSignIn = 'Agent sign in';
   static const agentSignInSub = "For the trust's agents";
   static const checkEmail = 'Check your email';

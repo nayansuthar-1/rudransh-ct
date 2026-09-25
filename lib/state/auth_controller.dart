@@ -130,7 +130,10 @@ class AuthController extends Notifier<AuthState> {
         busy: false,
       );
     } on sb.AuthException catch (e) {
-      state = state.copyWith(busy: false, error: _describeRequestError(e));
+      state = state.copyWith(
+        busy: false,
+        error: _describeRequestError(e, isAdmin: isAdmin),
+      );
     } catch (_) {
       state = state.copyWith(
         busy: false,
@@ -143,9 +146,10 @@ class AuthController extends Notifier<AuthState> {
   /// The trust's own login is never sent a code from the member or agent
   /// page, which must not become a way into the office.
   String? _refusal({required bool isAdmin}) => switch (state.portal) {
-        // Staff sign in here once they are switched on (Release 2); until
-        // then the office page is the trust's own login only.
-        LoginPortal.office => isAdmin ? null : _officeOnly,
+        // The office page also takes agents. Whether an address is an agent's
+        // is only known once the code is verified, so any login gets a code
+        // here and [admits] decides; a member is turned away after it.
+        LoginPortal.office => isAdmin || agentsMaySignIn ? null : _officeOnly,
         LoginPortal.member =>
           isAdmin ? _say(_noAccess, (t) => t.noMemberLogin) : null,
         LoginPortal.agent => !agentsMaySignIn
@@ -179,12 +183,13 @@ class AuthController extends Notifier<AuthState> {
     } catch (_) {}
   }
 
-  /// Whether agents may sign in yet. They wait for Release 2 (client
-  /// decision, 24 Sep 2026); until then the Agents page offers no invite, as
-  /// an invite they cannot use only confuses them. Off unless the build says
-  /// `--dart-define=AGENTS_MAY_SIGN_IN=true` (Vercel env var of that name), so
-  /// a local build can test agents while the live site stays closed to them.
-  static const agentsMaySignIn = bool.fromEnvironment('AGENTS_MAY_SIGN_IN');
+  /// Whether agents may sign in, on the office page or their own (switched
+  /// on 25 Sep 2026). While off, the Agents page offers no invite, as an
+  /// invite they cannot use only confuses them. A build with
+  /// `--dart-define=AGENTS_MAY_SIGN_IN=false` (Vercel env var of that name)
+  /// closes agent sign-in again without a code change.
+  static const agentsMaySignIn =
+      bool.fromEnvironment('AGENTS_MAY_SIGN_IN', defaultValue: true);
 
   /// Who may use the app for now: the trust's own login, members, and agents
   /// once [agentsMaySignIn]. Staff wait for Release 2.
@@ -195,13 +200,14 @@ class AuthController extends Notifier<AuthState> {
       Env.isAdminEmail(user.email);
 
   /// Whether [portal]'s login page lets [user] in: the office page takes the
-  /// office, the member page members, the agent page agents.
+  /// office and agents, the member page members, the agent page agents.
   @visibleForTesting
   static bool admits(LoginPortal portal, AppUser user) =>
       mayUseApp(user) &&
       switch (portal) {
-        LoginPortal.office =>
-          user.role == UserRole.owner || user.role == UserRole.staff,
+        LoginPortal.office => user.role == UserRole.owner ||
+            user.role == UserRole.staff ||
+            user.role == UserRole.agent,
         LoginPortal.member => user.role == UserRole.member,
         LoginPortal.agent => user.role == UserRole.agent,
       };
@@ -377,7 +383,7 @@ class AuthController extends Notifier<AuthState> {
     );
   }
 
-  String _describeRequestError(sb.AuthException e) {
+  String _describeRequestError(sb.AuthException e, {required bool isAdmin}) {
     if (e.statusCode == '429') {
       return _say(_tooManyAttempts, (t) => t.signInTooMany);
     }
@@ -386,7 +392,7 @@ class AuthController extends Notifier<AuthState> {
         e.code == 'user_not_found' ||
         message.contains('signups not allowed')) {
       return switch (state.portal) {
-        LoginPortal.office => _adminNotRegistered,
+        LoginPortal.office => isAdmin ? _adminNotRegistered : _noAccess,
         LoginPortal.member => _say(_noAccess, (t) => t.noMemberLogin),
         LoginPortal.agent => _noAgentLogin,
       };
@@ -404,14 +410,18 @@ class AuthController extends Notifier<AuthState> {
 
   static const _noAccess =
       'This email does not have access. Contact the trust office.';
-  static const _officeOnly = 'This sign-in is for the trust office only.';
+  static const _officeOnly = agentsMaySignIn
+      ? 'This sign-in is for the trust office and agents. Members: use the '
+          'member login.'
+      : 'This sign-in is for the trust office only.';
   static const _agentsNotYet = 'Agent sign-in is not open yet. The trust '
       'office will tell you when it is.';
   static const _noAgentLogin =
       'This email has no agent login. Contact the trust office.';
-  static const _membersOnly =
-      'Only the trust office and members can sign in for now. Agents and '
-      'staff: ask the trust office.';
+  static const _membersOnly = agentsMaySignIn
+      ? 'Staff sign-in is not open yet. Ask the trust office.'
+      : 'Only the trust office and members can sign in for now. Agents and '
+          'staff: ask the trust office.';
   static const _adminNotRegistered =
       'This admin email is not registered in Supabase Auth.';
   static const _emailProviderError =

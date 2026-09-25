@@ -53,16 +53,8 @@
       justify-content: center;
     }
     #boot .mark {
-      width: 36px;
-      height: 36px;
-      border-radius: 9px;
-      background: #111113;
-      color: #FFFFFF;
-      font-weight: 700;
-      font-size: 19px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      width: 80px;
+      height: 80px;
       animation: pulse 1.4s ease-in-out infinite;
     }
     @keyframes pulse {
@@ -72,12 +64,11 @@
 
     @media (prefers-color-scheme: dark) {
       html, body { background-color: #0A0A0B; }
-      #boot .mark { background: #EDEDEF; color: #0B0B0D; }
     }
   </style>
 </head>
 <body>
-  <div id="boot"><div class="mark">R</div></div>
+  <div id="boot"><img class="mark" src="icons/logo-160.png" alt="Rudransh Charitable Trust"></div>
 
   <script>
     // Remove the boot splash as soon as Flutter paints its first frame.

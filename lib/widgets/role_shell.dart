@@ -104,7 +104,7 @@ class _Header extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(Space.lg, 0, Space.sm, 0),
             child: Row(
               children: [
-                const BrandMark(size: 28),
+                const BrandMark(size: 32),
                 const SizedBox(width: Space.md),
                 Expanded(
                   child: Column(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/config/trust_info.dart';
 import '../core/l10n/strings.dart';
 import '../core/router/routes.dart';
 import '../core/theme/app_colors.dart';
@@ -92,7 +93,7 @@ class AppSidebar extends ConsumerWidget {
 
   Widget _brand(BuildContext context) {
     final c = context.colors;
-    const mark = BrandMark(size: 30);
+    const mark = BrandMark(size: 36);
 
     if (_isRail) return const Center(child: mark);
     return Padding(
@@ -134,7 +135,7 @@ class AppSidebar extends ConsumerWidget {
   }
 }
 
-/// Square monogram used in the sidebar, top bar and login screen.
+/// The trust's logo, used in the sidebar, top bars and login screens.
 class BrandMark extends StatelessWidget {
   const BrandMark({super.key, this.size = 28});
 
@@ -142,24 +143,16 @@ class BrandMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.colors;
-    return Container(
+    final px = (size * MediaQuery.devicePixelRatioOf(context)).ceil();
+    return Image.asset(
+      TrustInfo.logoAsset,
       width: size,
       height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: c.brand,
-        borderRadius: BorderRadius.circular(size * 0.24),
-      ),
-      child: Text(
-        'R',
-        style: TextStyle(
-          color: c.onBrand,
-          fontSize: size * 0.54,
-          fontWeight: FontWeight.w700,
-          height: 1,
-        ),
-      ),
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.medium,
+      // Decoded at the size shown, not the file's 500 px.
+      cacheWidth: px,
+      semanticLabel: TrustInfo.nameEnglish,
     );
   }
 }
