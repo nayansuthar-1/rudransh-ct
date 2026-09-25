@@ -124,34 +124,33 @@ final agentPaymentsProvider = FutureProvider<PaymentPage>((ref) {
       );
 });
 
-// ---- Dues and death reports ----------------------------------------------------
+// ---- Dues and closing reports ----------------------------------------------------
 
 final agentDuesPageProvider = NotifierProvider<ValueHolder<int>, int>(
   () => ValueHolder(0),
 );
 
-final agentClosingGroupsProvider =
-    FutureProvider<PageResult<ClosingGroupDues>>((ref) {
+final agentClosingsProvider = FutureProvider<PageResult<ClosingDues>>((ref) {
   watchBackendData(ref);
   if (!_signedInAsAgent(ref)) return PageResult.empty();
-  return ref.read(agentRepositoryProvider).fetchClosingGroups(
+  return ref.read(agentRepositoryProvider).fetchClosings(
         offset: ref.watch(agentDuesPageProvider) * agentListPageSize,
         limit: agentListPageSize,
       );
 });
 
-/// The agent's members in one closing group, keyed by (Yojna id, group).
-final agentGroupDuesProvider =
-    FutureProvider.family<List<MemberDue>, (String, String)>((ref, group) {
+/// The agent's members for one closing, keyed by the closing case id.
+final agentClosingDuesProvider =
+    FutureProvider.family<List<MemberDue>, String>((ref, closingCaseId) {
   watchBackendData(ref);
   if (!_signedInAsAgent(ref)) return const [];
-  return ref.read(agentRepositoryProvider).fetchGroupDues(group.$1, group.$2);
+  return ref.read(agentRepositoryProvider).fetchClosingDues(closingCaseId);
 });
 
-final agentDeathReportsProvider = FutureProvider<List<ClosingRequest>>((ref) {
+final agentClosingReportsProvider = FutureProvider<List<ClosingRequest>>((ref) {
   watchBackendData(ref);
   if (!_signedInAsAgent(ref)) return const [];
-  return ref.read(agentRepositoryProvider).fetchMyDeathReports();
+  return ref.read(agentRepositoryProvider).fetchMyClosingReports();
 });
 
 // ---- Cash and commission (IMPLEMENTATION_PLAN Phase 16) ------------------------
@@ -224,8 +223,8 @@ class AgentActions {
   Future<String> uploadCertificate(Uint8List bytes, String fileName) =>
       _ref.read(certificateUploaderProvider).upload(bytes, fileName);
 
-  Future<void> reportDeath(ClosingRequest request) =>
-      _run((r) => r.reportDeath(request));
+  Future<void> reportClosing(ClosingRequest request) =>
+      _run((r) => r.reportClosing(request));
 
   /// Search for the payment form's member picker.
   Future<List<Member>> searchMembers(String text) async =>

@@ -28,7 +28,7 @@ abstract final class Env {
 
   static bool get demoMode => !hasSupabase;
 
-  /// Cloudinary account and unsigned upload preset for death certificates
+  /// Cloudinary account and unsigned upload preset for closing proof documents
   /// (IMPLEMENTATION_PLAN Phase 13). Public values; the preset limits what
   /// can be uploaded. See docs/RUNBOOK.md.
   static const cloudinaryCloudName =

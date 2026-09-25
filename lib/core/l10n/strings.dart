@@ -99,7 +99,7 @@ class S {
   static const monthCollection = 'This Month';
   static const active = 'Active';
   static const inactive = 'Inactive';
-  static const closedMembers = 'Closed Members';
+  static const closedMembers = 'Members with a closing';
   static const agentsLabel = 'Agents';
   static const collected = 'Collected';
   static const closedCases = 'Closed Cases';
@@ -278,19 +278,20 @@ class S {
   static const approvedThisMonth = 'Approved this month';
   static const cancelRequested = 'Cancel requested';
 
-  // Dues and death reports (Phase 13)
+  // Dues and closing reports (Phase 13)
   static const dues = 'Dues';
   static const duesSub = 'Contributions per closing';
   static const officeDuesSub = 'Who owes, per member';
+  static const closing = 'Closing';
   static const forClosing = 'For closing';
   static const notForClosing = 'Not for a closing';
   static const toCollect = 'To collect';
   static const sendReminder = 'Send reminder';
   static const shareReceipt = 'Send receipt';
-  static const reportDeath = 'Report death';
-  static const deathReports = 'Death reports';
-  static const dateOfDeath = 'Date of death';
-  static const deathCertificate = 'Death certificate';
+  static const reportClosing = 'Report closing';
+  static const closingReports = 'Closing reports';
+  static const eventDate = 'Event date';
+  static const proofDocument = 'Proof document';
   static const createClosing = 'Create closing';
   static const noPhone = 'This member has no valid phone number.';
   static const whatsAppFailed = 'Could not open WhatsApp.';

@@ -116,7 +116,7 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
       return linked == null ? 'Linked closing' : linked.closingGroup;
     }
     final state = due.due <= 0 ? 'paid' : '${Fmt.money(due.due)} due';
-    return '${due.closingGroup} · ${Fmt.date(due.closingDate)} · $state';
+    return '${due.title} · ${Fmt.date(due.closingDate)} · $state';
   }
 
   Future<void> _loadMember(String id) async {

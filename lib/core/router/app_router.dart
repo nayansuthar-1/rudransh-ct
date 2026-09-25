@@ -102,12 +102,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             const AnnouncementsPage(),
           ),
           GoRoute(
-            path: AppRoutes.agentDuesGroup,
+            path: AppRoutes.agentClosingDues,
             pageBuilder: (context, state) => NoTransitionPage(
               key: state.pageKey,
-              child: AgentGroupDuesPage(
-                yojnaId: state.uri.queryParameters['yojna'] ?? '',
-                closingGroup: state.uri.queryParameters['group'] ?? '',
+              child: AgentClosingDuesPage(
+                closingCaseId: state.uri.queryParameters['closing'] ?? '',
               ),
             ),
           ),

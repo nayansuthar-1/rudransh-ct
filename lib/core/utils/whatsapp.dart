@@ -67,7 +67,9 @@ class WhatsApp {
       'नमस्ते ${due.memberName} जी,',
       '${S.trustNameHindi} की $yojnaName'
           '${due.regNo.isEmpty ? '' : ' (सदस्य नं. ${due.regNo})'} में '
-          '${due.closingGroup} (दिनांक ${_date.format(due.closingDate)}) की '
+          '${due.closingGroup}'
+          '${due.beneficiaryName.isEmpty ? '' : ' – ${due.beneficiaryName}'} '
+          '(दिनांक ${_date.format(due.closingDate)}) की '
           'सहयोग राशि ${_rupees(due.toCollect)} बाकी है।',
       '',
       'कृपया जल्द से जल्द जमा करें।',

@@ -76,7 +76,7 @@ void main() {
       expect(await repo.findMemberByPhone('0000000000'), isNull);
     });
 
-    test('creating a closing case marks the member closed', () async {
+    test('creating a closing case keeps the member active', () async {
       final repo = _fastRepo();
       final member =
           (await repo.fetchMembers()).firstWhere((m) => !m.isClosed);
@@ -94,7 +94,7 @@ void main() {
 
       final updated =
           (await repo.fetchMembers()).firstWhere((m) => m.id == member.id);
-      expect(updated.status, MemberStatus.closed);
+      expect(updated.status, member.status);
       expect(updated.closingGroup, 'Group-99');
     });
 

@@ -125,7 +125,7 @@ class AgentHomePage extends ConsumerWidget {
   }
 }
 
-/// The three newest closing groups the agent's members owe for, so the home
+/// The three newest closings the agent's members owe for, so the home
 /// page shows what to collect next without opening the Dues tab.
 class _RecentClosings extends ConsumerWidget {
   const _RecentClosings();
@@ -133,7 +133,7 @@ class _RecentClosings extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
-    final groups = ref.watch(agentClosingGroupsProvider).value?.items ?? const [];
+    final groups = ref.watch(agentClosingsProvider).value?.items ?? const [];
     if (groups.isEmpty) return const SizedBox.shrink();
 
     return Column(
@@ -161,14 +161,16 @@ class _RecentClosings extends ConsumerWidget {
                     vertical: 4,
                   ),
                   title: Text(
-                    '${g.closingGroup} · ${g.yojnaName}',
+                    [g.groupLabel, g.beneficiaryName]
+                        .where((t) => t.isNotEmpty)
+                        .join(' · '),
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   subtitle: Text(
-                    '${g.paidCount} of ${g.memberCount} paid · '
+                    '${g.yojnaName} · ${g.paidCount} of ${g.memberCount} paid · '
                     '${Fmt.date(g.closingDate)}',
                     style: TextStyle(fontSize: 13, color: c.textSecondary),
                   ),
@@ -180,10 +182,8 @@ class _RecentClosings extends ConsumerWidget {
                       color: g.toCollect > 0 ? c.warning : c.textSecondary,
                     ),
                   ),
-                  onTap: () => context.go(
-                    '${AppRoutes.agentDuesGroup}?yojna=${g.yojnaId}'
-                    '&group=${Uri.encodeComponent(g.closingGroup)}',
-                  ),
+                  onTap: () =>
+                      context.go(AppRoutes.agentClosing(g.closingCaseId)),
                 ),
               ],
             ],
@@ -319,9 +319,9 @@ void _showMember(BuildContext context, Member m) {
           TextButton(
             onPressed: () {
               Navigator.of(dialogContext).pop();
-              showDeathReportForm(context, m);
+              showClosingReportForm(context, m);
             },
-            child: const Text(S.reportDeath),
+            child: const Text(S.reportClosing),
           ),
         OutlinedButton(
           onPressed: () {
@@ -417,7 +417,7 @@ class _MemberActions extends ConsumerWidget {
           case 3:
             _printCertificate(context, ref, m);
           case 4:
-            showDeathReportForm(context, m);
+            showClosingReportForm(context, m);
           case 5:
             await _inviteMember(context, ref, m);
         }
@@ -433,7 +433,7 @@ class _MemberActions extends ConsumerWidget {
         if (!m.isPending)
           const PopupMenuItem(value: 5, child: Text(S.inviteToApp)),
         if (m.status == MemberStatus.active)
-          const PopupMenuItem(value: 4, child: Text(S.reportDeath)),
+          const PopupMenuItem(value: 4, child: Text(S.reportClosing)),
       ],
     );
   }

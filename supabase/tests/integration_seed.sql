@@ -43,10 +43,14 @@ select '', id, yojna_id, 100, agent_id,
        current_date - (row_number() over (order by reg_no) % 40)::int
   from public.members;
 
--- Five closed members, ₹75,000 pending on each claim.
+-- Five members with a closing, ₹75,000 pending on each claim. A closing no
+-- longer closes its member, so they are marked Closed here to keep a Closed
+-- set for the status filter tests.
 insert into public.closing_cases (member_id, yojna_id, claim_amount, collected_amount, closing_group)
 select id, yojna_id, 100000, 25000, 'Group-1'
   from public.members order by reg_no limit 5;
+update public.members set status = 'closed'
+ where id in (select member_id from public.closing_cases);
 
 -- ---------------------------------------------------------------------------
 -- Logins for the Phase 17 access sweep (test/integration/role_api_test.dart)

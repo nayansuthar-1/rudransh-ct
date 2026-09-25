@@ -296,7 +296,7 @@ void main() {
       expect(after.single.agentId, isNull);
     });
 
-    test('closing case closes and reopens the member', () async {
+    test('closing case is copied onto the member, who stays active', () async {
       final page = await repo.fetchMembersPage(
         const MemberQuery(status: MemberStatus.active),
         offset: 0,
@@ -315,7 +315,7 @@ void main() {
         ),
       );
       var reread = (await repo.fetchMembersByIds([member.id])).single;
-      expect(reread.status, MemberStatus.closed);
+      expect(reread.status, MemberStatus.active);
       expect(reread.closingGroup, 'Group-IT');
 
       await expectLater(

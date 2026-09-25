@@ -42,6 +42,23 @@ class InMemoryTrustRepository implements TrustRepository {
   final List<Announcement> _announcements = [];
   int _nextNotificationId = 1;
 
+  /// When each member and closing case was added, like `created_at`. Records
+  /// loaded with [loadFixture] have none: their join and closing dates stand in.
+  final Map<String, DateTime> _addedAt = {};
+  DateTime _lastAdded = DateTime(2000);
+
+  /// Strictly increasing, so two records added in the same tick keep order.
+  DateTime _stamp(String id) {
+    final now = DateTime.now();
+    _lastAdded = now.isAfter(_lastAdded)
+        ? now
+        : _lastAdded.add(const Duration(microseconds: 1));
+    return _addedAt[id] = _lastAdded;
+  }
+
+  DateTime _memberAdded(Member m) => _addedAt[m.id] ?? m.joinDate;
+  DateTime _caseAdded(ClosingCase c) => _addedAt[c.id] ?? c.closingDate;
+
   Future<T> _delayed<T>(T value) =>
       Future.delayed(latency, () => value);
 
@@ -96,6 +113,7 @@ class InMemoryTrustRepository implements TrustRepository {
         ? member.copyWith(id: 'm_${_uuid.v4()}')
         : member;
     _members.insert(0, created);
+    _stamp(created.id);
     return _delayed(created);
   }
 
@@ -253,23 +271,31 @@ class InMemoryTrustRepository implements TrustRepository {
   Future<ClosingCase> createClosingCase(ClosingCase value) {
     final created =
         value.id.isEmpty ? value.copyWith(id: 'c_${_uuid.v4()}') : value;
+    if (_closingCases.any((c) => c.memberId == created.memberId)) {
+      throw const RepositoryException('This member already has a closing.');
+    }
     _closingCases.insert(0, created);
+    _stamp(created.id);
+    _syncMember(created);
+    return _delayed(created);
+  }
 
-    // Keep the member record in sync with the case.
-    final index = _members.indexWhere((m) => m.id == created.memberId);
+  /// Copies the closing onto its member, as the database trigger does. The
+  /// member stays active: they keep paying for other members' closings.
+  void _syncMember(ClosingCase c) {
+    final index = _members.indexWhere((m) => m.id == c.memberId);
     if (index != -1) {
       _members[index] = _members[index].copyWith(
-        status: MemberStatus.closed,
-        closingDate: created.closingDate,
-        closingGroup: created.closingGroup,
+        closingDate: c.closingDate,
+        closingGroup: c.closingGroup,
       );
     }
-    return _delayed(created);
   }
 
   @override
   Future<ClosingCase> updateClosingCase(ClosingCase value) {
     _closingCases[_indexById(_closingCases, value.id, (c) => c.id)] = value;
+    _syncMember(value);
     return _delayed(value);
   }
 
@@ -280,8 +306,7 @@ class InMemoryTrustRepository implements TrustRepository {
     for (final c in removed) {
       final index = _members.indexWhere((m) => m.id == c.memberId);
       if (index != -1) {
-        _members[index] = _members[index]
-            .copyWith(status: MemberStatus.active, clearClosing: true);
+        _members[index] = _members[index].copyWith(clearClosing: true);
       }
     }
     return _delayed(null);
@@ -445,7 +470,8 @@ class InMemoryTrustRepository implements TrustRepository {
         totalMembers: members.length,
         activeMembers: countStatus(MemberStatus.active),
         inactiveMembers: countStatus(MemberStatus.inactive),
-        closedMembers: countStatus(MemberStatus.closed),
+        closedMembers:
+            _closingCases.where((c) => inScope(c.yojnaId)).length,
         totalAgents: _agents.length,
         activeAgents: _agents.where((a) => a.isActive).length,
         monthCollection: monthTotal,
@@ -664,30 +690,27 @@ class InMemoryTrustRepository implements TrustRepository {
     return _delayed(moved);
   }
 
-  // ---- Dues and death reports ------------------------------------------------
+  // ---- Dues and closing reports ------------------------------------------------
 
   static DateTime _day(DateTime d) => DateTime(d.year, d.month, d.day);
 
-  /// Every member's dues per closing group, by the rules of the
-  /// `member_dues` view. Also used by [InMemoryAgentRepository].
+  /// Every member's dues per closing, by the rules of the `member_dues` view:
+  /// each active member of the Yojna added before the closing owes for it,
+  /// except the member whose closing it is. Also used by
+  /// [InMemoryAgentRepository].
   List<MemberDue> allDues() {
-    final groups = <(String, String), List<ClosingCase>>{};
-    for (final c in _closingCases.where((c) => c.closingGroup.isNotEmpty)) {
-      groups.putIfAbsent((c.yojnaId, c.closingGroup), () => []).add(c);
-    }
-
+    final names = {for (final m in _members) m.id: m.name};
     final result = <MemberDue>[];
-    for (final cases in groups.values) {
-      cases.sort((a, b) => a.closingDate.compareTo(b.closingDate));
-      final first = cases.first;
-      final caseIds = {for (final c in cases) c.id};
-      final yojna = _yojnas.where((y) => y.id == first.yojnaId).firstOrNull;
+    for (final c in _closingCases) {
+      final yojna = _yojnas.where((y) => y.id == c.yojnaId).firstOrNull;
       if (yojna == null) continue;
+      final added = _caseAdded(c);
 
       for (final m in _members) {
-        if (m.yojnaId != first.yojnaId ||
+        if (m.yojnaId != c.yojnaId ||
             m.status != MemberStatus.active ||
-            !_day(m.joinDate).isBefore(_day(first.closingDate))) {
+            m.id == c.memberId ||
+            _memberAdded(m).isAfter(added)) {
           continue;
         }
         double sum(PaymentStatus status) => _payments
@@ -696,18 +719,19 @@ class InMemoryTrustRepository implements TrustRepository {
                 p.kind == PaymentKind.contribution &&
                 p.status == status &&
                 !p.isCancelled &&
-                caseIds.contains(p.closingCaseId))
+                p.closingCaseId == c.id)
             .fold(0, (total, p) => total + p.amount);
         result.add(
           MemberDue(
             memberId: m.id,
             yojnaId: m.yojnaId,
-            closingCaseId: first.id,
-            closingGroup: first.closingGroup,
-            closingDate: first.closingDate,
+            closingCaseId: c.id,
+            closingGroup: c.closingGroup,
+            closingDate: c.closingDate,
             amount: yojna.contributionAmount,
             paid: sum(PaymentStatus.paid),
             pending: sum(PaymentStatus.pending),
+            beneficiaryName: names[c.memberId] ?? '',
             memberName: m.name,
             regNo: m.regNo,
             phone: m.primaryPhone,
@@ -815,7 +839,7 @@ class InMemoryTrustRepository implements TrustRepository {
         : r.copyWith(memberName: m.name, memberRegNo: m.regNo, yojnaId: m.yojnaId);
   }
 
-  /// Every death report, newest first. Used by [InMemoryAgentRepository].
+  /// Every closing report, newest first. Used by [InMemoryAgentRepository].
   List<ClosingRequest> allClosingRequests() =>
       _closingRequests.map(_withMember).toList();
 
@@ -872,7 +896,7 @@ class InMemoryTrustRepository implements TrustRepository {
         id: '',
         memberId: member.id,
         yojnaId: member.yojnaId,
-        closingDate: request.dateOfDeath,
+        closingDate: request.eventDate,
         closingGroup: closingGroup.trim(),
         claimAmount: claimAmount ?? yojna.claimAmount,
         nomineeName: request.nomineeName,
@@ -886,7 +910,7 @@ class InMemoryTrustRepository implements TrustRepository {
     );
     _notify(
       NotificationKind.closingApproved,
-      'Death report approved',
+      'Closing report approved',
       'The report for ${member.name} is approved and a closing case is open.',
       '/agent/dues',
     );
@@ -909,7 +933,7 @@ class InMemoryTrustRepository implements TrustRepository {
         request.copyWith(status: RequestStatus.rejected, decisionNote: r);
     _notify(
       NotificationKind.closingRejected,
-      'Death report rejected',
+      'Closing report rejected',
       'The report for ${_memberName(request.memberId)} was rejected. $r',
       '/agent/dues',
     );

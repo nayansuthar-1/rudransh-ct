@@ -21,7 +21,7 @@ Today the trust keeps members, receipts and claims on paper or in Excel. This so
 | --- | --- | --- |
 | **Members** | The register | Every member's details, nominee (Waris), agent and scheme in one searchable list. |
 | **Payments** | The receipt book | Each rupee received gets a receipt number automatically. No two receipts can share a number. |
-| **Closing cases** | The claim file | When a member passes away, the claim is raised, the collection is tracked and the payout to the family is marked. |
+| **Closing cases** | The claim file | When a member's claim falls due (such as their wedding in Shadi Sahyog Yojna), the claim is raised, the collection is tracked and the payout is marked. |
 | **Dashboard** | Adding up by hand | Totals, this month's collection and top agents are calculated for you, always up to date. |
 
 ### Who uses it
@@ -42,7 +42,7 @@ Expected size: 10 to 15 office users and up to about 2,000 members.
 This is the real order of work. Each step names the screen where it happens.
 
 1. **Set up a scheme (Yojna)** — *Yojna screen*
-   Give it a name and a short code such as `SSY`. Enter three amounts: the joining fee, what each member gives when someone passes away (contribution), and what the family receives (claim amount).
+   Give it a name and a short code such as `SSY`. Enter three amounts: the joining fee, what each member gives for every closing (contribution), and what the family receives (claim amount).
 
 2. **Add the agents** — *Agents screen*
    Name, phone, area, which schemes they work in and their commission %. The software gives each a code such as `AG-007`.
@@ -53,8 +53,8 @@ This is the real order of work. Each step names the screen where it happens.
 4. **Record money received** — *Payments screen*
    Choose the member, the amount, the type (joining fee, contribution or closing payout) and how it was paid (cash, UPI, bank transfer or cheque, with the UTR or cheque number). A receipt number like `RCP-1001` is given.
 
-5. **A member passes away: open a closing case** — *Closing Payments screen*
-   Enter the closing date, group (for example `Group-14`), claim amount and nominee. The member is marked **Closed** automatically.
+5. **A member's claim falls due: open a closing case** — *Closing Payments screen*
+   For example a wedding in Shadi Sahyog Yojna. Enter the closing date, group (for example `Group-14`), claim amount and nominee. The member stays **Active** and keeps paying for other members' closings.
 
 6. **Collect contributions and pay the family** — *Closing Payments + Payments*
    Other members pay their contribution. The case shows collected against pending, and moves from **Unpaid** to **Partial** to **Paid** when the family is settled.
@@ -91,9 +91,9 @@ The schemes and their amounts.
 - A scheme with members cannot be deleted, only switched off
 
 ### Closing Payments (claim settlements)
-Every death claim from start to payout.
+Every claim from start to payout.
 - Totals for all claims, collected and still pending
-- Deleting a case by mistake makes the member Active again
+- Deleting a case by mistake clears it from the member
 
 ### Dues
 Who still owes for closings, member by member, for the Yojna picked in the top bar.
@@ -101,7 +101,8 @@ Who still owes for closings, member by member, for the Yojna picked in the top b
 - Each member's total due across all closings and what they have contributed so far
 - Tap a member to see each closing they owe for and their past receipts
 - **Pay** opens the payment form with the oldest unpaid closing and its amount already filled in
-- Only closings with a **Closing group** filled in create dues
+- **Who owes:** for every closing, each active member of the Yojna who was added to the app before the closing was created. The member whose closing it is doesn't pay for their own, but keeps paying for others'
+- **One contribution per closing**, even when several closings share a closing group
 
 ### Payments
 The receipt book.
@@ -170,7 +171,7 @@ Everything uses free plans. All accounts belong to the trust's own email, rudran
 
 The main rule: **agents and members suggest, the office approves.** Money and nominee details never change without an admin.
 
-- **Agents — work from the field on a phone.** Add new members and record collections (both wait for approval), see who still owes money for each closing, send WhatsApp reminders and receipts, report a death with the certificate, see cash in hand and commission.
+- **Agents — work from the field on a phone.** Add new members and record collections (both wait for approval), see who still owes money for each closing, send WhatsApp reminders and receipts, report a closing with a proof document, see cash in hand and commission.
 - **Members — check their own account.** Look up their membership with their phone number and the last 4 digits of their Aadhaar. See receipts, dues and announcements, pay by the trust's UPI QR code and enter the UTR, and ask for corrections.
 - **Office — stays in control.** An approval list with a count, an Invite to app button for agents, moving members between agents, cash handover and commission tracking, announcements, and a bell for alerts.
 - **Privacy — Aadhaar stays hidden.** Agents and members never see a full Aadhaar number. This is enforced inside the database, not just hidden on screen.
@@ -267,7 +268,7 @@ Terms you'll see on screen or hear from the developer.
 | --- | --- |
 | **Yojna** | A scheme the trust runs, with its own amounts and code. |
 | **Waris / Nominee** | The family member who receives the claim. |
-| **Closing** | When a member passes away and a claim is raised for their family. |
+| **Closing** | A claim a Yojna pays out, such as a member's wedding in Shadi Sahyog Yojna. Every other active member pays one contribution for it. |
 | **Closing group** | A batch label for closings collected together, such as Group-14. |
 | **Contribution** | What each member pays towards a closing. |
 | **Claim amount** | What the family receives. |

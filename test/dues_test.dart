@@ -18,11 +18,12 @@ import 'package:rudransh_ct/state/providers.dart';
 import 'support/seed_data.dart';
 import 'support/signed_in.dart';
 
-/// The same closing group as `supabase/tests/dues_test.sql`, in memory.
+/// The same closings as `supabase/tests/dues_test.sql`, in memory.
 ///
-/// Group T-1 in a fresh Yojna: deaths of D1 (200 days ago) and D2 (190 days
-/// ago). M1 paid, M2 owes, M3 belongs to another agent and owes, M4 joined
-/// after the closing, M5 is inactive.
+/// Two closings in group T-1 of a fresh Yojna, each collected on its own: c1
+/// for D1 (200 days ago) and c2 for D2 (190 days ago). M1 paid for c2; M3 and
+/// D2 belong to another agent; M4 was added after both closings; M5 is
+/// inactive. D1 and D2 stay active and pay for each other's closing.
 class _Scenario {
   _Scenario._(this.base, this.me, this.agent, this.ids);
 
@@ -85,16 +86,15 @@ class _Scenario {
     await member('M1', agent: me, joinedDaysAgo: 400);
     await member('M2', agent: me, joinedDaysAgo: 400);
     await member('M3', agent: other, joinedDaysAgo: 400);
-    await member('M4', agent: me, joinedDaysAgo: 100);
     await member('M5', agent: me, joinedDaysAgo: 400, status: MemberStatus.inactive);
     await member('D1', agent: me, joinedDaysAgo: 900);
     await member('D2', agent: other, joinedDaysAgo: 900);
 
-    for (final (key, died, days) in [('c1', 'D1', 200), ('c2', 'D2', 190)]) {
+    for (final (key, whose, days) in [('c1', 'D1', 200), ('c2', 'D2', 190)]) {
       final c = await base.createClosingCase(
         ClosingCase(
           id: '',
-          memberId: ids[died]!,
+          memberId: ids[whose]!,
           yojnaId: yojna.id,
           closingDate: daysAgo(days),
           closingGroup: group,
@@ -104,7 +104,10 @@ class _Scenario {
       ids[key] = c.id;
     }
 
-    // The office's receipt for M1, linked to the group's second case.
+    // Typed in after both closings, with an older join date.
+    await member('M4', agent: me, joinedDaysAgo: 300);
+
+    // The office's receipt for M1, for c2.
     await base.createPayment(
       Payment(
         id: '',
@@ -125,9 +128,10 @@ class _Scenario {
     );
   }
 
-  Future<ClosingGroupDues> myGroup() async {
-    final page = await agent.fetchClosingGroups(offset: 0, limit: 100);
-    return page.items.singleWhere((g) => g.yojnaId == yojnaId);
+  /// The agent's row for one closing.
+  Future<ClosingDues> myClosing(String key) async {
+    final page = await agent.fetchClosings(offset: 0, limit: 100);
+    return page.items.singleWhere((g) => g.closingCaseId == ids[key]);
   }
 
   Payment contribution(String member, {String? closing}) => Payment(
@@ -221,23 +225,42 @@ void main() {
   });
 
   group('dues in memory (same count as dues_test.sql)', () {
-    test('the group lists who owes, per agent', () async {
+    test('each closing lists who owes, per agent', () async {
       final s = await _Scenario.build();
 
-      final g = await s.myGroup();
-      expect(g.closingGroup, _Scenario.group);
-      expect(g.caseCount, 2);
-      expect(g.closingCaseId, s.firstCase);
-      expect((g.memberCount, g.paidCount, g.pendingCount, g.dueCount), (2, 1, 0, 1));
-      expect(g.toCollect, 100);
+      final page = await s.agent.fetchClosings(offset: 0, limit: 100);
+      expect(
+        page.items
+            .where((g) => g.yojnaId == s.yojnaId)
+            .map((g) => g.closingCaseId),
+        [s.ids['c2'], s.ids['c1']],
+        reason: 'one row per closing, newest first, though both are in T-1',
+      );
+      final c2 = await s.myClosing('c2');
+      expect((c2.closingGroup, c2.beneficiaryName), (_Scenario.group, 'Dues D2'));
+      expect((c2.memberCount, c2.paidCount, c2.pendingCount, c2.dueCount), (3, 1, 0, 2));
+      expect(c2.toCollect, 200);
+      final c1 = await s.myClosing('c1');
+      expect((c1.memberCount, c1.dueCount, c1.toCollect), (2, 2, 200));
 
-      final dues = await s.agent.fetchGroupDues(s.yojnaId, _Scenario.group);
-      expect(dues.map((d) => d.memberId), [s.ids['M2'], s.ids['M1']]);
+      final dues = await s.agent.fetchClosingDues(s.ids['c1']!);
+      expect(dues.map((d) => d.memberId), [s.ids['M1'], s.ids['M2']]);
+      expect(dues.first.beneficiaryName, 'Dues D1');
 
-      // The office sees everyone: M1, M2 and M3.
+      // The office sees everyone: 4 members per closing, 700 unpaid.
       final all = s.base.allDues().where((d) => d.yojnaId == s.yojnaId).toList();
-      expect(all.map((d) => d.memberId).toSet(), {s.ids['M1'], s.ids['M2'], s.ids['M3']});
-      expect(all.fold<double>(0, (sum, d) => sum + d.due), 200);
+      Set<String?> owing(String key) => all
+          .where((d) => d.closingCaseId == s.ids[key])
+          .map((d) => d.memberId)
+          .toSet();
+      expect(owing('c1'), {s.ids['M1'], s.ids['M2'], s.ids['M3'], s.ids['D2']});
+      expect(owing('c2'), {s.ids['M1'], s.ids['M2'], s.ids['M3'], s.ids['D1']});
+      expect(all.fold<double>(0, (sum, d) => sum + d.due), 700);
+      expect(
+        (await s.base.fetchMembersByIds([s.ids['D1']!])).single.status,
+        MemberStatus.active,
+        reason: 'a closing leaves its member active',
+      );
     });
 
     test('the office dues list sums each member across closings', () async {
@@ -249,47 +272,48 @@ void main() {
       final page = await s.base.fetchDuesPage(q, offset: 0, limit: 20);
       expect(
         page.items.map((r) => r.name),
-        ['Dues M2', 'Dues M3', 'Dues M1', 'Dues M4', 'Dues M5'],
+        ['Dues M2', 'Dues M3', 'Dues D1', 'Dues D2', 'Dues M1', 'Dues M4', 'Dues M5'],
       );
       final m1 = page.items.singleWhere((r) => r.name == 'Dues M1');
-      expect((m1.closingsOwed, m1.due, m1.contributed), (0, 0, 100));
+      expect((m1.closingsOwed, m1.due, m1.contributed), (1, 100, 100));
       expect(m1.lastContribution, isNotNull);
       final m2 = page.items.first;
-      expect((m2.closingsOwed, m2.due, m2.contributed), (1, 100, 0));
+      expect((m2.closingsOwed, m2.due, m2.contributed), (2, 200, 0));
 
       final totals = await s.base.fetchDuesTotals(q);
       expect(
         (totals.memberCount, totals.owingCount, totals.due, totals.contributed),
-        (5, 2, 200, 100),
+        (7, 5, 700, 100),
       );
 
       Future<int> count(DuesQuery q) async =>
           (await s.base.fetchDuesPage(q, offset: 0, limit: 20)).total;
       expect(
         await count(DuesQuery(yojnaId: s.yojnaId, standing: DuesStanding.owing)),
-        2,
+        5,
       );
       expect(
         await count(DuesQuery(yojnaId: s.yojnaId, standing: DuesStanding.clear)),
-        3,
+        2,
       );
       final other = s.base.membersView
           .singleWhere((m) => m.id == s.ids['M3'])
           .agentId;
-      expect(await count(DuesQuery(yojnaId: s.yojnaId, agentId: other)), 1);
+      expect(await count(DuesQuery(yojnaId: s.yojnaId, agentId: other)), 2);
 
       // The agent's collection waits; M2 still owes until it is approved.
       await s.agent.recordPayment(s.contribution('M2'));
       final after = await s.base.fetchDuesTotals(q);
-      expect((after.owingCount, after.due, after.pending), (2, 200, 100));
+      expect((after.owingCount, after.due, after.pending), (5, 700, 100));
     });
 
     test('collecting links the receipt and blocks a second collection', () async {
       final s = await _Scenario.build();
 
       await s.agent.recordPayment(s.contribution('M2'));
-      final g = await s.myGroup();
-      expect((g.paidCount, g.pendingCount, g.dueCount, g.toCollect), (1, 1, 0, 0.0));
+      final c1 = await s.myClosing('c1');
+      expect((c1.paidCount, c1.pendingCount, c1.dueCount, c1.toCollect), (0, 1, 1, 100.0));
+      expect((await s.myClosing('c2')).toCollect, 200, reason: 'c2 is paid on its own');
 
       final receipts = await s.agent.fetchMyPayments(offset: 0, limit: 5);
       expect(receipts.items.first.closingGroup, _Scenario.group);
@@ -307,41 +331,51 @@ void main() {
         _throwsMessage('does not owe'),
       );
       await expectLater(
+        s.agent.recordPayment(s.contribution('D1')),
+        _throwsMessage('does not owe'),
+        reason: 'nobody pays for their own closing',
+      );
+      await expectLater(
         s.agent.fetchMemberDues(s.ids['M3']!),
         _throwsMessage('Member not found'),
       );
 
       // Approval settles it; cancelling makes it due again.
+      double m2Due() => s.base
+          .allDues()
+          .singleWhere((d) =>
+              d.memberId == s.ids['M2'] && d.closingCaseId == s.ids['c1'])
+          .due;
       final pending = (await s.base.fetchPendingPayments()).items
           .singleWhere((p) => p.memberId == s.ids['M2']);
       await s.base.approvePayment(pending.id);
-      expect((await s.base.fetchMemberDues(s.ids['M2']!)).single.due, 0);
+      expect(m2Due(), 0);
       await s.base.cancelPayment(pending.id, 'Test');
-      expect((await s.base.fetchMemberDues(s.ids['M2']!)).single.due, 100);
+      expect(m2Due(), 100);
     });
 
-    test('a death report becomes a closing when the office approves it', () async {
+    test('a closing report becomes a closing when the office approves it', () async {
       final s = await _Scenario.build();
       ClosingRequest report(String member, String url) => ClosingRequest(
             id: '',
             memberId: s.ids[member]!,
-            dateOfDeath: DateTime.now().subtract(const Duration(days: 3)),
+            eventDate: DateTime.now().subtract(const Duration(days: 3)),
             nomineeName: 'Nominee One',
             certificateUrl: url,
           );
       const url = 'https://res.cloudinary.com/demo/image/upload/m1.jpg';
 
       await expectLater(
-        s.agent.reportDeath(report('M1', 'https://example.com/m1.jpg')),
-        _throwsMessage('Upload the death certificate'),
+        s.agent.reportClosing(report('M1', 'https://example.com/m1.jpg')),
+        _throwsMessage('Upload the proof document'),
       );
       await expectLater(
-        s.agent.reportDeath(report('M3', url)),
+        s.agent.reportClosing(report('M3', url)),
         _throwsMessage('Member not found'),
       );
-      await s.agent.reportDeath(report('M1', url));
+      await s.agent.reportClosing(report('M1', url));
       await expectLater(
-        s.agent.reportDeath(report('M1', url)),
+        s.agent.reportClosing(report('M1', url)),
         _throwsMessage('already waiting'),
       );
 
@@ -358,11 +392,19 @@ void main() {
           (await s.base.fetchClosingCases()).singleWhere((c) => c.id == caseId);
       expect(created.claimAmount, 50000);
       expect(created.nomineeName, 'Nominee One');
+      final m1 = (await s.base.fetchMembersByIds([s.ids['M1']!])).single;
+      expect((m1.status, m1.closingGroup), (MemberStatus.active, 'T-2'));
+      // Everyone added before it owes, except M1: M2 M3 D1 D2, and M4 too,
+      // who was added after the first two closings but before this one.
       expect(
-        (await s.base.fetchMembersByIds([s.ids['M1']!])).single.status,
-        MemberStatus.closed,
+        s.base.allDues().where((d) => d.closingCaseId == caseId).length,
+        5,
       );
-      expect((await s.agent.fetchMyDeathReports()).single.status,
+      await expectLater(
+        s.agent.reportClosing(report('M1', url)),
+        _throwsMessage('already has a closing'),
+      );
+      expect((await s.agent.fetchMyClosingReports()).single.status,
           RequestStatus.approved);
       expect(await s.base.fetchPendingClosingRequests(), isEmpty);
     });
@@ -417,16 +459,25 @@ void main() {
 
         container.read(routerProvider).go(AppRoutes.agentDues);
         await tester.pumpAndSettle();
-        expect(find.text(_Scenario.group), findsWidgets);
+        // One row per closing, though both are in T-1.
+        final rows = find.textContaining(_Scenario.group);
+        expect(rows, findsNWidgets(2));
+        expect(find.textContaining('Dues D2'), findsOneWidget);
         expect(tester.takeException(), isNull);
 
-        await tester.ensureVisible(find.text(_Scenario.group).first);
+        // The newest is D2's: M1 paid it, M2 and D1 still owe.
+        await tester.ensureVisible(rows.first);
         await tester.pumpAndSettle();
-        await tester.tap(find.text(_Scenario.group).first);
+        await tester.tap(rows.first);
         await tester.pumpAndSettle();
+        expect(find.text('${_Scenario.group} · Dues D2'), findsOneWidget);
         expect(find.text('Dues M2'), findsOneWidget);
+        expect(find.text('Dues D1'), findsOneWidget);
         expect(find.text('Dues M1'), findsNothing, reason: 'paid is filtered out');
-        expect(find.widgetWithText(OutlinedButton, S.sendReminder), findsOneWidget);
+        expect(
+          find.widgetWithText(OutlinedButton, S.sendReminder),
+          findsNWidgets(2),
+        );
         expect(tester.takeException(), isNull);
       });
     }
@@ -434,18 +485,16 @@ void main() {
     testWidgets('collecting from the dues list preselects the closing',
         (tester) async {
       final (container, s) = await pumpAgent(tester, const Size(390, 844));
-      container.read(routerProvider).go(
-            Uri(
-              path: AppRoutes.agentDuesGroup,
-              queryParameters: {'yojna': s.yojnaId, 'group': _Scenario.group},
-            ).toString(),
-          );
+      container.read(routerProvider).go(AppRoutes.agentClosing(s.ids['c1']!));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Collect'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Collect').first);
       await tester.pumpAndSettle();
       expect(find.text(S.forClosing), findsOneWidget);
-      expect(find.textContaining('${_Scenario.group} · '), findsOneWidget);
+      expect(
+        find.textContaining('${_Scenario.group} · Dues D1 · '),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
     });
 
@@ -483,11 +532,11 @@ void main() {
         await pumpOffice(tester, size);
 
         expect(find.text('Members owing'), findsOneWidget);
-        expect(find.text('₹200'), findsWidgets, reason: 'total due tile');
-        for (final name in ['Dues M1', 'Dues M2', 'Dues M3', 'Dues M4', 'Dues M5']) {
-          expect(find.text(name), findsOneWidget);
+        expect(find.text('₹700'), findsWidgets, reason: 'total due tile');
+        for (final key in ['M1', 'M2', 'M3', 'M4', 'M5', 'D1', 'D2']) {
+          expect(find.text('Dues $key'), findsOneWidget,
+              reason: 'members with a closing stay listed');
         }
-        expect(find.text('Dues D1'), findsNothing, reason: 'closed members');
         expect(tester.takeException(), isNull);
 
         // The breakdown: the closing and the past contributions.
@@ -496,7 +545,9 @@ void main() {
         await tester.tap(find.text('Dues M1'));
         await tester.pumpAndSettle();
         expect(find.text('Past contributions'), findsOneWidget);
-        expect(find.text(_Scenario.group), findsOneWidget);
+        // M1 owes D1's closing and has paid D2's.
+        expect(find.text('${_Scenario.group} · Dues D1'), findsOneWidget);
+        expect(find.text('${_Scenario.group} · Dues D2'), findsOneWidget);
         expect(find.text(DueState.paid.label), findsOneWidget);
         expect(tester.takeException(), isNull);
       });
@@ -511,7 +562,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text(S.addPayment), findsWidgets);
       expect(find.text('Dues M2'), findsWidgets);
-      expect(find.textContaining('${_Scenario.group} · '), findsOneWidget);
+      expect(
+        find.textContaining('${_Scenario.group} · Dues D1 · '),
+        findsOneWidget,
+        reason: 'the oldest closing M2 owes',
+      );
       expect(
         find.widgetWithText(TextFormField, '100'),
         findsOneWidget,
@@ -520,18 +575,18 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('the approvals page lists a death report', (tester) async {
+    testWidgets('the approvals page lists a closing report', (tester) async {
       tester.view.devicePixelRatio = 1.0;
       tester.view.physicalSize = const Size(1440, 900);
       addTearDown(tester.view.reset);
 
       final s = (await tester.runAsync(_Scenario.build))!;
       await tester.runAsync(
-        () => s.agent.reportDeath(
+        () => s.agent.reportClosing(
           ClosingRequest(
             id: '',
             memberId: s.ids['M2']!,
-            dateOfDeath: DateTime.now(),
+            eventDate: DateTime.now(),
             certificateUrl: 'https://res.cloudinary.com/demo/image/upload/m2.jpg',
           ),
         ),
@@ -552,7 +607,7 @@ void main() {
           .go(AppRoutes.approvals);
       await tester.pumpAndSettle();
 
-      expect(find.text('${S.deathReports} (1)'), findsOneWidget);
+      expect(find.text('${S.closingReports} (1)'), findsOneWidget);
       await tester.tap(find.widgetWithText(FilledButton, S.createClosing));
       await tester.pumpAndSettle();
       expect(find.text('${S.closingGroup} *'), findsOneWidget);

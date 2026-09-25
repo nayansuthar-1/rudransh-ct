@@ -123,15 +123,15 @@ Optional variable `CLOUDFLARE_PAGES_PROJECT` if the Pages project has another na
 
 Variables (not secrets; they end up in the browser): `CLOUDINARY_CLOUD_NAME` and
 `CLOUDINARY_UPLOAD_PRESET` from step 1.6. Without them agents can't upload a
-death certificate, and the app says so.
+proof document, and the app says so.
 
 The publishable key is safe in the browser: row-level security allows nothing
 unless the signed-in user has an active profile in `public.profiles`. Never put the secret or
 service-role key in the app or in `--dart-define`.
 
-### 1.6 Cloudinary (death certificates)
+### 1.6 Cloudinary (proof documents)
 
-Agents upload a photo or PDF of the death certificate when they report a death.
+Agents upload a photo or PDF of the proof document when they report a closing.
 The app uploads straight to Cloudinary with an **unsigned upload preset**; the
 database stores only the `https://res.cloudinary.com/…` link.
 

@@ -181,14 +181,14 @@ Test Agent was invited in §2.2. In the agent window (Edge):
 | Page | Check |
 |---|---|
 | **Home** | Tiles: my members (3), waiting approval, approved this month, cash in hand, commission. Buttons: Record payment, Add member. Newest closing groups below |
-| **My members** | Only M1, M2 and M3. **No Aadhaar anywhere.** Add member → saved as **Pending** with no reg no. Each row's ⋯ menu: View, Edit contact (with the member's email), Add Payment, Print certificate, Invite to app, Report death. **No** Edit, Export data, Erase data or Delete: those stay with the office. Invite M3 → *"Invite email sent"*, and M3's email now shows on the office's Members page |
+| **My members** | Only M1, M2 and M3. **No Aadhaar anywhere.** Add member → saved as **Pending** with no reg no. Each row's ⋯ menu: View, Edit contact (with the member's email), Add Payment, Print certificate, Invite to app, Report closing. **No** Edit, Export data, Erase data or Delete: those stay with the office. Invite M3 → *"Invite email sent"*, and M3's email now shows on the office's Members page |
 | **Dues** | Group-1 → who owes, who paid → **Collect** from one member (cash). **Send reminder** opens WhatsApp in Hindi. Collecting twice for the same group must be refused |
 | **Record payment** | Gets a receipt number at once but stays **Pending**. **Send receipt** opens WhatsApp |
-| **Report a death** | From a member: date and certificate (JPG, PNG or PDF). A `.txt` file is refused |
+| **Report a closing** | From a member: date and certificate (JPG, PNG or PDF). A `.txt` file is refused |
 | **Collections** | Receipts with Waiting, Approved or Rejected. Cash in hand counts only **approved** cash |
 | **Hand over cash** | Tick receipts → declare → waiting for the office |
 
-4. Office window → **Approvals**: approve the new member (gets a reg no), the agent's payment, and the handover. Create a closing from the death report. Reject one item with a reason.
+4. Office window → **Approvals**: approve the new member (gets a reg no), the agent's payment, and the handover. Create a closing from the closing report. Reject one item with a reason.
    ✅ Pass if the agent's bell shows each outcome, cash in hand goes down after the confirmed handover, and a rejected handover puts the money back.
 5. Access: as the agent, type `/dashboard`, `/members` and `/me` → back to `/agent`. Sign out → `/a`.
 

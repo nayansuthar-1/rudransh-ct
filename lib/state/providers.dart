@@ -293,7 +293,7 @@ class ApprovalQueue {
     required this.members,
     required this.payments,
     required this.cancelRequests,
-    this.deathReports = const [],
+    this.closingReports = const [],
     this.changeRequests = const [],
     this.handovers = const [],
   });
@@ -307,7 +307,7 @@ class ApprovalQueue {
   final List<Member> members;
   final PaymentPage payments;
   final PaymentPage cancelRequests;
-  final List<ClosingRequest> deathReports;
+  final List<ClosingRequest> closingReports;
   final List<ChangeRequest> changeRequests;
 
   /// Cash an agent says they handed over (IMPLEMENTATION_PLAN Phase 16).
@@ -317,7 +317,7 @@ class ApprovalQueue {
       members.length +
       payments.items.length +
       cancelRequests.items.length +
-      deathReports.length +
+      closingReports.length +
       changeRequests.length +
       handovers.length;
 }
@@ -336,7 +336,7 @@ final approvalQueueProvider = FutureProvider<ApprovalQueue>((ref) async {
     members: await members,
     payments: await payments,
     cancelRequests: await cancels,
-    deathReports: await reports,
+    closingReports: await reports,
     changeRequests: await changes,
     handovers: await handovers,
   );
@@ -369,7 +369,7 @@ class ApprovalActions {
       _run((r) => r.reassignMembers(from, to));
 
   /// Creates the closing case, so the closing list reloads too.
-  Future<void> approveDeathReport(
+  Future<void> approveClosingReport(
     String id, {
     required String closingGroup,
     double? claimAmount,
@@ -382,7 +382,7 @@ class ApprovalActions {
     _ref.invalidate(closingCasesProvider);
   }
 
-  Future<void> rejectDeathReport(String id, String reason) =>
+  Future<void> rejectClosingReport(String id, String reason) =>
       _run((r) => r.rejectClosingRequest(id, reason));
 
   Future<void> confirmHandover(String id) =>

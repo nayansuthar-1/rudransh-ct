@@ -81,26 +81,26 @@ abstract class AgentRepository {
 
   Future<void> requestCancel(String paymentId, String reason);
 
-  // ---- Dues and death reports (IMPLEMENTATION_PLAN Phase 13) ----------------
+  // ---- Dues and closing reports (IMPLEMENTATION_PLAN Phase 13) ----------------
 
-  /// Closing groups the agent's members owe for, newest first.
-  Future<PageResult<ClosingGroupDues>> fetchClosingGroups({
+  /// Closings the agent's members owe for, one row each, newest first.
+  Future<PageResult<ClosingDues>> fetchClosings({
     required int offset,
     required int limit,
   });
 
-  /// The agent's members in one closing group: still due first, then
-  /// waiting for approval, then paid.
-  Future<List<MemberDue>> fetchGroupDues(String yojnaId, String closingGroup);
+  /// The agent's members for one closing: still due first, then waiting for
+  /// approval, then paid.
+  Future<List<MemberDue>> fetchClosingDues(String closingCaseId);
 
-  /// Closing groups one of the agent's members owes for, oldest first.
+  /// Closings one of the agent's members owes for, oldest first.
   Future<List<MemberDue>> fetchMemberDues(String memberId);
 
-  /// For the office to decide. The certificate must already be uploaded.
-  Future<void> reportDeath(ClosingRequest request);
+  /// For the office to decide. The proof must already be uploaded.
+  Future<void> reportClosing(ClosingRequest request);
 
-  /// Deaths the agent reported, newest first.
-  Future<List<ClosingRequest>> fetchMyDeathReports();
+  /// Closings the agent reported, newest first.
+  Future<List<ClosingRequest>> fetchMyClosingReports();
 
   // ---- Cash and commission (IMPLEMENTATION_PLAN Phase 16) -------------------
 
@@ -309,7 +309,7 @@ class SupabaseAgentRepository implements AgentRepository {
       );
 
   @override
-  Future<PageResult<ClosingGroupDues>> fetchClosingGroups({
+  Future<PageResult<ClosingDues>> fetchClosings({
     required int offset,
     required int limit,
   }) =>
@@ -326,21 +326,21 @@ class SupabaseAgentRepository implements AgentRepository {
           );
         } on PostgrestException catch (e) {
           if (!_pastLastPage(e)) rethrow;
-          return PageResult<ClosingGroupDues>(items: const [], total: offset);
+          return PageResult<ClosingDues>(items: const [], total: offset);
         }
       });
 
   @override
-  Future<List<MemberDue>> fetchGroupDues(String yojnaId, String closingGroup) =>
+  Future<List<MemberDue>> fetchClosingDues(String closingCaseId) =>
       _guard(() async {
-        final rows = await _db.rpc('agent_dues', params: {
-          'p_yojna_id': yojnaId,
-          'p_closing_group': closingGroup,
-        }) as List;
-        return [
-          for (final r in rows.cast<Map<String, dynamic>>())
-            SupabaseTrustRepository.memberDueFromRow({...r, 'yojna_id': yojnaId}),
-        ];
+        final rows = await _db.rpc(
+          'agent_closing_dues',
+          params: {'p_closing_case_id': closingCaseId},
+        ) as List;
+        return rows
+            .cast<Map<String, dynamic>>()
+            .map(SupabaseTrustRepository.memberDueFromRow)
+            .toList();
       });
 
   @override
@@ -356,12 +356,12 @@ class SupabaseAgentRepository implements AgentRepository {
       });
 
   @override
-  Future<void> reportDeath(ClosingRequest r) => _guard(() => _db.rpc(
+  Future<void> reportClosing(ClosingRequest r) => _guard(() => _db.rpc(
         'agent_request_closing',
         params: {
           'p_request': {
             'member_id': r.memberId,
-            'date_of_death': _dateFormat.format(r.dateOfDeath),
+            'date_of_death': _dateFormat.format(r.eventDate),
             'nominee_name': r.nomineeName,
             'nominee_relation': r.nomineeRelation,
             'certificate_url': r.certificateUrl,
@@ -371,7 +371,7 @@ class SupabaseAgentRepository implements AgentRepository {
       ));
 
   @override
-  Future<List<ClosingRequest>> fetchMyDeathReports() => _guard(() async {
+  Future<List<ClosingRequest>> fetchMyClosingReports() => _guard(() async {
         final rows = await _db.rpc('agent_closing_requests') as List;
         return rows
             .cast<Map<String, dynamic>>()
@@ -423,14 +423,14 @@ class SupabaseAgentRepository implements AgentRepository {
             .toList();
       });
 
-  static ClosingGroupDues _groupFromRow(Map<String, dynamic> r) =>
-      ClosingGroupDues(
+  static ClosingDues _groupFromRow(Map<String, dynamic> r) =>
+      ClosingDues(
         yojnaId: r['yojna_id'] as String,
         yojnaName: r['yojna_name'] as String? ?? '',
         closingGroup: r['closing_group'] as String,
         closingDate: _date(r['closing_date']),
         closingCaseId: r['closing_case_id'] as String,
-        caseCount: (r['case_count'] as num).toInt(),
+        beneficiaryName: r['beneficiary_name'] as String? ?? '',
         memberCount: (r['member_count'] as num).toInt(),
         paidCount: (r['paid_count'] as num).toInt(),
         pendingCount: (r['pending_count'] as num).toInt(),
@@ -642,9 +642,8 @@ class InMemoryAgentRepository implements AgentRepository {
           'Only a contribution can be for a closing.',
         );
       }
-      final group = _groupOf(await _base.fetchClosingCases(), closingId);
       final owed = (await fetchMemberDues(member.id))
-          .where((d) => (d.yojnaId, d.closingGroup) == group);
+          .where((d) => d.closingCaseId == closingId);
       if (owed.isEmpty) {
         throw const RepositoryException(
           'This member does not owe for that closing.',
@@ -734,47 +733,32 @@ class InMemoryAgentRepository implements AgentRepository {
     );
   }
 
-  static (String, String)? _groupOf(List<ClosingCase> cases, String caseId) {
-    final c = cases.where((c) => c.id == caseId).firstOrNull;
-    return c == null ? null : (c.yojnaId, c.closingGroup);
-  }
-
   Future<List<MemberDue>> _myDues() async {
     final mine = {for (final m in await _myMembers()) m.id};
     return _base.allDues().where((d) => mine.contains(d.memberId)).toList();
   }
 
   @override
-  Future<PageResult<ClosingGroupDues>> fetchClosingGroups({
+  Future<PageResult<ClosingDues>> fetchClosings({
     required int offset,
     required int limit,
   }) async {
-    final cases = await _base.fetchClosingCases();
     final yojnas = {for (final y in await _base.fetchYojnas()) y.id: y.name};
-    final byGroup = <(String, String), List<MemberDue>>{};
+    final byClosing = <String, List<MemberDue>>{};
     for (final d in await _myDues()) {
-      byGroup.putIfAbsent((d.yojnaId, d.closingGroup), () => []).add(d);
+      byClosing.putIfAbsent(d.closingCaseId, () => []).add(d);
     }
-    final groups = [
-      for (final MapEntry(:key, :value) in byGroup.entries)
-        ClosingGroupDues.of(
-          value,
-          yojnaName: yojnas[key.$1] ?? '',
-          caseCount: cases
-              .where((c) => c.yojnaId == key.$1 && c.closingGroup == key.$2)
-              .length,
-        ),
+    final closings = [
+      for (final dues in byClosing.values)
+        ClosingDues.of(dues, yojnaName: yojnas[dues.first.yojnaId] ?? ''),
     ]..sort((a, b) => b.closingDate.compareTo(a.closingDate));
-    return _slice(groups, offset, limit);
+    return _slice(closings, offset, limit);
   }
 
   @override
-  Future<List<MemberDue>> fetchGroupDues(
-    String yojnaId,
-    String closingGroup,
-  ) async =>
+  Future<List<MemberDue>> fetchClosingDues(String closingCaseId) async =>
       (await _myDues())
-          .where((d) => d.yojnaId == yojnaId && d.closingGroup == closingGroup)
+          .where((d) => d.closingCaseId == closingCaseId)
           .toList()
         ..sort((a, b) {
           final byState = a.state.index.compareTo(b.state.index);
@@ -788,21 +772,21 @@ class InMemoryAgentRepository implements AgentRepository {
   }
 
   @override
-  Future<void> reportDeath(ClosingRequest request) async {
+  Future<void> reportClosing(ClosingRequest request) async {
     final me = await _me();
     final member = await _myMember(request.memberId);
     if (member.status != MemberStatus.active) {
       throw const RepositoryException(
-        "Only an active member's death can be reported.",
+        'Only an active member can be reported for a closing.',
       );
     }
-    if (request.dateOfDeath.isAfter(DateTime.now())) {
+    if (request.eventDate.isAfter(DateTime.now())) {
       throw const RepositoryException(
-        'The date of death cannot be in the future.',
+        'The event date cannot be in the future.',
       );
     }
     if (!request.certificateUrl.startsWith('https://res.cloudinary.com/')) {
-      throw const RepositoryException('Upload the death certificate.');
+      throw const RepositoryException('Upload the proof document.');
     }
     if (_base.allClosingRequests().any((r) =>
         r.memberId == member.id && r.status == RequestStatus.pending)) {
@@ -810,11 +794,14 @@ class InMemoryAgentRepository implements AgentRepository {
         'A report for this member is already waiting for the office.',
       );
     }
+    if ((await _base.fetchClosingCases()).any((c) => c.memberId == member.id)) {
+      throw const RepositoryException('This member already has a closing.');
+    }
     await _base.createClosingRequest(request.copyWith(agentId: me.id));
   }
 
   @override
-  Future<List<ClosingRequest>> fetchMyDeathReports() async {
+  Future<List<ClosingRequest>> fetchMyClosingReports() async {
     final me = await _me();
     return _base.allClosingRequests().where((r) => r.agentId == me.id).toList();
   }

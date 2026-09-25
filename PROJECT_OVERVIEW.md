@@ -7,7 +7,7 @@ A one-page map of the project: what it is, how it is built, how work flows from 
 | | |
 | --- | --- |
 | **Client** | रुद्रांश चैरिटेबल ट्रस्ट (Rudransh Charitable Trust) |
-| **Product** | Flutter **web** app: member register, receipt book and death-claim (closing) tracking |
+| **Product** | Flutter **web** app: member register, receipt book and claim (closing) tracking |
 | **Live URL** | `https://rudransh-ct.pages.dev` (no custom domain) |
 | **Scale** | 10–15 office users, up to ~2,000 members, text data only (files go to Cloudinary) |
 | **Running cost** | ₹0/month, free tiers only |
@@ -18,7 +18,7 @@ A one-page map of the project: what it is, how it is built, how work flows from 
 
 ## 1. What the app does
 
-The trust runs **Yojnas** (schemes). Members join a Yojna through a field **agent**. When a member passes away, a **closing case** is raised, every other active member of that Yojna pays a **contribution**, and the collected amount goes to the family's nominee (**Waris**).
+The trust runs **Yojnas** (schemes). Members join a Yojna through a field **agent**. When a member's claim falls due (for example their wedding in Shadi Sahyog Yojna), a **closing case** is raised, every other active member of that Yojna pays one **contribution** for it, and the collected amount goes to the member or their nominee (**Waris**). The member stays active and keeps paying for other closings.
 
 ### Business workflow
 
@@ -26,14 +26,14 @@ The trust runs **Yojnas** (schemes). Members join a Yojna through a field **agen
 Yojna set up ──► Agents added ──► Members enrolled ──► Payments recorded
                                                               │
                           Family paid ◄── Contributions ◄── Closing case raised
-                         (Unpaid → Partial → Paid)           (member marked Closed)
+                         (Unpaid → Partial → Paid)           (member stays Active)
 ```
 
 1. **Yojna** — code (e.g. `SSY`), registration fee, contribution amount, claim amount.
 2. **Agent** — code `AG-007` assigned by the database; linked Yojnas and commission %.
 3. **Member** — reg no `SSY-2026-0184` assigned by the database; phone must be unique.
 4. **Payment** — receipt no `RCP-1001` assigned by the database; kind (registration, contribution, closing payout), mode (cash, UPI, bank, cheque), status.
-5. **Closing case** — marks the member Closed; tracks collected vs pending; deleting it reopens the member.
+5. **Closing case** — raises one contribution per active member (added before it); tracks collected vs pending; the member stays Active.
 6. **Payout** — the case moves to Paid once the family is settled.
 
 ### Roles
@@ -74,7 +74,7 @@ Yojna set up ──► Agents added ──► Members enrolled ──► Payment
 | Email | **Brevo** SMTP (sender `rudranshct@gmail.com`) | OTP and invite emails, 300/day |
 | Hosting | **Cloudflare Pages** | Serves `build/web` |
 | Backups | **Cloudflare R2** + `age` encryption | Nightly encrypted `pg_dump` |
-| Files | **Cloudinary** | Death certificates, photos |
+| Files | **Cloudinary** | Proof documents, photos |
 | CI/CD | **GitHub Actions** | Test, build, deploy, backup, keep-alive |
 
 All accounts belong to the trust's email. Credentials live in the shared password manager.

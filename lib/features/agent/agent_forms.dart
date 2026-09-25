@@ -685,7 +685,7 @@ class _AgentPaymentFormState extends ConsumerState<_AgentPaymentForm> {
                     items: [for (final d in _openDues) d.closingCaseId],
                     itemLabel: (id) {
                       final d = _openDues.firstWhere((d) => d.closingCaseId == id);
-                      return '${d.closingGroup} · ${Fmt.date(d.closingDate)} · '
+                      return '${d.title} · ${Fmt.date(d.closingDate)} · '
                           '${Fmt.money(d.toCollect)}';
                     },
                     includeAllOption: true,
@@ -810,32 +810,32 @@ Future<void> showReceiptSaved(
     );
 
 // ---------------------------------------------------------------------------
-// Report death
+// Report closing
 // ---------------------------------------------------------------------------
 
-Future<void> showDeathReportForm(BuildContext context, Member member) =>
+Future<void> showClosingReportForm(BuildContext context, Member member) =>
     AppDialog.show<void>(
       context: context,
-      builder: (_) => _DeathReportForm(member: member),
+      builder: (_) => _ClosingReportForm(member: member),
     );
 
-class _DeathReportForm extends ConsumerStatefulWidget {
-  const _DeathReportForm({required this.member});
+class _ClosingReportForm extends ConsumerStatefulWidget {
+  const _ClosingReportForm({required this.member});
 
   final Member member;
 
   @override
-  ConsumerState<_DeathReportForm> createState() => _DeathReportFormState();
+  ConsumerState<_ClosingReportForm> createState() => _ClosingReportFormState();
 }
 
-class _DeathReportFormState extends ConsumerState<_DeathReportForm> {
+class _ClosingReportFormState extends ConsumerState<_ClosingReportForm> {
   final _formKey = GlobalKey<FormState>();
   late final _nominee = TextEditingController(text: widget.member.warisName);
   late final _relation =
       TextEditingController(text: widget.member.warisRelation);
   final _remarks = TextEditingController();
 
-  DateTime _dateOfDeath = DateTime.now();
+  DateTime _eventDate = DateTime.now();
   String? _fileName;
   Uint8List? _bytes;
   bool _saving = false;
@@ -874,7 +874,7 @@ class _DeathReportFormState extends ConsumerState<_DeathReportForm> {
     final bytes = _bytes;
     final fileName = _fileName;
     if (bytes == null || fileName == null) {
-      showToast(context, 'Choose the death certificate', error: true);
+      showToast(context, 'Choose the proof document', error: true);
       return;
     }
     final actions = ref.read(agentActionsProvider);
@@ -885,11 +885,11 @@ class _DeathReportFormState extends ConsumerState<_DeathReportForm> {
     try {
       final url = await actions.uploadCertificate(bytes, fileName);
       if (mounted) setState(() => _progress = 'Sending to the office…');
-      await actions.reportDeath(
+      await actions.reportClosing(
         ClosingRequest(
           id: '',
           memberId: widget.member.id,
-          dateOfDeath: _dateOfDeath,
+          eventDate: _eventDate,
           nomineeName: _nominee.text.trim(),
           nomineeRelation: _relation.text.trim(),
           certificateUrl: url,
@@ -917,7 +917,7 @@ class _DeathReportFormState extends ConsumerState<_DeathReportForm> {
     final m = widget.member;
 
     return AppDialog(
-      title: S.reportDeath,
+      title: S.reportClosing,
       subtitle: '${m.name}${m.regNo.isEmpty ? '' : ' · ${m.regNo}'}',
       maxWidth: 640,
       actions: [
@@ -945,12 +945,12 @@ class _DeathReportFormState extends ConsumerState<_DeathReportForm> {
               columnsOverride: context.isMobile ? 1 : 2,
               items: [
                 GridItem(AppDateField(
-                  label: S.dateOfDeath,
+                  label: S.eventDate,
                   required: true,
-                  value: _dateOfDeath,
+                  value: _eventDate,
                   firstDate: m.joinDate,
                   lastDate: DateTime.now(),
-                  onChanged: (d) => setState(() => _dateOfDeath = d),
+                  onChanged: (d) => setState(() => _eventDate = d),
                 )),
                 GridItem(AppTextField(
                   label: S.fldWaris,
@@ -968,7 +968,7 @@ class _DeathReportFormState extends ConsumerState<_DeathReportForm> {
               ],
             ),
             const SizedBox(height: Space.lg),
-            FieldLabel(S.deathCertificate, required: true),
+            FieldLabel(S.proofDocument, required: true),
             Wrap(
               spacing: Space.md,
               runSpacing: Space.sm,

@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 
 import 'trust_repository.dart' show RepositoryException;
 
-/// Stores death certificates and member photos on Cloudinary (IMPLEMENTATION_PLAN
+/// Stores closing proof documents and member photos on Cloudinary (IMPLEMENTATION_PLAN
 /// Phase 13).
 /// The database keeps only the returned `https://res.cloudinary.com/...` URL.
 abstract class CertificateUploader {

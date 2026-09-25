@@ -1,5 +1,6 @@
--- Phase 13 (IMPLEMENTATION_PLAN §11): dues per closing group, contributions
--- linked to a closing, agents reporting a death. Rolled back at the end:
+-- Phase 13 (IMPLEMENTATION_PLAN §11), with the rules of
+-- 20260928000300_closing_per_case.sql: dues per closing, contributions linked
+-- to a closing, agents reporting a closing. Rolled back at the end:
 --   psql "$STAGING_DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/dues_test.sql
 -- Any failed check raises an exception and aborts the run.
 
@@ -10,16 +11,18 @@ begin;
 -- ---------------------------------------------------------------------------
 --   f001 owner   f002 agent A (Y1)   f003 agent B (Y1)
 --
--- Closing group G-1 in Y1: deaths of D1 (200 days ago) and D2 (190 days ago).
--- Who owes for G-1, counted by hand:
---   M1  agent A, joined 400 days ago, paid 100 (linked to D2's case)   → paid
---   M2  agent A, joined 400 days ago, agent collects 100 below         → pending
---   M3  agent B, joined 400 days ago, nothing                          → due
---   M4  agent A, joined 100 days ago (after the closing)               → not listed
---   M5  agent A, joined 400 days ago, inactive                         → not listed
---   D1, D2 closed                                                      → not listed
---   X1  Y2 member                                                      → not listed
--- So G-1 lists 3 members: 1 paid, 1 pending, 1 due; 200 still unpaid.
+-- Two closings in Y1, both in group G-1: C1 for D1 (200 days ago) and C2 for
+-- D2 (190 days ago). Each is collected on its own. Who owes, by hand:
+--   M1  agent A, paid 100 for C2                    → owes C1
+--   M2  agent A, agent collects 100 for C1 below    → owes C1 (pending), C2
+--   M3  agent B, nothing                            → owes C1, C2
+--   M4  agent A, added to the app after both closings, although its join
+--       date is earlier                             → owes nothing
+--   M5  agent A, inactive                           → owes nothing
+--   D1  agent A, stays active after their closing   → owes C2, not C1
+--   D2  agent B, likewise                           → owes C1, not C2
+--   X1  Y2 member                                   → owes nothing
+-- So C1 has 4 members (M1 M2 M3 D2), C2 has 4 (M1 M2 M3 D1): 700 unpaid.
 insert into auth.users (id, email)
 select ('00000000-0000-0000-0000-00000000f0' || lpad(g::text, 2, '0'))::uuid, 'dues' || g || '@test.local'
   from generate_series(1, 3) g;
@@ -56,7 +59,11 @@ insert into public.closing_cases (id, member_id, yojna_id, closing_date, closing
   ('00000000-0000-0000-0000-0000000f0032', '00000000-0000-0000-0000-0000000f0027',
    '00000000-0000-0000-0000-0000000f0001', current_date - 190, 'G-1', 50000);
 
--- Office receipt for M1, linked to the group's second case.
+-- M4 was typed in after both closings were created.
+update public.members set created_at = now() + interval '1 hour'
+ where id = '00000000-0000-0000-0000-0000000f0024';
+
+-- Office receipt for M1, for C2.
 insert into public.payments (receipt_no, member_id, yojna_id, amount, status, kind, closing_case_id) values
   ('', '00000000-0000-0000-0000-0000000f0021', '00000000-0000-0000-0000-0000000f0001', 100, 'paid',
    'contribution', '00000000-0000-0000-0000-0000000f0032');
@@ -106,27 +113,35 @@ declare
   m2 constant uuid := '00000000-0000-0000-0000-0000000f0022';
   m3 constant uuid := '00000000-0000-0000-0000-0000000f0023';
   m4 constant uuid := '00000000-0000-0000-0000-0000000f0024';
+  d1 constant uuid := '00000000-0000-0000-0000-0000000f0026';
   c1 constant uuid := '00000000-0000-0000-0000-0000000f0031';
+  c2 constant uuid := '00000000-0000-0000-0000-0000000f0032';
   g record; r jsonb; req uuid;
 begin
   -- Views follow table access: nothing for an agent.
   assert (select count(*) from public.member_dues) = 0, 'agent reads member_dues directly';
 
-  -- Before collecting: M1 paid, M2 due.
-  select * into g from public.agent_closing_groups();
-  assert g.closing_group = 'G-1' and g.case_count = 2, 'group G-1 with two cases';
-  assert g.closing_case_id = c1, 'group links to its first case';
-  assert g.member_count = 2 and g.paid_count = 1 and g.due_count = 1 and g.pending_count = 0,
-    'A1 before collecting: ' || row_to_json(g)::text;
-  assert g.to_collect = 100, 'to collect before: ' || g.to_collect;
+  -- One row per closing, although both are in G-1; newest first.
+  assert (select array_agg(closing_case_id) from public.agent_closing_groups()) = array[c2, c1],
+    'one row per closing';
+  select * into g from public.agent_closing_groups() where closing_case_id = c2;
+  assert g.closing_group = 'G-1' and g.case_count = 1 and g.beneficiary_name = 'Dues D2', 'C2 row';
+  assert g.member_count = 3 and g.paid_count = 1 and g.due_count = 2 and g.pending_count = 0
+     and g.to_collect = 200, 'C2 before collecting: ' || row_to_json(g)::text;
+  select * into g from public.agent_closing_groups() where closing_case_id = c1;
+  assert g.member_count = 2 and g.paid_count = 0 and g.due_count = 2 and g.to_collect = 200,
+    'C1 before collecting: ' || row_to_json(g)::text;
 
-  assert (select count(*) from public.agent_dues(y1, 'G-1')) = 2, 'A sees two members in G-1';
-  assert not exists (select 1 from public.agent_dues(y1, 'G-1') where member_id = m3), 'A does not see B''s member';
-  assert (select member_id from public.agent_dues(y1, 'G-1') limit 1) = m2, 'still due listed first';
-  assert (select due from public.agent_member_dues(m1)) = 0, 'M1 paid for G-1';
-  assert (select count(*) from public.agent_member_dues(m4)) = 0, 'M4 joined after the closing';
+  assert (select array_agg(member_id) from public.agent_closing_dues(c1)) = array[m1, m2],
+    'A sees M1 and M2 for C1; not B''s member, not D1 whose closing it is';
+  assert (select beneficiary_name from public.agent_closing_dues(c1) limit 1) = 'Dues D1', 'C1 is for D1';
+  assert (select due from public.agent_member_dues(m1) where closing_case_id = c2) = 0, 'M1 paid for C2';
+  assert (select due from public.agent_member_dues(m1) where closing_case_id = c1) = 100, 'M1 still owes C1';
+  assert (select count(*) from public.agent_member_dues(m4)) = 0, 'M4 was added after the closings';
+  assert (select array_agg(closing_case_id) from public.agent_member_dues(d1)) = array[c2],
+    'D1 pays for the other closing, not their own';
 
-  -- Collect from M2 for the group.
+  -- Collect from M2 for C1.
   r := public.agent_record_payment(jsonb_build_object(
     'member_id', m2, 'amount', 100, 'closing_case_id', c1));
   insert into dt values ('p_m2', (r ->> 'id')::uuid);
@@ -135,9 +150,11 @@ begin
   assert (select member_phone from public.agent_payments() where id = (r ->> 'id')::uuid) = '9700000002',
     'receipt has the member phone';
 
-  select * into g from public.agent_closing_groups();
-  assert g.paid_count = 1 and g.pending_count = 1 and g.due_count = 0 and g.to_collect = 0,
-    'A1 after collecting: ' || row_to_json(g)::text;
+  select * into g from public.agent_closing_groups() where closing_case_id = c1;
+  assert g.paid_count = 0 and g.pending_count = 1 and g.due_count = 1 and g.to_collect = 100,
+    'C1 after collecting: ' || row_to_json(g)::text;
+  select * into g from public.agent_closing_groups() where closing_case_id = c2;
+  assert g.to_collect = 200, 'paying C1 does not pay C2: ' || row_to_json(g)::text;
 
   -- No second collection, no dues for members who do not owe.
   begin
@@ -155,7 +172,13 @@ begin
   end;
   begin
     perform public.agent_record_payment(jsonb_build_object('member_id', m4, 'amount', 100, 'closing_case_id', c1));
-    raise exception 'collected from a member who joined after the closing';
+    raise exception 'collected from a member added after the closing';
+  exception when raise_exception then
+    if sqlerrm <> 'This member does not owe for that closing.' then raise; end if;
+  end;
+  begin
+    perform public.agent_record_payment(jsonb_build_object('member_id', d1, 'amount', 100, 'closing_case_id', c1));
+    raise exception 'collected from a member for their own closing';
   exception when raise_exception then
     if sqlerrm <> 'This member does not owe for that closing.' then raise; end if;
   end;
@@ -166,7 +189,7 @@ begin
     if sqlerrm <> 'Member not found.' then raise; end if;
   end;
 
-  -- Reporting deaths.
+  -- Reporting closings.
   begin
     perform public.agent_request_closing(jsonb_build_object('member_id', m3, 'date_of_death', current_date - 1,
       'certificate_url', 'https://res.cloudinary.com/demo/image/upload/c.jpg'));
@@ -177,14 +200,14 @@ begin
   begin
     perform public.agent_request_closing(jsonb_build_object('member_id', m1, 'date_of_death', current_date - 1,
       'certificate_url', 'https://example.com/c.jpg'));
-    raise exception 'report without a Cloudinary certificate accepted';
+    raise exception 'report without a Cloudinary proof accepted';
   exception when raise_exception then
-    if sqlerrm <> 'Upload the death certificate.' then raise; end if;
+    if sqlerrm <> 'Upload the proof document.' then raise; end if;
   end;
   begin
     perform public.agent_request_closing(jsonb_build_object('member_id', m1, 'date_of_death', current_date + 1,
       'certificate_url', 'https://res.cloudinary.com/demo/image/upload/c.jpg'));
-    raise exception 'future date of death accepted';
+    raise exception 'future event date accepted';
   exception when raise_exception then null;
   end;
 
@@ -221,8 +244,13 @@ select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000f003
 do $$
 declare g record;
 begin
-  select * into g from public.agent_closing_groups();
-  assert g.member_count = 1 and g.due_count = 1 and g.to_collect = 100, 'B: ' || row_to_json(g)::text;
+  -- B has M3 and D2: both owe C1; only M3 owes C2, which is D2's.
+  select * into g from public.agent_closing_groups()
+   where closing_case_id = '00000000-0000-0000-0000-0000000f0031';
+  assert g.member_count = 2 and g.due_count = 2 and g.to_collect = 200, 'B C1: ' || row_to_json(g)::text;
+  select * into g from public.agent_closing_groups()
+   where closing_case_id = '00000000-0000-0000-0000-0000000f0032';
+  assert g.member_count = 1 and g.due_count = 1 and g.to_collect = 100, 'B C2: ' || row_to_json(g)::text;
   assert (select count(*) from public.agent_closing_requests()) = 0, 'B sees no reports from A';
   raise notice 'agent B dues checks passed';
 end $$;
@@ -238,44 +266,47 @@ declare
   m1 constant uuid := '00000000-0000-0000-0000-0000000f0021';
   case_id uuid;
 begin
-  assert (select count(*) from public.member_dues where yojna_id = y1 and closing_group = 'G-1') = 3,
-    'G-1 lists 3 members';
-  assert (select count(*) from public.member_dues where closing_group = 'G-1' and due = 0) = 1, 'one paid';
-  assert (select count(*) from public.member_dues where closing_group = 'G-1' and due > 0 and pending > 0) = 1,
-    'one pending';
-  assert (select count(*) from public.member_dues where closing_group = 'G-1' and due > 0 and pending = 0) = 1,
-    'one due';
-  assert (select sum(due) from public.member_dues where closing_group = 'G-1') = 200, '200 unpaid';
-  assert (select count(*) from public.closing_groups where yojna_id = y1) = 1, 'one group in Y1';
+  -- Each closing is collected on its own: 4 members each, 700 unpaid.
+  assert (select count(*) from public.member_dues where closing_case_id = '00000000-0000-0000-0000-0000000f0031') = 4,
+    'C1 lists 4 members';
+  assert (select count(*) from public.member_dues where closing_case_id = '00000000-0000-0000-0000-0000000f0032') = 4,
+    'C2 lists 4 members';
+  assert (select count(*) from public.member_dues where yojna_id = y1 and due = 0) = 1, 'one paid (M1 for C2)';
+  assert (select count(*) from public.member_dues where yojna_id = y1 and due > 0 and pending > 0) = 1,
+    'one pending (M2 for C1)';
+  assert (select sum(due) from public.member_dues where yojna_id = y1) = 700, '700 unpaid';
+  assert (select status from public.members where id = '00000000-0000-0000-0000-0000000f0026') = 'active',
+    'a closing leaves its member active';
 
   -- The office's Dues page: every active or inactive Y1 member, most owed
-  -- first. D1 and D2 are closed, so they are not listed.
+  -- first, then by name.
   assert (select array_agg(name) from public.office_member_dues(y1))
-       = array['Dues M2', 'Dues M3', 'Dues M1', 'Dues M4', 'Dues M5'],
+       = array['Dues M2', 'Dues M3', 'Dues D1', 'Dues D2', 'Dues M1', 'Dues M4', 'Dues M5'],
     'office dues list: ' || (select array_agg(name)::text from public.office_member_dues(y1));
   assert (select (closings_owed, due, pending, contributed)
             from public.office_member_dues(y1) where name = 'Dues M2')
-       = (1::bigint, 100::numeric, 100::numeric, 0::numeric), 'M2 owes 100, collected and waiting';
+       = (2::bigint, 200::numeric, 100::numeric, 0::numeric), 'M2 owes 200, 100 of it waiting';
   assert (select (closings_owed, due, contributed, last_contribution)
             from public.office_member_dues(y1) where name = 'Dues M1')
-       = (0::bigint, 0::numeric, 100::numeric, current_date), 'M1 paid 100 today';
-  assert (select count(*) from public.office_member_dues(y1, p_owing => true)) = 2, 'two owe';
-  assert (select count(*) from public.office_member_dues(y1, p_owing => false)) = 3, 'three owe nothing';
-  assert (select count(*) from public.office_member_dues(y1, p_agent_id => '00000000-0000-0000-0000-0000000f0012')) = 1,
-    'agent B has M3 only';
+       = (1::bigint, 100::numeric, 100::numeric, current_date), 'M1 paid C2 today and owes C1';
+  assert (select count(*) from public.office_member_dues(y1, p_owing => true)) = 5, 'five owe';
+  assert (select count(*) from public.office_member_dues(y1, p_owing => false)) = 2, 'two owe nothing';
+  assert (select count(*) from public.office_member_dues(y1, p_agent_id => '00000000-0000-0000-0000-0000000f0012')) = 2,
+    'agent B has M3 and D2';
   assert (select count(*) from public.office_member_dues(y1, 'dues m3')) = 1, 'search by name';
   assert (select (member_count, owing_count, due, pending, contributed) from public.office_dues_totals(y1))
-       = (5::bigint, 2::bigint, 200::numeric, 100::numeric, 100::numeric), 'office dues totals: ' || (select row_to_json(t)::text from public.office_dues_totals(y1) t);
+       = (7::bigint, 5::bigint, 700::numeric, 100::numeric, 100::numeric), 'office dues totals: ' || (select row_to_json(t)::text from public.office_dues_totals(y1) t);
+  assert (select closed_members from public.dashboard_stats(y1)) = 2, 'two members have a closing';
 
-  -- Approving the agent's receipt settles M2.
+  -- Approving the agent's receipt settles M2 for C1.
   perform public.approve_payment((select id from dt where key = 'p_m2'));
-  assert (select sum(due) from public.member_dues where closing_group = 'G-1') = 100, '100 unpaid after approval';
+  assert (select sum(due) from public.member_dues where yojna_id = y1) = 600, '600 unpaid after approval';
 
   -- A cancelled receipt no longer pays the due.
   perform public.cancel_payment((select id from dt where key = 'p_m2'), 'Test');
-  assert (select sum(due) from public.member_dues where closing_group = 'G-1') = 200, 'cancelled receipt is due again';
+  assert (select sum(due) from public.member_dues where yojna_id = y1) = 700, 'cancelled receipt is due again';
 
-  -- Approving a report creates the case and closes the member.
+  -- Approving a report creates the case; the member stays active.
   begin
     perform public.approve_closing_request((select id from dt where key = 'req_m1'), '  ');
     raise exception 'approved without a group';
@@ -283,9 +314,10 @@ begin
   end;
   case_id := public.approve_closing_request((select id from dt where key = 'req_m1'), 'G-2');
   assert (select claim_amount from public.closing_cases where id = case_id) = 50000, 'claim from the Yojna';
-  assert (select closing_date from public.closing_cases where id = case_id) = current_date - 3, 'closing date = date of death';
+  assert (select closing_date from public.closing_cases where id = case_id) = current_date - 3, 'closing date = event date';
   assert (select nominee_name from public.closing_cases where id = case_id) = 'Nominee One', 'nominee copied';
-  assert (select status from public.members where id = m1) = 'closed', 'member closed';
+  assert (select status from public.members where id = m1) = 'active', 'member stays active';
+  assert (select closing_group from public.members where id = m1) = 'G-2', 'member shows their closing';
   assert (select closing_case_id from public.closing_requests where id = (select id from dt where key = 'req_m1')) = case_id,
     'report linked to the case';
   begin
@@ -301,8 +333,18 @@ begin
   end;
   perform public.reject_closing_request((select id from dt where key = 'req_m2'), 'Certificate unreadable');
 
-  -- M1 is closed now, so G-1 lists M2 and M3 only.
-  assert (select count(*) from public.member_dues where closing_group = 'G-1') = 2, 'closed member leaves the dues list';
+  -- Everyone in the app before M1's closing owes for it, except M1: M2 M3 D1
+  -- D2. M4 was added later. M1 still owes for C1.
+  assert (select count(*) from public.member_dues where closing_case_id = case_id) = 4,
+    'new closing: ' || (select count(*) from public.member_dues where closing_case_id = case_id);
+  assert not exists (select 1 from public.member_dues where closing_case_id = case_id and member_id = m1),
+    'M1 does not pay for their own closing';
+  assert (select count(*) from public.member_dues where closing_group = 'G-1') = 8, 'G-1 unchanged';
+
+  -- Deleting the case keeps the member active and clears their closing.
+  delete from public.closing_cases where id = case_id;
+  assert (select (status, closing_group) from public.members where id = m1) = ('active'::public.member_status, null::text),
+    'deleted closing cleared';
 
   raise notice 'owner dues checks passed';
 end $$;

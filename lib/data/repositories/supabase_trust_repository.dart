@@ -469,7 +469,7 @@ class SupabaseTrustRepository implements TrustRepository {
         return (moved as num?)?.toInt() ?? 0;
       });
 
-  // ---- Dues and death reports ------------------------------------------------
+  // ---- Dues and closing reports ------------------------------------------------
 
   @override
   Future<List<MemberDue>> fetchMemberDues(String memberId) =>
@@ -879,7 +879,7 @@ class SupabaseTrustRepository implements TrustRepository {
         }),
       );
 
-  /// A `member_dues` row, or an `agent_dues` row with member details.
+  /// A `member_dues` row, or an `agent_closing_dues` row with member details.
   static MemberDue memberDueFromRow(Map<String, dynamic> r) => MemberDue(
         memberId: r['member_id'] as String,
         yojnaId: r['yojna_id'] as String? ?? '',
@@ -889,6 +889,7 @@ class SupabaseTrustRepository implements TrustRepository {
         amount: _num(r['amount']),
         paid: _num(r['paid']),
         pending: _num(r['pending']),
+        beneficiaryName: r['beneficiary_name'] as String? ?? '',
         memberName: r['name'] as String? ?? '',
         regNo: r['reg_no'] as String? ?? '',
         phone: r['primary_phone'] as String? ?? '',
@@ -907,7 +908,7 @@ class SupabaseTrustRepository implements TrustRepository {
           member?['reg_no'] as String? ?? r['member_reg_no'] as String? ?? '',
       yojnaId: member?['yojna_id'] as String? ?? '',
       agentId: r['agent_id'] as String?,
-      dateOfDeath: _parseDate(r['date_of_death']),
+      eventDate: _parseDate(r['date_of_death']),
       nomineeName: r['nominee_name'] as String? ?? '',
       nomineeRelation: r['nominee_relation'] as String? ?? '',
       certificateUrl: r['certificate_url'] as String? ?? '',

@@ -67,20 +67,21 @@ begin
   exception when check_violation then null;
   end;
 
-  -- Closing a case closes the member; deleting it reopens.
+  -- A closing is copied onto its member, who stays active; deleting it
+  -- clears it again.
   insert into public.closing_cases (member_id, yojna_id, closing_group, claim_amount, collected_amount)
   values (m2, y, 'Group-99', 50000, 20000) returning id into c1;
   select status, closing_group into s from public.members where id = m2;
-  assert s.status = 'closed' and s.closing_group = 'Group-99', 'member closed by case';
+  assert s.status = 'active' and s.closing_group = 'Group-99', 'member keeps active status';
 
   select * into s from public.dashboard_stats(y);
-  assert s.total_members = 2 and s.closed_members = 1 and s.active_members = 1, 'member counts';
+  assert s.total_members = 2 and s.closed_members = 1 and s.active_members = 2, 'member counts';
   assert s.pending_claims = 30000, 'pending claims: ' || s.pending_claims;
   assert s.month_collection = 200, 'month collection: ' || s.month_collection;
 
   delete from public.closing_cases where id = c1;
   select status, closing_group into s from public.members where id = m2;
-  assert s.status = 'active' and s.closing_group is null, 'member reopened';
+  assert s.status = 'active' and s.closing_group is null, 'closing cleared';
 
   -- Search and totals.
   assert (select count(*) from public.search_members(y, 'दो')) = 1, 'member search';

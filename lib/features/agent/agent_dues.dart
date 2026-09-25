@@ -19,23 +19,19 @@ import '../../widgets/responsive_table.dart';
 import '../../widgets/stat_card.dart';
 import 'agent_forms.dart';
 
-/// Dues per closing group and the agent's death reports
+/// Dues per closing and the agent's closing reports
 /// (IMPLEMENTATION_PLAN Phase 13).
 class AgentDuesPage extends ConsumerWidget {
   const AgentDuesPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(agentClosingGroupsProvider);
-    final page = async.value ?? PageResult.empty<ClosingGroupDues>();
-    final reports = ref.watch(agentDeathReportsProvider).value ?? const [];
+    final async = ref.watch(agentClosingsProvider);
+    final page = async.value ?? PageResult.empty<ClosingDues>();
+    final reports = ref.watch(agentClosingReportsProvider).value ?? const [];
 
-    void open(ClosingGroupDues g) => context.go(
-          Uri(
-            path: AppRoutes.agentDuesGroup,
-            queryParameters: {'yojna': g.yojnaId, 'group': g.closingGroup},
-          ).toString(),
-        );
+    void open(ClosingDues g) =>
+        context.go(AppRoutes.agentClosing(g.closingCaseId));
 
     return PageBody(
       maxWidth: 960,
@@ -49,11 +45,11 @@ class AgentDuesPage extends ConsumerWidget {
           child: async.hasError && async.value == null
               ? ErrorStateView(
                   error: async.error!,
-                  onRetry: () => ref.invalidate(agentClosingGroupsProvider),
+                  onRetry: () => ref.invalidate(agentClosingsProvider),
                 )
               : async.value == null
                   ? const LoadingState()
-                  : ResponsiveTable<ClosingGroupDues>(
+                  : ResponsiveTable<ClosingDues>(
                       rows: page.items,
                       totalCount: page.total,
                       pageSize: agentListPageSize,
@@ -65,22 +61,41 @@ class AgentDuesPage extends ConsumerWidget {
                           'No closings yet, so none of your members owe anything.',
                       emptyIcon: Icons.event_available_outlined,
                       onRowTap: open,
-                      mobileTitle: (g) => g.closingGroup,
+                      mobileTitle: (g) => [g.groupLabel, g.beneficiaryName]
+                          .where((t) => t.isNotEmpty)
+                          .join(' · '),
                       mobileSubtitle: (g) =>
                           '${g.yojnaName} · ${Fmt.date(g.closingDate)} · '
                           '${g.paidCount}/${g.memberCount} paid',
                       mobileTrailing: (context, g) => _ToCollect(group: g),
                       columns: [
-                        TableCol<ClosingGroupDues>(
-                          label: S.closingGroup,
-                          minWidth: 130,
-                          text: (g) => g.closingGroup,
-                          cell: (context, g) => Text(
-                            g.closingGroup,
-                            style: const TextStyle(fontWeight: FontWeight.w500),
+                        TableCol<ClosingDues>(
+                          label: S.closing,
+                          flex: 2,
+                          minWidth: 170,
+                          text: (g) => g.groupLabel,
+                          cell: (context, g) => Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                g.groupLabel,
+                                style: const TextStyle(fontWeight: FontWeight.w500),
+                              ),
+                              if (g.beneficiaryName.isNotEmpty)
+                                Text(
+                                  g.beneficiaryName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    color: context.colors.textMuted,
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
-                        TableCol<ClosingGroupDues>(
+                        TableCol<ClosingDues>(
                           label: S.scheme,
                           flex: 2,
                           minWidth: 150,
@@ -91,13 +106,13 @@ class AgentDuesPage extends ConsumerWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        TableCol<ClosingGroupDues>(
+                        TableCol<ClosingDues>(
                           label: S.closingDate,
                           minWidth: 110,
                           text: (g) => Fmt.date(g.closingDate),
                           cell: (context, g) => Text(Fmt.date(g.closingDate)),
                         ),
-                        TableCol<ClosingGroupDues>(
+                        TableCol<ClosingDues>(
                           label: 'Paid',
                           minWidth: 90,
                           numeric: true,
@@ -105,7 +120,7 @@ class AgentDuesPage extends ConsumerWidget {
                           cell: (context, g) =>
                               Text('${g.paidCount}/${g.memberCount}'),
                         ),
-                        TableCol<ClosingGroupDues>(
+                        TableCol<ClosingDues>(
                           label: S.toCollect,
                           minWidth: 120,
                           numeric: true,
@@ -116,14 +131,14 @@ class AgentDuesPage extends ConsumerWidget {
         ),
         if (reports.isNotEmpty) ...[
           const SizedBox(height: Space.xxl),
-          const SectionHeader(title: S.deathReports, dense: true),
+          const SectionHeader(title: S.closingReports, dense: true),
           const SizedBox(height: Space.md),
           AppCard(
             child: Column(
               children: [
                 for (final (i, r) in reports.indexed) ...[
                   if (i > 0) Divider(height: 1, color: context.colors.border),
-                  _DeathReportTile(report: r),
+                  _ClosingReportTile(report: r),
                 ],
               ],
             ),
@@ -137,7 +152,7 @@ class AgentDuesPage extends ConsumerWidget {
 class _ToCollect extends StatelessWidget {
   const _ToCollect({required this.group});
 
-  final ClosingGroupDues group;
+  final ClosingDues group;
 
   @override
   Widget build(BuildContext context) {
@@ -157,8 +172,8 @@ class _ToCollect extends StatelessWidget {
   }
 }
 
-class _DeathReportTile extends StatelessWidget {
-  const _DeathReportTile({required this.report});
+class _ClosingReportTile extends StatelessWidget {
+  const _ClosingReportTile({required this.report});
 
   final ClosingRequest report;
 
@@ -174,7 +189,7 @@ class _DeathReportTile extends StatelessWidget {
       title: Text(r.memberName),
       subtitle: Text(
         [
-          '${S.dateOfDeath}: ${Fmt.date(r.dateOfDeath)}',
+          '${S.eventDate}: ${Fmt.date(r.eventDate)}',
           if (r.decisionNote.isNotEmpty) 'Office: ${r.decisionNote}',
         ].join('\n'),
       ),
@@ -194,34 +209,28 @@ class _DeathReportTile extends StatelessWidget {
 // One closing group
 // ---------------------------------------------------------------------------
 
-class AgentGroupDuesPage extends ConsumerStatefulWidget {
-  const AgentGroupDuesPage({
-    super.key,
-    required this.yojnaId,
-    required this.closingGroup,
-  });
+class AgentClosingDuesPage extends ConsumerStatefulWidget {
+  const AgentClosingDuesPage({super.key, required this.closingCaseId});
 
-  final String yojnaId;
-  final String closingGroup;
+  final String closingCaseId;
 
   @override
-  ConsumerState<AgentGroupDuesPage> createState() => _AgentGroupDuesPageState();
+  ConsumerState<AgentClosingDuesPage> createState() =>
+      _AgentClosingDuesPageState();
 }
 
-class _AgentGroupDuesPageState extends ConsumerState<AgentGroupDuesPage> {
+class _AgentClosingDuesPageState extends ConsumerState<AgentClosingDuesPage> {
   /// Opens on who still has to pay.
   DueState? _filter = DueState.due;
 
   @override
   Widget build(BuildContext context) {
-    final async = ref.watch(
-      agentGroupDuesProvider((widget.yojnaId, widget.closingGroup)),
-    );
+    final async = ref.watch(agentClosingDuesProvider(widget.closingCaseId));
     final all = async.value ?? const <MemberDue>[];
     final shown =
         all.where((d) => _filter == null || d.state == _filter).toList();
     final yojna = (ref.watch(agentYojnasProvider).value ?? const <Yojna>[])
-        .where((y) => y.id == widget.yojnaId)
+        .where((y) => all.isNotEmpty && y.id == all.first.yojnaId)
         .firstOrNull;
     int count(DueState s) => all.where((d) => d.state == s).length;
 
@@ -229,7 +238,7 @@ class _AgentGroupDuesPageState extends ConsumerState<AgentGroupDuesPage> {
       maxWidth: 960,
       children: [
         SectionHeader(
-          title: widget.closingGroup,
+          title: all.isEmpty ? S.closing : all.first.title,
           subtitle: [
             yojna?.name ?? '',
             if (all.isNotEmpty) 'Closing ${Fmt.date(all.first.closingDate)}',
@@ -285,7 +294,9 @@ class _AgentGroupDuesPageState extends ConsumerState<AgentGroupDuesPage> {
           child: async.hasError && async.value == null
               ? ErrorStateView(
                   error: async.error!,
-                  onRetry: () => ref.invalidate(agentGroupDuesProvider),
+                  onRetry: () => ref.invalidate(
+                    agentClosingDuesProvider(widget.closingCaseId),
+                  ),
                 )
               : async.value == null
                   ? const LoadingState()

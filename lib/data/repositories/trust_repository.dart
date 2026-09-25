@@ -123,7 +123,7 @@ abstract class TrustRepository {
   /// Moves every member of [fromAgentId] to [toAgentId]; returns how many.
   Future<int> reassignMembers(String fromAgentId, String toAgentId);
 
-  // ---- Dues and death reports (IMPLEMENTATION_PLAN Phase 13) ----------------
+  // ---- Dues and closing reports (IMPLEMENTATION_PLAN Phase 13) ----------------
 
   /// Closing groups [memberId] owes a contribution for, oldest first.
   Future<List<MemberDue>> fetchMemberDues(String memberId);
@@ -139,10 +139,10 @@ abstract class TrustRepository {
   /// Totals across every page of [query], whatever its standing.
   Future<DuesTotals> fetchDuesTotals(DuesQuery query);
 
-  /// Deaths reported by agents and waiting for a decision, oldest first.
+  /// Closings reported by agents and waiting for a decision, oldest first.
   Future<List<ClosingRequest>> fetchPendingClosingRequests();
 
-  /// Creates the closing case from the report, which closes the member.
+  /// Creates the closing case from the report. The member stays active.
   /// [claimAmount] defaults to the Yojna's. Returns the case id.
   Future<String> approveClosingRequest(
     String requestId, {

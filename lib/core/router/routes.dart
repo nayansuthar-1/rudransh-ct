@@ -54,8 +54,13 @@ class AppRoutes {
   static const agentDues = '/agent/dues';
   static const agentAnnouncements = '/agent/announcements';
 
-  /// One closing group: `?yojna=<id>&group=<label>`.
-  static const agentDuesGroup = '/agent/dues/group';
+  /// One closing: `?closing=<closing case id>`.
+  static const agentClosingDues = '/agent/dues/closing';
+
+  static String agentClosing(String closingCaseId) => Uri(
+        path: agentClosingDues,
+        queryParameters: {'closing': closingCaseId},
+      ).toString();
 
   // Member screens (Phase 15).
   static const memberHome = '/me';

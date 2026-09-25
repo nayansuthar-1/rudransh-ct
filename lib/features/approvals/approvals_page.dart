@@ -64,9 +64,9 @@ class ApprovalsPage extends ConsumerWidget {
             ],
           ),
           _Section(
-            title: S.deathReports,
+            title: S.closingReports,
             children: [
-              for (final r in queue.deathReports) _DeathReportRow(report: r),
+              for (final r in queue.closingReports) _ClosingReportRow(report: r),
             ],
           ),
           _Section(
@@ -367,8 +367,8 @@ class _CancelRequestRow extends ConsumerWidget {
   }
 }
 
-class _DeathReportRow extends ConsumerWidget {
-  const _DeathReportRow({required this.report});
+class _ClosingReportRow extends ConsumerWidget {
+  const _ClosingReportRow({required this.report});
 
   final ClosingRequest report;
 
@@ -381,7 +381,7 @@ class _DeathReportRow extends ConsumerWidget {
     return _QueueRow(
       title: [r.memberName, r.memberRegNo].where((s) => s.isNotEmpty).join(' · '),
       lines: [
-        [yojna?.name ?? '', '${S.dateOfDeath}: ${Fmt.date(r.dateOfDeath)}']
+        [yojna?.name ?? '', '${S.eventDate}: ${Fmt.date(r.eventDate)}']
             .where((s) => s.isNotEmpty)
             .join(' · '),
         if (r.nomineeName.isNotEmpty)
@@ -397,7 +397,7 @@ class _DeathReportRow extends ConsumerWidget {
             mode: LaunchMode.externalApplication,
           ),
           icon: const Icon(Icons.open_in_new_rounded, size: 16),
-          label: const Text(S.deathCertificate),
+          label: const Text(S.proofDocument),
         ),
         OutlinedButton(
           onPressed: () async {
@@ -409,7 +409,7 @@ class _DeathReportRow extends ConsumerWidget {
             if (reason == null || !context.mounted) return;
             await runWithToast(
               context,
-              () => actions.rejectDeathReport(r.id, reason),
+              () => actions.rejectClosingReport(r.id, reason),
               success: 'Report rejected',
             );
           },
@@ -427,7 +427,7 @@ class _DeathReportRow extends ConsumerWidget {
   }
 }
 
-/// Approves a death report: asks for the closing group and claim amount.
+/// Approves a closing report: asks for the closing group and claim amount.
 class _CreateClosingDialog extends ConsumerStatefulWidget {
   const _CreateClosingDialog({required this.report});
 
@@ -471,7 +471,7 @@ class _CreateClosingDialogState extends ConsumerState<_CreateClosingDialog> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _saving = true);
     try {
-      await ref.read(approvalActionsProvider).approveDeathReport(
+      await ref.read(approvalActionsProvider).approveClosingReport(
             widget.report.id,
             closingGroup: _group.text.trim(),
             claimAmount: double.tryParse(_claim.text.replaceAll(',', '').trim()),
@@ -491,7 +491,7 @@ class _CreateClosingDialogState extends ConsumerState<_CreateClosingDialog> {
     final r = widget.report;
     return AppDialog(
       title: S.createClosing,
-      subtitle: '${r.memberName} · ${S.dateOfDeath} ${Fmt.date(r.dateOfDeath)}',
+      subtitle: '${r.memberName} · ${S.eventDate} ${Fmt.date(r.eventDate)}',
       maxWidth: 560,
       actions: [
         OutlinedButton(
@@ -509,8 +509,8 @@ class _CreateClosingDialogState extends ConsumerState<_CreateClosingDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'The member is marked Closed. Every active member of the Yojna '
-              'who joined before this date owes a contribution for the group.',
+              'The member stays active. Every other active member of the Yojna '
+              'owes one contribution for this closing.',
               style: TextStyle(fontSize: 13, color: context.colors.textSecondary),
             ),
             const SizedBox(height: Space.lg),

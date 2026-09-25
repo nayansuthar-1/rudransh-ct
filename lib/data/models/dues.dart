@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'member.dart';
 
-/// Where one member stands for one closing group.
+/// Where one member stands for one closing.
 enum DueState {
   due('Due'),
   pending('Waiting for approval'),
@@ -12,11 +12,12 @@ enum DueState {
   final String label;
 }
 
-/// One member's contribution for one closing group (the `member_dues` view,
-/// IMPLEMENTATION_PLAN Phase 13).
+/// One member's contribution for one closing (the `member_dues` view).
 ///
-/// Every active member of a Yojna who joined before the group's first
-/// closing date owes one contribution at the Yojna's contribution amount.
+/// A closing is any claim a Yojna pays out, such as a member's wedding in
+/// Shadi Sahyog Yojna. Every active member of the Yojna who was added to the
+/// app before the closing was created owes one contribution for it, at the
+/// Yojna's contribution amount; the member whose closing it is does not.
 @immutable
 class MemberDue {
   const MemberDue({
@@ -28,6 +29,7 @@ class MemberDue {
     required this.amount,
     this.paid = 0,
     this.pending = 0,
+    this.beneficiaryName = '',
     this.memberName = '',
     this.regNo = '',
     this.phone = '',
@@ -36,26 +38,36 @@ class MemberDue {
 
   final String memberId;
   final String yojnaId;
-
-  /// The group's first closing case; contributions for the group link to it.
   final String closingCaseId;
+
+  /// A label the office gives closings, such as Group-14. Several closings
+  /// can share one; each is still paid for on its own.
   final String closingGroup;
   final DateTime closingDate;
 
   /// The Yojna's contribution amount.
   final double amount;
 
-  /// Approved contributions for this group.
+  /// Approved contributions for this closing.
   final double paid;
 
   /// Collected, waiting for an admin.
   final double pending;
+
+  /// The member whose closing it is. Empty where the source does not say.
+  final String beneficiaryName;
 
   // Filled on the agent's dues list.
   final String memberName;
   final String regNo;
   final String phone;
   final String village;
+
+  /// The closing's name on screen: its group, with whose closing it is.
+  String get title => [
+        closingGroup.isEmpty ? 'Closing' : closingGroup,
+        if (beneficiaryName.isNotEmpty) beneficiaryName,
+      ].join(' · ');
 
   /// Still unpaid, ignoring money waiting for approval.
   double get due => (amount - paid).clamp(0, double.infinity);
@@ -68,54 +80,51 @@ class MemberDue {
       : (pending > 0 ? DueState.pending : DueState.due);
 }
 
-/// A closing group as an agent sees it: counts over the agent's own members.
+/// One closing as an agent sees it: counts over the agent's own members.
 @immutable
-class ClosingGroupDues {
-  const ClosingGroupDues({
+class ClosingDues {
+  const ClosingDues({
     required this.yojnaId,
     required this.yojnaName,
     required this.closingGroup,
     required this.closingDate,
     required this.closingCaseId,
-    required this.caseCount,
     required this.memberCount,
     required this.paidCount,
     required this.pendingCount,
     required this.dueCount,
     required this.toCollect,
+    this.beneficiaryName = '',
   });
 
   final String yojnaId;
   final String yojnaName;
   final String closingGroup;
-
-  /// First closing date in the group.
   final DateTime closingDate;
   final String closingCaseId;
 
-  /// Deaths in the group.
-  final int caseCount;
+  /// The member whose closing it is.
+  final String beneficiaryName;
   final int memberCount;
   final int paidCount;
   final int pendingCount;
   final int dueCount;
   final double toCollect;
 
-  /// Folds one group's dues rows into a summary.
-  factory ClosingGroupDues.of(
-    List<MemberDue> dues, {
-    required String yojnaName,
-    required int caseCount,
-  }) {
+  /// The group label, or a stand-in when the closing has none.
+  String get groupLabel => closingGroup.isEmpty ? 'Closing' : closingGroup;
+
+  /// Folds one closing's dues rows into a summary.
+  factory ClosingDues.of(List<MemberDue> dues, {required String yojnaName}) {
     final first = dues.first;
     int count(DueState s) => dues.where((d) => d.state == s).length;
-    return ClosingGroupDues(
+    return ClosingDues(
       yojnaId: first.yojnaId,
       yojnaName: yojnaName,
       closingGroup: first.closingGroup,
       closingDate: first.closingDate,
       closingCaseId: first.closingCaseId,
-      caseCount: caseCount,
+      beneficiaryName: first.beneficiaryName,
       memberCount: dues.length,
       paidCount: count(DueState.paid),
       pendingCount: count(DueState.pending),
@@ -237,14 +246,15 @@ enum RequestStatus {
       .firstWhere((s) => s.name == value, orElse: () => RequestStatus.pending);
 }
 
-/// An agent's report of a member's death, with the certificate on Cloudinary.
+/// An agent's report that a member's closing is due (such as their wedding in
+/// Shadi Sahyog Yojna), with the proof document on Cloudinary.
 /// An admin approves it into a closing case, or rejects it with a reason.
 @immutable
 class ClosingRequest {
   const ClosingRequest({
     required this.id,
     required this.memberId,
-    required this.dateOfDeath,
+    required this.eventDate,
     required this.certificateUrl,
     this.memberName = '',
     this.memberRegNo = '',
@@ -265,7 +275,7 @@ class ClosingRequest {
   final String memberRegNo;
   final String yojnaId;
   final String? agentId;
-  final DateTime dateOfDeath;
+  final DateTime eventDate;
   final String nomineeName;
   final String nomineeRelation;
   final String certificateUrl;
@@ -295,7 +305,7 @@ class ClosingRequest {
       memberRegNo: memberRegNo ?? this.memberRegNo,
       yojnaId: yojnaId ?? this.yojnaId,
       agentId: agentId ?? this.agentId,
-      dateOfDeath: dateOfDeath,
+      eventDate: eventDate,
       nomineeName: nomineeName,
       nomineeRelation: nomineeRelation,
       certificateUrl: certificateUrl,

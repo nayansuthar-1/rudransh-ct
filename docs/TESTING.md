@@ -58,7 +58,7 @@ Supabase project too, run [`scripts/reset_data.sql`](../scripts/reset_data.sql)
    supabase functions deploy invite_user
    supabase functions deploy member_lookup --no-verify-jwt
    ```
-2. **Cloudinary defines.** Without them the agent's death-certificate upload is
+2. **Cloudinary defines.** Without them the agent's proof-document upload is
    disabled and the app says so. Not a bug — check the message, then set them.
 3. **Four test logins.** Create them once and keep them (docs/RUNBOOK.md §3):
    - **owner** — you; already an owner if you were an admin before the roles migration
@@ -177,14 +177,14 @@ does not print itself; the real page loads its assets from the app.
 
 ### 4.6 Approvals
 - The bell in the top bar opens **Approvals**. Six sections: new members,
-  payments to approve, death reports, cancel requests, cash handovers and
+  payments to approve, closing reports, cancel requests, cash handovers and
   corrections.
 - Approve an agent's member → a reg number is issued at that moment, and the
   member turns Active.
 - Reject one with a reason → the member stays **Inactive with no reg number**,
   and money already recorded against them keeps its member.
 - Approve an agent payment → it gets counted in the dashboard and agent totals.
-- **Create closing** from a death report: set the group and claim amount, or
+- **Create closing** from a closing report: set the group and claim amount, or
   reject with a reason.
 - **Confirm received** on a cash handover, or reject it with a reason. A
   rejected handover puts the money straight back into that agent's cash in hand
@@ -289,8 +289,8 @@ Invite an agent from the Agents page, accept the email, sign in. You land on
   and joined **before** the group's first closing date. Cases with no group
   label raise no dues.
 
-### 6.5 Report a death
-- From a member's details → **Report death**: date of death plus a certificate.
+### 6.5 Report a closing
+- From a member's details → **Report closing**: event date plus a certificate.
 - Upload a JPG, a PNG and a PDF (up to 10 MB) — all three should go to
   Cloudinary. A `.txt` must be refused.
 - The outcome (closing created, or rejected with a reason) shows back on the

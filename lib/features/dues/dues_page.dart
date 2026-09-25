@@ -506,7 +506,7 @@ class _ClosingDueRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  d.closingGroup,
+                  d.title,
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     color: c.textPrimary,
