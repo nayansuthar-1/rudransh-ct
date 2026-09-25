@@ -1,5 +1,6 @@
 // Invites a person to the app and gives them a role (IMPLEMENTATION_PLAN
-// Phase 11). Only an active owner may call it.
+// Phase 11). An active owner may invite anyone; an active agent may invite
+// only a member of their own (client decision, 25 Sep 2026).
 //
 // POST { role: "owner" | "staff" | "agent" | "member", email, name?,
 //        agent_id? (role agent), member_id? (role member) }
@@ -56,8 +57,10 @@ Deno.serve(async (req) => {
       { auth: { persistSession: false, autoRefreshToken: false } },
     );
 
-    const callerId = await requireOwner(admin, req);
+    const caller = await requireInviter(admin, req);
+    const callerId = caller.userId;
     const input = await readInput(req);
+    if (caller.agentId) await requireOwnMember(admin, caller.agentId, input);
     const name = await checkLink(admin, input);
 
     const lookup = admin.from("profiles").select("user_id").limit(1);
@@ -137,6 +140,16 @@ Deno.serve(async (req) => {
       throw new HttpError(500, `Could not save the login: ${profileError.message}`);
     }
 
+    // Keep the address on the member's record too, where the office and their
+    // agent see it, unless the record already holds one.
+    if (input.role === "member") {
+      await admin
+        .from("members")
+        .update({ email: input.email })
+        .eq("id", input.member_id!)
+        .eq("email", "");
+    }
+
     return json({ user_id: userId, email_sent: emailSent });
   } catch (e) {
     if (e instanceof HttpError) return json({ error: e.message }, e.status);
@@ -145,21 +158,56 @@ Deno.serve(async (req) => {
   }
 });
 
-async function requireOwner(admin: SupabaseClient, req: Request): Promise<string> {
+/// The caller, if they may invite: an active owner (agentId null), or an
+/// active agent whose agent record is active (agentId set).
+async function requireInviter(
+  admin: SupabaseClient,
+  req: Request,
+): Promise<{ userId: string; agentId: string | null }> {
   const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
   const { data, error } = await admin.auth.getUser(token);
   if (error || !data.user) throw new HttpError(401, "Sign in again.");
 
-  // Same rule as public.my_role() for owners: an active owner profile.
+  // Same rules as public.my_role(): an active profile, and for an agent an
+  // active agent record.
   const { data: profile } = await admin
     .from("profiles")
-    .select("role, is_active")
+    .select("role, is_active, agent_id")
     .eq("user_id", data.user.id)
     .maybeSingle();
-  if (profile?.role !== "owner" || !profile.is_active) {
-    throw new HttpError(403, "Only an owner can invite people.");
+  if (profile?.is_active && profile.role === "owner") {
+    return { userId: data.user.id, agentId: null };
   }
-  return data.user.id;
+  if (profile?.is_active && profile.role === "agent" && profile.agent_id) {
+    const { data: agent } = await admin
+      .from("agents")
+      .select("is_active")
+      .eq("id", profile.agent_id)
+      .maybeSingle();
+    if (agent?.is_active) {
+      return { userId: data.user.id, agentId: profile.agent_id };
+    }
+  }
+  throw new HttpError(403, "Only an owner or an agent can invite people.");
+}
+
+/// An agent invites members only, and only their own.
+async function requireOwnMember(
+  admin: SupabaseClient,
+  agentId: string,
+  input: Input,
+) {
+  if (input.role !== "member" || !input.member_id) {
+    throw new HttpError(403, "Agents can only invite their own members.");
+  }
+  const { data } = await admin
+    .from("members")
+    .select("agent_id")
+    .eq("id", input.member_id)
+    .maybeSingle();
+  if (data?.agent_id !== agentId) {
+    throw new HttpError(403, "Agents can only invite their own members.");
+  }
 }
 
 interface Input {

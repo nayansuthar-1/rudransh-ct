@@ -247,6 +247,7 @@ class _ContactFields extends StatelessWidget {
     required this.district,
     required this.state,
     required this.pincode,
+    this.email,
   });
 
   final TextEditingController phone;
@@ -257,8 +258,13 @@ class _ContactFields extends StatelessWidget {
   final TextEditingController state;
   final TextEditingController pincode;
 
+  /// The member's own email, on the Edit contact form only: with it on
+  /// their record they sign in to the app without an invite.
+  final TextEditingController? email;
+
   @override
   Widget build(BuildContext context) {
+    final email = this.email;
     return FormGrid(
       items: [
         GridItem(AppTextField(
@@ -287,6 +293,15 @@ class _ContactFields extends StatelessWidget {
           inputFormatters: Fmts.pincode(),
           validator: V.pincode,
         )),
+        if (email != null)
+          GridItem(AppTextField(
+            label: S.fldMemberEmail,
+            controller: email,
+            hint: 'name@example.com',
+            prefixIcon: Icons.mail_outline,
+            keyboardType: TextInputType.emailAddress,
+            validator: V.optionalEmail,
+          )),
       ],
     );
   }
@@ -320,12 +335,14 @@ class _ContactFormState extends ConsumerState<_ContactForm> {
   late final _district = TextEditingController(text: widget.member.district);
   late final _state = TextEditingController(text: widget.member.state);
   late final _pincode = TextEditingController(text: widget.member.pincode);
+  late final _email = TextEditingController(text: widget.member.email);
   bool _saving = false;
 
   @override
   void dispose() {
     for (final c in [
       _phone, _altPhone, _village, _tehsil, _district, _state, _pincode,
+      _email,
     ]) {
       c.dispose();
     }
@@ -345,6 +362,7 @@ class _ContactFormState extends ConsumerState<_ContactForm> {
               district: _district.text.trim(),
               state: _state.text.trim(),
               pincode: _pincode.text.trim(),
+              email: _email.text.trim().toLowerCase(),
             ),
           );
       if (!mounted) return;
@@ -384,6 +402,7 @@ class _ContactFormState extends ConsumerState<_ContactForm> {
           district: _district,
           state: _state,
           pincode: _pincode,
+          email: _email,
         ),
       ),
     );

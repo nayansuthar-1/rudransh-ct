@@ -332,7 +332,7 @@ Future<void> _inviteMember(
   WidgetRef ref,
   Member member,
 ) async {
-  final email = await _memberEmailDialog(context, member);
+  final email = await memberEmailDialog(context, member);
   if (email == null || !context.mounted) return;
   await runWithToast(
     context,
@@ -346,7 +346,9 @@ Future<void> _inviteMember(
 
 final _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
-Future<String?> _memberEmailDialog(BuildContext context, Member member) {
+/// Asks for the email [member] will sign in with, filled in from their record.
+/// Returns it lowercased, or null if cancelled. The office and agents share it.
+Future<String?> memberEmailDialog(BuildContext context, Member member) {
   final c = context.colors;
   final controller = TextEditingController(text: member.email);
   final formKey = GlobalKey<FormState>();

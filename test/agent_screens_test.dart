@@ -179,4 +179,42 @@ void main() {
     expect(find.text('Select a member'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  // The office's member menu, cut to what an agent may do.
+  testWidgets('an agent''s member menu has no office-only actions',
+      (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(1440, 900);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          repositoryProvider.overrideWithValue(seededRepository()),
+          authControllerProvider.overrideWith(_AgentAuth.new),
+        ],
+        child: const RudranshAdminApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    ProviderScope.containerOf(tester.element(find.byType(RudranshAdminApp)))
+        .read(routerProvider)
+        .go(AppRoutes.agentMembers);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip(S.actions).first);
+    await tester.pumpAndSettle();
+    for (final item in [S.view, S.editContact, S.inviteToApp]) {
+      expect(find.text(item), findsOneWidget, reason: item);
+    }
+    for (final item in [S.delete, S.eraseData, S.exportData, S.edit]) {
+      expect(find.text(item), findsNothing, reason: item);
+    }
+
+    // Edit contact carries the member's email.
+    await tester.tap(find.text(S.editContact));
+    await tester.pumpAndSettle();
+    expect(find.text(S.fldMemberEmail), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

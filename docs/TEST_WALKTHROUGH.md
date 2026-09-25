@@ -181,7 +181,7 @@ Test Agent was invited in §2.2. In the agent window (Edge):
 | Page | Check |
 |---|---|
 | **Home** | Tiles: my members (3), waiting approval, approved this month, cash in hand, commission. Buttons: Record payment, Add member. Newest closing groups below |
-| **My members** | Only M1, M2 and M3. **No Aadhaar anywhere.** Add member → saved as **Pending** with no reg no |
+| **My members** | Only M1, M2 and M3. **No Aadhaar anywhere.** Add member → saved as **Pending** with no reg no. Each row's ⋯ menu: View, Edit contact (with the member's email), Add Payment, Print certificate, Invite to app, Report death. **No** Edit, Export data, Erase data or Delete: those stay with the office. Invite M3 → *"Invite email sent"*, and M3's email now shows on the office's Members page |
 | **Dues** | Group-1 → who owes, who paid → **Collect** from one member (cash). **Send reminder** opens WhatsApp in Hindi. Collecting twice for the same group must be refused |
 | **Record payment** | Gets a receipt number at once but stays **Pending**. **Send receipt** opens WhatsApp |
 | **Report a death** | From a member: date and certificate (JPG, PNG or PDF). A `.txt` file is refused |

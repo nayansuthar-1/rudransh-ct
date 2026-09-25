@@ -92,6 +92,16 @@ begin
 
   perform public.agent_update_contact(m1, jsonb_build_object('village', 'Balotra', 'state', 'Rajasthan'));
   assert (select state from public.agent_members() where id = m1) = 'Rajasthan', 'agent may correct the state';
+  -- The email the member signs in with; stored lowercase, as the column insists.
+  perform public.agent_update_contact(m1, jsonb_build_object('email', ' Ram.Member@Example.com '));
+  assert (select email from public.agent_members() where id = m1) = 'ram.member@example.com', 'agent sets the email, lowercased';
+  perform public.agent_update_contact(m1, jsonb_build_object('village', 'Balotra'));
+  assert (select email from public.agent_members() where id = m1) = 'ram.member@example.com', 'email kept when not sent';
+  begin
+    perform public.agent_update_contact(m1, jsonb_build_object('email', 'not-an-email'));
+    raise exception 'malformed email accepted';
+  exception when check_violation then null;
+  end;
   begin
     perform public.agent_update_contact(m2, jsonb_build_object('village', 'Hacked'));
     raise exception 'agent edited another agent''s member';

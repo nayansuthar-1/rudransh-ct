@@ -243,6 +243,7 @@ class SupabaseAgentRepository implements AgentRepository {
             'district': m.district,
             'state': m.state,
             'pincode': m.pincode,
+            'email': m.email,
           },
         },
       ));
@@ -472,6 +473,7 @@ class SupabaseAgentRepository implements AgentRepository {
         closingGroup: r['closing_group'] as String?,
         reviewNote: r['review_note'] as String? ?? '',
         photoUrl: r['photo_url'] as String? ?? '',
+        email: r['email'] as String? ?? '',
       );
 
   static Payment _paymentFromRow(Map<String, dynamic> r) => Payment(
@@ -612,6 +614,7 @@ class InMemoryAgentRepository implements AgentRepository {
         district: member.district,
         state: member.state,
         pincode: member.pincode,
+        email: member.email,
       ),
     );
   }

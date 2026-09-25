@@ -12,6 +12,7 @@ import '../../data/models/models.dart';
 import '../../data/repositories/agent_repository.dart';
 import '../../state/agent_providers.dart';
 import '../../state/auth_controller.dart';
+import '../../state/providers.dart' show accessRepositoryProvider;
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_shell.dart';
 import '../../widgets/inputs.dart';
@@ -21,7 +22,8 @@ import '../../widgets/stat_card.dart';
 import '../certificate/certificate_action.dart';
 import '../receipt/receipt_action.dart';
 import '../dashboard/dashboard_page.dart' show PaymentStatusPill;
-import '../members/members_page.dart' show MemberStatusPill;
+import '../members/members_page.dart'
+    show MemberStatusPill, memberEmailDialog;
 import 'agent_cash.dart';
 import 'agent_forms.dart';
 
@@ -294,6 +296,7 @@ class AgentMembersPage extends ConsumerWidget {
                           cell: (context, m) => MemberStatusPill(status: m.status),
                         ),
                       ],
+                      rowActions: (context, m) => _MemberActions(member: m),
                     ),
         ),
       ],
@@ -327,20 +330,10 @@ void _showMember(BuildContext context, Member m) {
           },
           child: const Text(S.editContact),
         ),
-        // Members enrolled by this agent carry their name as the karyakarta.
         if (m.regNo.isNotEmpty)
           Consumer(
             builder: (context, ref, _) => OutlinedButton(
-              onPressed: () => printMemberCertificate(
-                context,
-                member: m,
-                yojna: ref
-                    .watch(agentYojnasProvider)
-                    .value
-                    ?.where((y) => y.id == m.yojnaId)
-                    .firstOrNull,
-                agentName: ref.watch(currentUserProvider).name,
-              ),
+              onPressed: () => _printCertificate(context, ref, m),
               child: const Text(S.printCertificate),
             ),
           ),
@@ -379,6 +372,89 @@ void _showMember(BuildContext context, Member m) {
         ],
       ),
     ),
+  );
+}
+
+// Members enrolled by this agent carry their name as the karyakarta.
+void _printCertificate(BuildContext context, WidgetRef ref, Member m) =>
+    printMemberCertificate(
+      context,
+      member: m,
+      yojna: ref
+          .read(agentYojnasProvider)
+          .value
+          ?.where((y) => y.id == m.yojnaId)
+          .firstOrNull,
+      agentName: ref.read(currentUserProvider).name,
+    );
+
+/// The office's member menu, cut to what an agent may do (client decision,
+/// 25 Sep 2026). Delete, erase, export and the full edit stay with the office;
+/// payments and new members wait for its approval.
+class _MemberActions extends ConsumerWidget {
+  const _MemberActions({required this.member});
+
+  final Member member;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final m = member;
+    final canPay =
+        m.status == MemberStatus.active || m.status == MemberStatus.pending;
+
+    return PopupMenuButton<int>(
+      tooltip: S.actions,
+      position: PopupMenuPosition.under,
+      icon: const Icon(Icons.more_horiz, size: 19),
+      onSelected: (value) async {
+        switch (value) {
+          case 0:
+            _showMember(context, m);
+          case 1:
+            showContactForm(context, m);
+          case 2:
+            showAgentPaymentForm(context, member: m);
+          case 3:
+            _printCertificate(context, ref, m);
+          case 4:
+            showDeathReportForm(context, m);
+          case 5:
+            await _inviteMember(context, ref, m);
+        }
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem(value: 0, child: Text(S.view)),
+        const PopupMenuItem(value: 1, child: Text(S.editContact)),
+        if (canPay) const PopupMenuItem(value: 2, child: Text(S.addPayment)),
+        if (m.regNo.isNotEmpty)
+          const PopupMenuItem(value: 3, child: Text(S.printCertificate)),
+        // A pending member has no registration number yet, so there is
+        // nothing to sign in to.
+        if (!m.isPending)
+          const PopupMenuItem(value: 5, child: Text(S.inviteToApp)),
+        if (m.status == MemberStatus.active)
+          const PopupMenuItem(value: 4, child: Text(S.reportDeath)),
+      ],
+    );
+  }
+}
+
+/// Emails the member an invite to the member screens. The server lets an agent
+/// invite only their own members, and saves the email on the member's record.
+Future<void> _inviteMember(
+  BuildContext context,
+  WidgetRef ref,
+  Member member,
+) async {
+  final email = await memberEmailDialog(context, member);
+  if (email == null || !context.mounted) return;
+  await runWithToast(
+    context,
+    () async {
+      await ref.read(accessRepositoryProvider).inviteMember(member, email);
+      ref.invalidate(agentMembersProvider);
+    },
+    success: S.inviteSent,
   );
 }
 
