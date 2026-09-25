@@ -1,17 +1,17 @@
-// Lets a member sign in with the email on their record, without an owner's
-// invite (client request, 24 Sep 2026).
+// Lets a member or an agent sign in with the email on their record, without
+// an owner's invite (client requests, 24 and 25 Sep 2026).
 //
 // POST { email }  →  200 { ok: true }, always.
 //
 // The login page calls this before asking Supabase Auth for a sign-in code.
-// When an approved member has this email and no login yet, it makes one: an
-// auth user (confirmed, no email sent) and a `member` profile linked to that
-// member. The code itself is then sent by the normal OTP request, so only the
+// When an approved member, or else an active agent, has this email and no
+// login yet, it makes one: an auth user (confirmed, no email sent) and a
+// `member` or `agent` profile linked to that record. The code itself is then sent by the normal OTP request, so only the
 // person who reads that inbox gets in. It also confirms an invited login whose
 // invite link was never opened, which would otherwise get no code.
 //
 // It answers the same whatever the email is — a member's, someone else's, or
-// nobody's — so it cannot be used to find out who is a member.
+// nobody's — so it cannot be used to find out who is a member or an agent.
 //
 // Deploy: supabase functions deploy member_sign_in --no-verify-jwt
 //   (--no-verify-jwt: the caller is signed out by definition)
@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { persistSession: false, autoRefreshToken: false } },
     );
-    await prepareMemberLogin(admin, email);
+    await prepareLogin(admin, email);
   } catch (e) {
     // Logged for the office; the caller learns nothing either way.
     console.error("member_sign_in:", e);
@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
   return ok();
 });
 
-async function prepareMemberLogin(admin: SupabaseClient, email: string) {
+async function prepareLogin(admin: SupabaseClient, email: string) {
   // A login made by an owner's invite before 25 Sep 2026 stays unconfirmed
   // until its email link is opened, and Supabase refuses a sign-in code to an
   // unconfirmed account. Confirm it; the code still goes only to this inbox.
@@ -83,18 +83,43 @@ async function prepareMemberLogin(admin: SupabaseClient, email: string) {
     .order("join_date", { ascending: true })
     .limit(1);
   const member = members?.[0];
-  if (!member) return;
+  if (member) {
+    await linkLogin(admin, email, "member_id", member.id, member.name);
+    return;
+  }
+
+  // Else the active agent with this email. Agent emails are not forced to
+  // lowercase, so they are compared here; there are only a handful.
+  const { data: agents } = await admin
+    .from("agents")
+    .select("id, name, email")
+    .eq("is_active", true)
+    .neq("email", "");
+  const agent = agents?.find((a) => a.email.trim().toLowerCase() === email);
+  if (agent) await linkLogin(admin, email, "agent_id", agent.id, agent.name);
+}
+
+/// Gives [email] a login with a `member` or `agent` profile linked to the
+/// record [id], unless that record or that address already has one.
+async function linkLogin(
+  admin: SupabaseClient,
+  email: string,
+  link: "member_id" | "agent_id",
+  id: string,
+  name: string,
+) {
+  const role = link === "member_id" ? "member" : "agent";
 
   // Already has a login (invited, or signed in before): nothing to do.
   const { data: linked } = await admin
     .from("profiles")
     .select("user_id")
-    .eq("member_id", member.id)
+    .eq(link, id)
     .limit(1);
   if (linked && linked.length > 0) return;
 
   // The address belongs to someone who already has a login in another role
-  // (the office, an agent): never turn that into a member login.
+  // (the office, an agent, a member): never turn that into another login.
   const { data: taken } = await admin
     .from("profiles")
     .select("user_id")
@@ -107,24 +132,25 @@ async function prepareMemberLogin(admin: SupabaseClient, email: string) {
   const { data: created, error } = await admin.auth.admin.createUser({
     email,
     email_confirm: true,
-    user_metadata: { role: "member" },
+    user_metadata: { role },
   });
   if (created?.user) {
     userId = created.user.id;
     createdNow = true;
   } else if (error) {
     // An auth account without a profile (a removed admin, an unfinished
-    // invite): reuse it.
+    // invite, a login left behind by a data reset): reuse and confirm it.
     userId = await findUserIdByEmail(admin, email);
+    if (userId) await confirmLogin(admin, userId);
   }
   if (!userId) return;
 
   const { error: profileError } = await admin.from("profiles").insert({
     user_id: userId,
-    role: "member",
-    name: member.name,
+    role,
+    name,
     email,
-    member_id: member.id,
+    [link]: id,
   });
   if (profileError && createdNow) {
     await admin.auth.admin.deleteUser(userId);

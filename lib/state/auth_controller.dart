@@ -173,9 +173,10 @@ class AuthController extends Notifier<AuthState> {
           ? member(ref.read(memberTextProvider))
           : english;
 
-  /// Makes a login for a member whose email is on their record, if they have
-  /// none yet. It answers the same for any address, and a failure (function
-  /// not deployed, offline) only means an uninvited member gets no code.
+  /// Makes a login for a member, or else an active agent, whose email is on
+  /// their record, if they have none yet. It answers the same for any address,
+  /// and a failure (function not deployed, offline) only means an uninvited
+  /// member or agent gets no code.
   Future<void> _prepareMemberLogin(String email) async {
     try {
       await sb.Supabase.instance.client.functions
