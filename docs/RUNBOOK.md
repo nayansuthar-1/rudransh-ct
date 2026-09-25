@@ -76,20 +76,30 @@ After the first deploy: Pages project → **Custom domains** → add the domain.
 Response headers come from `web/_headers`. Pages serves `index.html` for unknown
 paths, which the app's clean URLs need.
 
-### 1.4 Backups (R2 + age)
+### 1.4 Backups (age, R2 optional)
 
-1. Create an R2 bucket, e.g. `rudransh-backups`.
-2. Bucket → Settings → **Object lifecycle rules**:
-   - prefix `daily/`: delete after 30 days
-   - prefix `monthly/`: delete after 365 days
-3. Create an R2 API token with Object Read & Write on that bucket only.
-4. Create an encryption key pair on a trusted machine:
+The nightly backup needs only two secrets: `SUPABASE_DB_URL_PROD` and
+`AGE_RECIPIENT`. Each run keeps the encrypted dump for 30 days as an artifact
+on the run's page (GitHub → Actions → Nightly backup → the run → Artifacts).
+R2 is an optional second copy that also keeps one backup per month for a year.
+
+1. Create an encryption key pair on a trusted machine (on Windows,
+   `winget install FiloSottile.age` first):
    ```bash
    age-keygen -o rudransh-backup.key
    ```
    Store `rudransh-backup.key` (the private key) in the password manager and
    **nowhere else**; without it backups cannot be read. The `age1…` public key
    printed by the command becomes the `AGE_RECIPIENT` secret.
+2. `SUPABASE_DB_URL_PROD`: Supabase → production project → **Connect** →
+   **Session pooler** → copy the URI and put the database password in it. If
+   nobody knows the password, reset it under Project Settings → Database.
+3. Add both secrets (§1.5), then Actions → **Nightly backup** → **Run
+   workflow**. It must go green and show one artifact.
+4. Optional R2 copy: create an R2 bucket (e.g. `rudransh-backups`); in its
+   Settings → **Object lifecycle rules**, set prefix `daily/` to delete after 30
+   days and prefix `monthly/` after 365 days. Create an R2 API token with Object
+   Read & Write on that bucket only, and add the four `R2_*` secrets.
 
 ### 1.5 GitHub repository secrets
 
@@ -103,7 +113,11 @@ Settings → Secrets and variables → Actions.
 | `SUPABASE_PUBLISHABLE_KEY_PROD` / `_STAGING` | deploy | Project Settings → API keys → publishable key |
 | `SUPABASE_DB_URL_PROD` / `SUPABASE_DB_URL_STAGING` | backup, keep-alive | Connect → **Session pooler** URL (GitHub runners have no IPv6, so the direct URL fails) |
 | `AGE_RECIPIENT` | backup | `age1…` public key |
-| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ACCOUNT_ID`, `R2_BUCKET` | backup | from step 1.4 |
+| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ACCOUNT_ID`, `R2_BUCKET` | backup (optional) | from step 1.4 |
+
+Without `SUPABASE_DB_URL_PROD`, both the backup and the keep-alive fail with a
+message naming the secret. Without the keep-alive, a free project that nobody
+opens for 7 days is paused.
 
 Optional variable `CLOUDFLARE_PAGES_PROJECT` if the Pages project has another name.
 
@@ -519,10 +533,18 @@ minutes; data is kept.
 Monthly drill: restore last night's production backup into **staging** and
 compare the counts.
 
+Get the file from GitHub → Actions → **Nightly backup** → the night's run →
+**Artifacts** (a zip holding `rudransh-YYYY-MM-DD.tar.age`; unzip it), or from
+R2 if it is set up:
+
 ```bash
 aws s3 cp "s3://$R2_BUCKET/daily/rudransh-YYYY-MM-DD.tar.age" . \
   --endpoint-url "https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
+```
 
+Then:
+
+```bash
 scripts/restore_backup.sh rudransh-YYYY-MM-DD.tar.age "<staging session-pooler URL>" rudransh-backup.key
 ```
 

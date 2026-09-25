@@ -2,8 +2,14 @@
 #
 #   powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_production.ps1
 #
+# Add -Agents to let agents sign in on this local copy only, for testing them
+# before Release 2 (docs/TEST_WALKTHROUGH.md 6B). The live site stays closed
+# to agents. The app opens at http://localhost:8080.
+#
 # The publishable key is public by design: it is embedded in the web app.
 # Never put a Supabase service_role key in .env or in --dart-define.
+
+param([switch]$Agents)
 
 $ErrorActionPreference = "Stop"
 
@@ -62,10 +68,13 @@ foreach ($key in $defineKeys) {
     $defines += "--dart-define=$key=$($values[$key])"
   }
 }
+if ($Agents) {
+  $defines += "--dart-define=AGENTS_MAY_SIGN_IN=true"
+}
 
 Push-Location $root
 try {
-  flutter run -d chrome @defines
+  flutter run -d chrome --web-port 8080 @defines
 } finally {
   Pop-Location
 }

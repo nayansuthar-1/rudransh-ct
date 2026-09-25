@@ -37,7 +37,7 @@ Launch is 5 Oct and the live database is still empty, so testing there is fine. 
 ### 0.5 Agents cannot sign in on the live site yet
 This is on purpose until Release 2 (`agentsMaySignIn = false`). `/a` says "not open yet", and **Invite to app** is hidden on the Agents page. So you can test agents in two ways (§6):
 - **A. Look at the screens:** the local preview on sample data (nothing saved).
-- **B. Test for real:** a local copy of the app, with agents switched on only on your computer, using live data. This needs a small change first; Claude can make it on request.
+- **B. Test for real:** a local copy of the app, with agents switched on only on your computer, using live data (`.\scripts\run_production.ps1 -Agents`).
 
 ---
 
@@ -174,11 +174,15 @@ npx http-server build/agent_preview -p 8095 --proxy http://localhost:8095?
 Then open `http://localhost:8095/agent`. The quick `flutter run` server cannot start this preview, because it can't reach the sample data. Nothing you do there is saved.
 
 ### 6B. Test for real (live data, only on your computer)
-Needs: agents switched on **for a local build only**, so the live site stays closed to agents. Ask Claude to turn `agentsMaySignIn` into a build setting. Then run the app locally with that setting on, the live Supabase URL and the publishable key from Vercel's environment variables.
+Agents are switched on **for this local copy only**; the live site stays closed to them. The root `.env` file already holds the live Supabase URL and publishable key. In a PowerShell terminal in the project folder:
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_production.ps1 -Agents
+```
+Chrome opens at `http://localhost:8080`. Keep the terminal open while you test.
 
 In that local app:
-1. `http://localhost:8080/login` → office → Agents → Test Agent ⋯ → **Invite to app**.
-2. Agent window → `http://localhost:8080/a` → `rudranshct+agent@gmail.com` → code → lands on `/agent`.
+1. `http://localhost:8080/login` → office → Agents → Test Agent ⋯ → **Invite to app** (it appears now).
+2. The invite email's button opens the **live** site, which still says agents are not open yet. Ignore the button. Instead, in a second browser (Edge), open `http://localhost:8080/a` → `rudranshct+agent@gmail.com` → **Send code** → enter the code → you land on `/agent`.
 3. Walk the screens:
 
 | Page | Check |

@@ -7,6 +7,9 @@ Checked on 25 Sep 2026 against production (`escdwwlznrhdebvvcawe`):
 - `rudransh-green.vercel.app` built from the latest commit
 - `flutter analyze` clean; `flutter test` 238 passed
 - Vault `aadhaar_key` present on production
+- **Nightly backup has failed every night since 18 Sep** (open issues on
+  GitHub, one per night): the repository secrets it needs were never added.
+  Fixed in §2 below; it is the one item that must not slip past launch
 
 So nothing is left to *build*. What remains is data only the trust has,
 switches in the dashboards, and the handover itself.
@@ -39,10 +42,18 @@ redeploys on its own in a few minutes.
       Body must match `supabase/templates/invite.html`, subject
       `Your Rudransh CT app invite`. The old template has a one-time link that
       expires.
-- [ ] **Backups.** GitHub → Actions → *backup*: last run green. If it is
-      skipped or failing, add the secrets `SUPABASE_DB_URL_PROD`,
-      `AGE_RECIPIENT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
-      `R2_ACCOUNT_ID`, `R2_BUCKET`, then run it by hand once.
+- [ ] **Backups and keep-alive (failing today).** Only two GitHub secrets
+      are needed now; R2 is optional (`docs/RUNBOOK.md` §1.4):
+      1. `winget install FiloSottile.age`, then `age-keygen -o rudransh-backup.key`.
+         The private key file goes in the password manager; the printed
+         `age1…` line is the secret **`AGE_RECIPIENT`**.
+      2. Supabase → production → **Connect** → **Session pooler** URI, with
+         the database password filled in → secret **`SUPABASE_DB_URL_PROD`**.
+      3. GitHub → Settings → Secrets and variables → Actions → add both.
+      4. Actions → **Nightly backup** → Run workflow → green, with one
+         artifact. Actions → **Keep-alive & size check** → Run workflow →
+         green, and the summary shows the member count.
+      5. Close the old "Nightly backup failed" issues.
 
 ## 3. Test the live site
 
@@ -89,5 +100,5 @@ On `rudransh-green.vercel.app`, on a phone and a laptop:
 | --- | --- | --- |
 | Razorpay online payments | After the trust's Razorpay KYC is approved | Supabase function secrets `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`; Vercel env `RAZORPAY_KEY_ID`; Razorpay webhook → the `razorpay_webhook` function URL; redeploy |
 | Pay by UPI button | When the trust gives a UPI ID | Vercel env `UPI_ID`, `UPI_PAYEE`; redeploy |
-| Agents (Release 2) | 6 Oct – 5 Nov | Set `AuthController.agentsMaySignIn = true`; enable pg_cron and schedule the overdue-dues sweep (`docs/RUNBOOK.md` §2.1) |
+| Agents (Release 2) | 6 Oct – 5 Nov | Vercel env `AGENTS_MAY_SIGN_IN` = `true`, redeploy (no code change); enable pg_cron and schedule the overdue-dues sweep (`docs/RUNBOOK.md` §2.1) |
 | Cloudinary clean-up | Any time | Rotate the API secret exposed on 18 Sep; delete the test files in `rudransh/certificates` |

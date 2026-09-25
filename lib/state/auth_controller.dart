@@ -181,8 +181,10 @@ class AuthController extends Notifier<AuthState> {
 
   /// Whether agents may sign in yet. They wait for Release 2 (client
   /// decision, 24 Sep 2026); until then the Agents page offers no invite, as
-  /// an invite they cannot use only confuses them. Flip it to switch agents on.
-  static const agentsMaySignIn = false;
+  /// an invite they cannot use only confuses them. Off unless the build says
+  /// `--dart-define=AGENTS_MAY_SIGN_IN=true` (Vercel env var of that name), so
+  /// a local build can test agents while the live site stays closed to them.
+  static const agentsMaySignIn = bool.fromEnvironment('AGENTS_MAY_SIGN_IN');
 
   /// Who may use the app for now: the trust's own login, members, and agents
   /// once [agentsMaySignIn]. Staff wait for Release 2.

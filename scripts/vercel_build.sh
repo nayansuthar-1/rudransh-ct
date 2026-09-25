@@ -21,4 +21,5 @@ flutter build web --release \
   --dart-define=UPI_ID="${UPI_ID:-}" \
   --dart-define=UPI_PAYEE="${UPI_PAYEE:-}" \
   --dart-define=RAZORPAY_KEY_ID="${RAZORPAY_KEY_ID:-}" \
+  --dart-define=AGENTS_MAY_SIGN_IN="${AGENTS_MAY_SIGN_IN:-false}" \
   --dart-define=TURNSTILE_SITE_KEY="${TURNSTILE_SITE_KEY:-0x4AAAAAAE_MTddf-fDjScJ1}"

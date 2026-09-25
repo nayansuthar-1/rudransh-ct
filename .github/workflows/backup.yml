@@ -1,14 +1,15 @@
-# Nightly encrypted backup of the production database to Cloudflare R2.
-# 02:00 IST daily. On the 1st of each month the dump is also kept as a monthly copy.
+# Nightly encrypted backup of the production database. 02:00 IST daily.
 #
-# Retention is enforced by R2 lifecycle rules on the bucket (set once in the
-# Cloudflare dashboard): prefix `daily/` delete after 30 days,
-# prefix `monthly/` delete after 365 days.
+# Every run keeps the encrypted dump as a workflow artifact for 30 days
+# (Actions → the run → Artifacts). If the R2 secrets are set it is also copied
+# to Cloudflare R2, where lifecycle rules on the bucket keep `daily/` for 30
+# days and `monthly/` (the 1st of each month) for 365 days.
 #
-# Secrets:
+# Secrets (required):
 #   SUPABASE_DB_URL_PROD  Session pooler connection string (IPv4), e.g.
 #                         postgresql://postgres.<ref>:<password>@aws-0-ap-south-1.pooler.supabase.com:5432/postgres
 #   AGE_RECIPIENT         age public key (age1...); the private key stays offline with the client
+# Secrets (optional, for the R2 copy):
 #   R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ACCOUNT_ID, R2_BUCKET
 
 name: Nightly backup
@@ -28,7 +29,21 @@ jobs:
     timeout-minutes: 30
     env:
       PG_MAJOR: 17
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
     steps:
+      - name: Check secrets
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL_PROD }}
+          AGE_RECIPIENT: ${{ secrets.AGE_RECIPIENT }}
+        run: |
+          missing=""
+          [ -n "$DB_URL" ] || missing="$missing SUPABASE_DB_URL_PROD"
+          [ -n "$AGE_RECIPIENT" ] || missing="$missing AGE_RECIPIENT"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secret(s):$missing. See docs/RUNBOOK.md 1.4-1.5."
+            exit 1
+          fi
+
       - name: Install pg_dump and age
         run: |
           sudo install -d /usr/share/postgresql-common/pgdg
@@ -63,7 +78,16 @@ jobs:
           rm -rf dump "rudransh-$STAMP.tar"
           ls -lh "rudransh-$STAMP.tar.age"
 
+      - name: Keep as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rudransh-${{ env.STAMP }}
+          path: rudransh-${{ env.STAMP }}.tar.age
+          retention-days: 30
+          if-no-files-found: error
+
       - name: Upload to R2
+        if: env.R2_BUCKET != ''
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}

@@ -32,7 +32,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if [ -z "$DB_URL" ]; then echo "No URL for $TARGET; skipping."; exit 0; fi
+          # Production must be pinged, or it pauses after a quiet week; a green
+          # run that skipped it would hide that. Staging is optional.
+          if [ -z "$DB_URL" ]; then
+            if [ "$TARGET" = prod ]; then
+              echo "::error::SUPABASE_DB_URL_PROD is not set, so production is not kept awake. See docs/RUNBOOK.md 1.5."
+              exit 1
+            fi
+            echo "No URL for $TARGET; skipping."; exit 0
+          fi
           size_mb=$(psql "$DB_URL" -Atc "select pg_database_size(current_database()) / 1024 / 1024")
           members=$(psql "$DB_URL" -Atc "select count(*) from public.members")
           echo "$TARGET: ${size_mb} MB, ${members} members"
