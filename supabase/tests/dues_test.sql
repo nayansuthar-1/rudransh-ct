@@ -53,6 +53,10 @@ insert into public.members (id, yojna_id, name, primary_phone, agent_id, join_da
   ('00000000-0000-0000-0000-0000000f0028', '00000000-0000-0000-0000-0000000f0002', 'Dues X1', '9700000008',
    '00000000-0000-0000-0000-0000000f0011', current_date - 400, 'active');
 
+-- Contribution is per member (20260929000100): each pays their Yojna's amount.
+update public.members m set contribution_amount = y.contribution_amount
+  from public.yojnas y where y.id = m.yojna_id;
+
 insert into public.closing_cases (id, member_id, yojna_id, closing_date, closing_group, claim_amount) values
   ('00000000-0000-0000-0000-0000000f0031', '00000000-0000-0000-0000-0000000f0026',
    '00000000-0000-0000-0000-0000000f0001', current_date - 200, 'G-1', 50000),

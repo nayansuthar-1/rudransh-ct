@@ -544,6 +544,7 @@ void printMyCertificate(BuildContext context, Membership m, MemberText t) {
       fatherOrHusbandName: member.fatherOrHusbandName,
       yojnaName: m.yojnaName,
       yojnaStartedOn: m.yojnaStartedOn,
+      yojnaShortName: m.yojnaShortName,
       contributionAmount: m.contributionAmount,
       payoutNote: m.payoutNote,
       gotra: member.gotra,

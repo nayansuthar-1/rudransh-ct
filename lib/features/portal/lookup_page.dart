@@ -398,6 +398,7 @@ Future<void> _printCertificate(
       fatherOrHusbandName: m.fatherOrHusbandName,
       yojnaName: l.yojnaName,
       yojnaStartedOn: l.yojnaStartedOn,
+      yojnaShortName: l.yojnaShortName,
       contributionAmount: l.contributionAmount,
       payoutNote: l.payoutNote,
       gotra: m.gotra,

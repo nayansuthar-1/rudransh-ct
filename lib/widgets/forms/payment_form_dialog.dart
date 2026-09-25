@@ -139,7 +139,8 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
     super.dispose();
   }
 
-  /// Prefill the amount from the scheme once a member is picked.
+  /// Prefill the amount once a member is picked: the scheme's registration
+  /// fee, or the member's own contribution.
   void _onMemberPicked(Member member) {
     final yojna = ref.read(yojnaByIdProvider)[member.yojnaId];
     setState(() {
@@ -150,7 +151,7 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
       if (_amount.text.trim().isEmpty && yojna != null) {
         _amount.text = (_kind == PaymentKind.registration
                 ? yojna.registrationFee
-                : yojna.contributionAmount)
+                : member.contributionAmount)
             .toStringAsFixed(0);
       }
     });
@@ -260,7 +261,7 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
             if (yojna != null) ...[
               const SizedBox(height: 8),
               Text(
-                '${yojna.name}  ·  Contribution ${Fmt.money(yojna.contributionAmount)}',
+                '${yojna.name}  ·  Contribution ${Fmt.money(_member!.contributionAmount)}',
                 style: TextStyle(fontSize: 13, color: c.textSecondary),
               ),
             ],

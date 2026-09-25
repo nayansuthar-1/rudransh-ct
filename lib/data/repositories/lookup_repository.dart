@@ -135,13 +135,14 @@ class InMemoryLookupRepository implements LookupRepository {
       yojnaName: yojna.name,
       status: m.status,
       joinDate: m.joinDate,
-      contributionAmount: yojna.contributionAmount,
+      contributionAmount: m.contributionAmount,
       duesCount: owed.length,
       duesAmount: owed.fold<double>(0, (sum, d) => sum + d.due),
       // As the database function: the member without their Aadhaar.
       member: m.copyWith(aadhaar: ''),
       payoutNote: yojna.description,
       yojnaStartedOn: yojna.startDate ?? yojna.createdAt,
+      yojnaShortName: yojna.shortName,
       agentName: agent?.name ?? '',
       receipts: receipts,
     );

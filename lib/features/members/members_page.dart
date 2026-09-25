@@ -525,6 +525,10 @@ void showMemberDetails(BuildContext context, WidgetRef ref, Member m) {
           if (m.state.isNotEmpty) DetailRow(label: S.fldState, value: m.state),
           DetailRow(label: S.agent, value: agent?.name ?? '—'),
           DetailRow(label: S.joinedOn, value: Fmt.date(m.joinDate)),
+          DetailRow(
+            label: S.fldContribution,
+            value: Fmt.money(m.contributionAmount),
+          ),
           if (ref.read(currentUserProvider).isOwner)
             DetailRow(
               label: S.appAccess,

@@ -168,8 +168,8 @@ class SupabaseAgentRepository implements AgentRepository {
               id: r['id'] as String,
               name: r['name'] as String,
               code: r['code'] as String,
-              contributionAmount: (r['contribution_amount'] as num).toDouble(),
               description: r['description'] as String? ?? '',
+              shortName: r['short_name'] as String? ?? '',
               registrationFee: (r['registration_fee'] as num).toDouble(),
               startDate:
                   r['start_date'] == null ? null : _date(r['start_date']),
@@ -226,6 +226,8 @@ class SupabaseAgentRepository implements AgentRepository {
             'state': m.state,
             'pincode': m.pincode,
             'join_date': _dateFormat.format(m.joinDate),
+            'photo_url': m.photoUrl,
+            'contribution_amount': m.contributionAmount,
           },
         },
       ));
@@ -474,6 +476,7 @@ class SupabaseAgentRepository implements AgentRepository {
         reviewNote: r['review_note'] as String? ?? '',
         photoUrl: r['photo_url'] as String? ?? '',
         email: r['email'] as String? ?? '',
+        contributionAmount: (r['contribution_amount'] as num?)?.toDouble() ?? 0,
       );
 
   static Payment _paymentFromRow(Map<String, dynamic> r) => Payment(

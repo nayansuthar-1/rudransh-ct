@@ -34,6 +34,10 @@ insert into public.members
   ('00000000-0000-0000-0000-0000000b0023', '00000000-0000-0000-0000-0000000b0001', 'Portal PD',
    '9400000003', '', '', '', '00000000-0000-0000-0000-0000000b0011', current_date - 900, 'active');
 
+-- Contribution is per member (20260929000100): each pays their Yojna's amount.
+update public.members m set contribution_amount = y.contribution_amount
+  from public.yojnas y where y.id = m.yojna_id;
+
 insert into public.closing_cases (id, member_id, yojna_id, closing_date, closing_group, claim_amount) values
   ('00000000-0000-0000-0000-0000000b0031', '00000000-0000-0000-0000-0000000b0023',
    '00000000-0000-0000-0000-0000000b0001', current_date - 30, 'P-1', 50000);

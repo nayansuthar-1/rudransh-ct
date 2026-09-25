@@ -728,7 +728,7 @@ class InMemoryTrustRepository implements TrustRepository {
             closingCaseId: c.id,
             closingGroup: c.closingGroup,
             closingDate: c.closingDate,
-            amount: yojna.contributionAmount,
+            amount: m.contributionAmount,
             paid: sum(PaymentStatus.paid),
             pending: sum(PaymentStatus.pending),
             beneficiaryName: names[c.memberId] ?? '',
@@ -792,6 +792,7 @@ class InMemoryTrustRepository implements TrustRepository {
           lastContribution: paid.isEmpty
               ? null
               : paid.map((p) => _day(p.date)).reduce((a, b) => a.isAfter(b) ? a : b),
+          contributionAmount: m.contributionAmount,
         ),
       );
     }
@@ -1081,7 +1082,7 @@ class InMemoryTrustRepository implements TrustRepository {
       pincode: m.pincode,
       yojnaId: m.yojnaId,
       yojnaName: yojna.name,
-      contributionAmount: yojna.contributionAmount,
+      contributionAmount: m.contributionAmount,
       joinDate: m.joinDate,
       status: m.status,
       agentName: agent?.name ?? '',
@@ -1093,6 +1094,7 @@ class InMemoryTrustRepository implements TrustRepository {
       photoUrl: m.photoUrl,
       payoutNote: yojna.description,
       yojnaStartedOn: yojna.startDate ?? yojna.createdAt,
+      yojnaShortName: yojna.shortName,
     ));
   }
 

@@ -41,6 +41,10 @@ insert into public.members (id, yojna_id, name, primary_phone, agent_id, join_da
   ('00000000-0000-0000-0000-0000000e0025', '00000000-0000-0000-0000-0000000e0001', 'Notif ND', '9600000005',
    '00000000-0000-0000-0000-0000000e0011', current_date - 900, 'active');
 
+-- Contribution is per member (20260929000100): each pays their Yojna's amount.
+update public.members m set contribution_amount = y.contribution_amount
+  from public.yojnas y where y.id = m.yojna_id;
+
 insert into public.profiles (user_id, role, agent_id) values
   ('00000000-0000-0000-0000-00000000e001', 'owner', null),
   ('00000000-0000-0000-0000-00000000e002', 'agent', '00000000-0000-0000-0000-0000000e0011'),

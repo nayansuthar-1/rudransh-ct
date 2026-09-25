@@ -190,6 +190,7 @@ class S {
   static const fldPincode = 'PIN code';
   static const fldAgent = 'Agent';
   static const fldJoinDate = 'Joining date';
+  static const fldContribution = 'Contribution per closing (₹)';
 
   // Genders
   static const male = 'Male';

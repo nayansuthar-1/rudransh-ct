@@ -202,9 +202,12 @@ class _MemberRow extends ConsumerWidget {
     return _QueueRow(
       title: m.name,
       lines: [
-        [yojna?.name ?? '', Fmt.phone(m.primaryPhone), m.address]
-            .where((s) => s.isNotEmpty)
-            .join(' · '),
+        [
+          yojna?.name ?? '',
+          'Contribution ${Fmt.money(m.contributionAmount)}',
+          Fmt.phone(m.primaryPhone),
+          m.address,
+        ].where((s) => s.isNotEmpty).join(' · '),
         [
           if (m.fatherOrHusbandName.isNotEmpty)
             'Father/husband: ${m.fatherOrHusbandName}',

@@ -29,7 +29,7 @@ Approved 20 Sep 2026. Section 4 is settled: blank photo box, trust details as co
 | `पता` | village + tehsil + district + pincode | yes |
 | `मोबाइल नं` | `Member.primaryPhone` | yes |
 | `वारिसदार` / `सम्बन्ध` | `Member.warisName` / `warisRelation` | yes |
-| `रु ___ प्रत्येक सहयोग पर लागु` | `Yojna.contributionAmount` | yes |
+| `प्रत्येक <Yojna> सहयोग राशि: ___ रुपये` | `Member.contributionAmount`; the word from `Yojna.shortName`, else the Yojna name | yes (26 Sep 2026) |
 | `नोंध` (payout terms line) | `Yojna.description` | yes |
 | `कार्यकर्ता` | agent name via `Member.agentId` | yes |
 | `अध्यक्ष` name + signature | constant + signature image | name yes (§8), image still needed |

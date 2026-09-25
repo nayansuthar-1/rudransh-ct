@@ -24,6 +24,7 @@ class MemberLookup {
     this.member,
     this.payoutNote = '',
     this.yojnaStartedOn,
+    this.yojnaShortName = '',
     this.agentName = '',
     this.receipts = const [],
   });
@@ -45,9 +46,10 @@ class MemberLookup {
   /// server that predates the `details` column.
   final Member? member;
 
-  /// The Yojna's `नोंध` and start date, for the certificate.
+  /// The Yojna's `नोंध`, start date and short name, for the certificate.
   final String payoutNote;
   final DateTime? yojnaStartedOn;
+  final String yojnaShortName;
 
   final String agentName;
 
@@ -102,6 +104,7 @@ class MemberLookup {
             ),
       payoutNote: text('yojna_description'),
       yojnaStartedOn: _date(cert?['yojna_start_date']),
+      yojnaShortName: text('yojna_short_name'),
       agentName: text('agent_name'),
       receipts: [
         for (final p in (details?['receipts'] as List?) ?? const [])
@@ -198,6 +201,7 @@ class Membership {
     this.photoUrl = '',
     this.payoutNote = '',
     this.yojnaStartedOn,
+    this.yojnaShortName = '',
   });
 
   final String memberId;
@@ -227,9 +231,10 @@ class Membership {
   final String email;
   final String photoUrl;
 
-  /// The Yojna's `नोंध` and start date, for the certificate.
+  /// The Yojna's `नोंध`, start date and short name, for the certificate.
   final String payoutNote;
   final DateTime? yojnaStartedOn;
+  final String yojnaShortName;
 
   /// The member as the certificate and receipts print them. Never carries
   /// the Aadhaar number.
@@ -289,6 +294,7 @@ class Membership {
         photoUrl: (r['photo_url'] ?? '') as String,
         payoutNote: (r['yojna_description'] ?? '') as String,
         yojnaStartedOn: _date(r['yojna_start_date']),
+        yojnaShortName: (r['yojna_short_name'] ?? '') as String,
       );
 }
 

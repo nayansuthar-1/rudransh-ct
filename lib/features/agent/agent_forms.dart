@@ -53,6 +53,7 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
   final _district = TextEditingController();
   final _state = TextEditingController();
   final _pincode = TextEditingController();
+  final _contribution = TextEditingController();
 
   String? _yojnaId;
   Gender _gender = Gender.male;
@@ -67,6 +68,7 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
     for (final c in [
       _name, _father, _jati, _gotra, _waris, _warisRelation, _phone,
       _altPhone, _aadhaar, _village, _tehsil, _district, _state, _pincode,
+      _contribution,
     ]) {
       c.dispose();
     }
@@ -101,6 +103,10 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
               joinDate: _joinDate,
               status: MemberStatus.pending,
               photoUrl: _photoUrl,
+              contributionAmount: double.tryParse(
+                    _contribution.text.trim().replaceAll(',', ''),
+                  ) ??
+                  0,
             ),
           );
       if (!mounted) return;
@@ -139,7 +145,7 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             FormSection(
-              title: S.personalInfo,
+              title: S.membershipInfo,
               child: FormGrid(
                 items: [
                   GridItem(
@@ -154,6 +160,32 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
                       validator: (v) => v == null ? S.required : null,
                     ),
                   ),
+                  // Members of one Yojna pay different amounts; the office
+                  // can correct it when approving.
+                  GridItem(AppTextField(
+                    label: S.fldContribution,
+                    controller: _contribution,
+                    required: true,
+                    hint: 'e.g. 200',
+                    prefixIcon: Icons.currency_rupee,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: Fmts.amount(),
+                    validator: V.amount,
+                  )),
+                  GridItem(AppDateField(
+                    label: S.fldJoinDate,
+                    value: _joinDate,
+                    lastDate: DateTime.now(),
+                    onChanged: (d) => setState(() => _joinDate = d),
+                  )),
+                ],
+              ),
+            ),
+            const SizedBox(height: Space.xl),
+            FormSection(
+              title: S.personalInfo,
+              child: FormGrid(
+                items: [
                   GridItem(
                     MemberPhotoPicker(
                       url: _photoUrl,
@@ -208,12 +240,6 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
                     firstDate: DateTime(1920),
                     lastDate: DateTime.now(),
                     onChanged: (d) => setState(() => _dob = d),
-                  )),
-                  GridItem(AppDateField(
-                    label: S.fldJoinDate,
-                    value: _joinDate,
-                    lastDate: DateTime.now(),
-                    onChanged: (d) => setState(() => _joinDate = d),
                   )),
                 ],
               ),
@@ -481,10 +507,9 @@ class _AgentPaymentFormState extends ConsumerState<_AgentPaymentForm> {
     if (member == null || !mounted) return;
     final yojnas = ref.read(agentYojnasProvider).value ?? const <Yojna>[];
     final yojna = yojnas.where((y) => y.id == member.yojnaId).firstOrNull;
-    if (yojna == null) return;
     final amount = _kind == PaymentKind.registration
-        ? yojna.registrationFee
-        : yojna.contributionAmount;
+        ? (yojna?.registrationFee ?? 0)
+        : member.contributionAmount;
     if (amount > 0) _amount.text = amount.toStringAsFixed(0);
     final due = _selectedDue;
     if (due != null && due.toCollect > 0) {

@@ -30,6 +30,7 @@ Member _member({
       state: state,
       pincode: '385575',
       joinDate: DateTime(2026, 6, 1),
+      contributionAmount: 200,
     );
 
 final _yojna = Yojna(
@@ -37,7 +38,6 @@ final _yojna = Yojna(
   name: 'Parivar Sahyog Yojna',
   code: 'PSY',
   description: 'तीन महीने तक रु 25000, तीन महीने से एक साल रु 51000',
-  contributionAmount: 200,
   claimAmount: 51000,
   registrationFee: 200,
   startDate: DateTime(2026, 7, 1),
@@ -106,6 +106,43 @@ void main() {
       );
       expect(d.yojnaStartedOn, DateTime(2026, 9, 20));
     });
+
+    test('सहयोग राशि is the member\'s own amount', () {
+      final d = CertificateData.forMember(
+        member: _member().copyWith(contributionAmount: 500),
+        yojna: _yojna,
+      );
+      expect(d.contributionAmount, 500);
+    });
+
+    group('सहयोग राशि label names the Yojna', () {
+      String label(String name, {String short = ''}) => CertificateData(
+            regNo: '',
+            issuedOn: DateTime(2026),
+            name: '',
+            yojnaName: name,
+            yojnaShortName: short,
+          ).contributionLabel;
+
+      test('from the Yojna name, without सहयोग योजना', () {
+        expect(label('शादी सहयोग योजना'), 'प्रत्येक शादी सहयोग राशि');
+        expect(label('मायरा सहयोग योजना'), 'प्रत्येक मायरा सहयोग राशि');
+        expect(label('सुरक्षा सहयोग योजना'), 'प्रत्येक सुरक्षा सहयोग राशि');
+        expect(label('Parivar Sahyog Yojna'), 'प्रत्येक Parivar सहयोग राशि');
+      });
+
+      test('the Yojna\'s name on certificate wins', () {
+        expect(
+          label('मामेरा (मायरा) सहयोग योजना', short: 'मायरा'),
+          'प्रत्येक मायरा सहयोग राशि',
+        );
+      });
+
+      test('plain सहयोग राशि with no Yojna', () {
+        expect(label(''), 'सहयोग राशि');
+        expect(label('सहयोग योजना'), 'सहयोग राशि');
+      });
+    });
   });
 
   group('certificate html', () {
@@ -126,7 +163,7 @@ void main() {
       expect(html, contains('Son'));
       expect(html, contains('Hemtaji Nagaji'));
       expect(html, contains('01-06-2026')); // दिनांक
-      expect(html, contains('>सहयोग राशि:</span>'));
+      expect(html, contains('>प्रत्येक Parivar सहयोग राशि:</span>'));
       expect(html, isNot(contains('प्रत्येक मायरा पर')));
       expect(html, contains('>200/-<')); // सहयोग राशि
       expect(html, contains('तीन महीने तक रु 25000')); // नोंध

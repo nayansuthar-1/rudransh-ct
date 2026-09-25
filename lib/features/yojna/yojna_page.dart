@@ -180,8 +180,8 @@ class _YojnaCard extends ConsumerWidget {
                   VerticalDivider(width: 1, color: c.border),
                   Expanded(
                     child: _Metric(
-                      label: 'Contribution',
-                      value: Fmt.money(yojna.contributionAmount),
+                      label: 'Reg. fee',
+                      value: Fmt.money(yojna.registrationFee),
                     ),
                   ),
                   VerticalDivider(width: 1, color: c.border),

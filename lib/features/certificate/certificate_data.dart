@@ -16,6 +16,7 @@ class CertificateData {
     this.fatherOrHusbandName = '',
     this.yojnaName = '',
     this.yojnaStartedOn,
+    this.yojnaShortName = '',
     this.contributionAmount = 0,
     this.payoutNote = '',
     this.gotra = '',
@@ -32,8 +33,9 @@ class CertificateData {
     this.photoUrl = '',
   });
 
-  /// Pulls the certificate together for one member. Anything unknown is left
-  /// empty and prints as a blank dotted line.
+  /// Pulls the certificate together for one member. The amount is the
+  /// member's own: members of one Yojna pay different amounts. Anything
+  /// unknown is left empty and prints as a blank dotted line.
   ///
   /// [agentName] is for the agent screens, which know the signed-in agent's
   /// name but not their `Agent` record; it wins over [agent].
@@ -51,7 +53,8 @@ class CertificateData {
       fatherOrHusbandName: member.fatherOrHusbandName,
       yojnaName: yojna?.name ?? '',
       yojnaStartedOn: yojna?.startDate ?? yojna?.createdAt,
-      contributionAmount: yojna?.contributionAmount ?? 0,
+      yojnaShortName: yojna?.shortName ?? '',
+      contributionAmount: member.contributionAmount,
       payoutNote: yojna?.description ?? '',
       gotra: member.gotra,
       jati: member.jati,
@@ -77,9 +80,15 @@ class CertificateData {
   final String name;
   final String fatherOrHusbandName;
 
-  /// The scheme, its start date, and its per-closing contribution.
+  /// The scheme and its start date.
   final String yojnaName;
   final DateTime? yojnaStartedOn;
+
+  /// The Yojna's word for the सहयोग राशि label, e.g. `शादी`. Empty takes it
+  /// from [yojnaName].
+  final String yojnaShortName;
+
+  /// What the member pays for each closing.
   final double contributionAmount;
 
   /// The `नोंध` line: what the nominee is paid and when.
@@ -107,4 +116,29 @@ class CertificateData {
   /// their father's or husband's, as on the sample.
   String get fullName =>
       [name, fatherOrHusbandName].where((p) => p.trim().isNotEmpty).join(' ');
+
+  /// The सहयोग राशि label, naming the Yojna: `प्रत्येक शादी सहयोग राशि`.
+  /// Uses [yojnaShortName], or else [yojnaName] without its trailing
+  /// `सहयोग योजना`; plain `सहयोग राशि` when neither gives a word.
+  String get contributionLabel {
+    var word = yojnaShortName.trim();
+    if (word.isEmpty) {
+      final words = yojnaName.trim().split(RegExp(r'\s+'))
+        ..removeWhere((w) => w.isEmpty);
+      while (words.isNotEmpty && _yojnaWords.contains(words.last.toLowerCase())) {
+        words.removeLast();
+      }
+      word = words.join(' ');
+    }
+    return word.isEmpty ? 'सहयोग राशि' : 'प्रत्येक $word सहयोग राशि';
+  }
+
+  static const _yojnaWords = {
+    'योजना',
+    'सहयोग',
+    'yojana',
+    'yojna',
+    'sahyog',
+    'sahayog',
+  };
 }

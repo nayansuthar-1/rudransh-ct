@@ -8,7 +8,7 @@ class Yojna {
     required this.name,
     required this.code,
     this.description = '',
-    this.contributionAmount = 0,
+    this.shortName = '',
     this.claimAmount = 0,
     this.registrationFee = 0,
     this.startDate,
@@ -25,8 +25,9 @@ class Yojna {
   final String code;
   final String description;
 
-  /// Amount each member contributes per closing event.
-  final double contributionAmount;
+  /// The word the certificate prints in `प्रत्येक <shortName> सहयोग राशि`,
+  /// e.g. `शादी`. Empty takes it from [name].
+  final String shortName;
 
   /// Amount paid out to the nominee on a closing.
   final double claimAmount;
@@ -44,7 +45,7 @@ class Yojna {
     String? name,
     String? code,
     String? description,
-    double? contributionAmount,
+    String? shortName,
     double? claimAmount,
     double? registrationFee,
     DateTime? startDate,
@@ -57,7 +58,7 @@ class Yojna {
       name: name ?? this.name,
       code: code ?? this.code,
       description: description ?? this.description,
-      contributionAmount: contributionAmount ?? this.contributionAmount,
+      shortName: shortName ?? this.shortName,
       claimAmount: claimAmount ?? this.claimAmount,
       registrationFee: registrationFee ?? this.registrationFee,
       startDate: clearStartDate ? null : (startDate ?? this.startDate),
@@ -71,7 +72,7 @@ class Yojna {
         'name': name,
         'code': code,
         'description': description,
-        'contributionAmount': contributionAmount,
+        'shortName': shortName,
         'claimAmount': claimAmount,
         'registrationFee': registrationFee,
         'startDate': startDate?.toIso8601String(),
@@ -84,8 +85,7 @@ class Yojna {
         name: map['name'] as String,
         code: map['code'] as String? ?? '',
         description: map['description'] as String? ?? '',
-        contributionAmount:
-            (map['contributionAmount'] as num?)?.toDouble() ?? 0,
+        shortName: map['shortName'] as String? ?? '',
         claimAmount: (map['claimAmount'] as num?)?.toDouble() ?? 0,
         registrationFee: (map['registrationFee'] as num?)?.toDouble() ?? 0,
         startDate: DateTime.tryParse(map['startDate'] as String? ?? ''),

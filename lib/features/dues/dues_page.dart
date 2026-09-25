@@ -314,7 +314,7 @@ Future<void> recordDuesPayment(
   }
   if (!context.mounted) return;
   final amount = closing == null
-      ? ref.read(yojnaByIdProvider)[summary.yojnaId]?.contributionAmount
+      ? summary.contributionAmount
       : (closing.toCollect > 0 ? closing.toCollect : closing.due);
   await showPaymentFormDialog(
     context,

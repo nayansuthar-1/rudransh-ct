@@ -60,6 +60,7 @@ class Member {
     this.consentAt,
     this.photoUrl = '',
     this.email = '',
+    this.contributionAmount = 0,
   });
 
   final String id;
@@ -126,6 +127,10 @@ class Member {
   /// with it without an invite.
   final String email;
 
+  /// What this member pays for each closing in their Yojna (सहयोग राशि).
+  /// Set per member: members of one Yojna pay different amounts.
+  final double contributionAmount;
+
   bool get isClosed => status == MemberStatus.closed;
   bool get isPending => status == MemberStatus.pending;
 
@@ -177,6 +182,7 @@ class Member {
     DateTime? consentAt,
     String? photoUrl,
     String? email,
+    double? contributionAmount,
   }) {
     return Member(
       id: id ?? this.id,
@@ -208,6 +214,7 @@ class Member {
       consentAt: consentAt ?? this.consentAt,
       photoUrl: photoUrl ?? this.photoUrl,
       email: email ?? this.email,
+      contributionAmount: contributionAmount ?? this.contributionAmount,
     );
   }
 
@@ -239,6 +246,7 @@ class Member {
         'reviewNote': reviewNote,
         'photoUrl': photoUrl,
         'email': email,
+        'contributionAmount': contributionAmount,
       };
 
   factory Member.fromMap(Map<String, dynamic> map) => Member(
@@ -271,6 +279,8 @@ class Member {
         reviewNote: map['reviewNote'] as String? ?? '',
         photoUrl: map['photoUrl'] as String? ?? '',
         email: map['email'] as String? ?? '',
+        contributionAmount:
+            (map['contributionAmount'] as num?)?.toDouble() ?? 0,
       );
 
   @override

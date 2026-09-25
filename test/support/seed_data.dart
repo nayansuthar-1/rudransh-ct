@@ -21,7 +21,6 @@ class SeedData {
       code: 'SSY',
       description:
           'सदस्य की मृत्यु पर वारिसदार को सहयोग राशि प्रदान की जाती है।',
-      contributionAmount: 100,
       claimAmount: 200000,
       registrationFee: 500,
       createdAt: DateTime(2023, 4, 12),
@@ -32,7 +31,6 @@ class SeedData {
       code: 'MSY',
       description:
           'पुत्री के विवाह पर मामेरा हेतु सामूहिक सहयोग राशि।',
-      contributionAmount: 60,
       claimAmount: 101000,
       registrationFee: 300,
       createdAt: DateTime(2024, 1, 8),
@@ -42,12 +40,18 @@ class SeedData {
       name: 'शादी सहयोग योजना',
       code: 'SHY',
       description: 'सदस्य परिवार में विवाह पर सहयोग राशि।',
-      contributionAmount: 51,
       claimAmount: 75000,
       registrationFee: 251,
       createdAt: DateTime(2024, 9, 21),
     ),
   ];
+
+  // What each Yojna's members pay per closing.
+  static const _contribution = {
+    'y_ssy': 100.0,
+    'y_mamera': 60.0,
+    'y_shadi': 51.0,
+  };
 
   static const _firstNames = [
     'रामलाल', 'मोहन', 'सुरेश', 'कैलाश', 'भंवर', 'गोपाल', 'महेश', 'दिनेश',
@@ -178,6 +182,7 @@ class SeedData {
           agentId: agentList[i % agentList.length].id,
           joinDate: join,
           status: status,
+          contributionAmount: _contribution[yojna.id]!,
           closingDate: closingDate,
           closingGroup: closingDate == null
               ? null
@@ -239,7 +244,7 @@ class SeedData {
             : PaymentKind.contribution;
         final amount = kind == PaymentKind.registration
             ? yojna.registrationFee
-            : yojna.contributionAmount * (1 + _rng.nextInt(4));
+            : member.contributionAmount * (1 + _rng.nextInt(4));
 
         final statusRoll = _rng.nextInt(100);
         result.add(

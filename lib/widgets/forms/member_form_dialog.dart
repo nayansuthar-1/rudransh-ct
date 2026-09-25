@@ -55,6 +55,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   late final TextEditingController _district;
   late final TextEditingController _state;
   late final TextEditingController _pincode;
+  late final TextEditingController _contribution;
   final _copyPhone = TextEditingController();
 
   String? _yojnaId;
@@ -104,6 +105,11 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     _district = TextEditingController(text: m?.district ?? '');
     _state = TextEditingController(text: m?.state ?? '');
     _pincode = TextEditingController(text: m?.pincode ?? '');
+    _contribution = TextEditingController(
+      text: m == null || m.contributionAmount <= 0
+          ? ''
+          : _num(m.contributionAmount),
+    );
 
     _yojnaId = m?.yojnaId ?? widget.presetYojnaId;
     _agentId = m?.agentId;
@@ -114,6 +120,12 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     _joinDate = m?.joinDate ?? DateTime.now();
     _photoUrl = m?.photoUrl ?? '';
   }
+
+  static String _num(double v) =>
+      v == v.roundToDouble() ? v.toInt().toString() : v.toString();
+
+  double get _contributionValue =>
+      double.tryParse(_contribution.text.trim().replaceAll(',', '')) ?? 0;
 
   @override
   void dispose() {
@@ -132,6 +144,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       _district,
       _state,
       _pincode,
+      _contribution,
       _copyPhone,
     ]) {
       c.dispose();
@@ -214,6 +227,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             joinDate: _joinDate,
             status: _status,
             photoUrl: _photoUrl,
+            contributionAmount: _contributionValue,
           ),
         );
       } else {
@@ -245,6 +259,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             status: _status,
             consentAt: DateTime.now(),
             photoUrl: _photoUrl,
+            contributionAmount: _contributionValue,
           ),
         );
       }
@@ -489,6 +504,18 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
               title: S.membershipInfo,
               child: FormGrid(
                 items: [
+                  GridItem(
+                    AppTextField(
+                      label: S.fldContribution,
+                      required: true,
+                      controller: _contribution,
+                      hint: 'e.g. 200',
+                      prefixIcon: Icons.currency_rupee,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: Fmts.amount(),
+                      validator: V.amount,
+                    ),
+                  ),
                   GridItem(
                     AppDropdown<Agent>(
                       label: S.fldAgent,

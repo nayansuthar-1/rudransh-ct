@@ -46,6 +46,7 @@ void main() {
       state: 'राजस्थान',
       pincode: '307513',
       joinDate: DateTime(2026, 9, 20),
+      contributionAmount: 200,
     );
     final y = Yojna(
       id: 'y1',
@@ -53,7 +54,6 @@ void main() {
       code: 'SSY',
       description:
           'तीन महीने तक रु 25000, तीन महीने से ऐक साल रु 51000 डोनेशन रासी दी जाऐगी',
-      contributionAmount: 200,
       claimAmount: 51000,
       registrationFee: 200,
       startDate: DateTime(2026, 7, 1),

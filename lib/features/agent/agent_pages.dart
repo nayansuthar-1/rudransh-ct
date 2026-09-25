@@ -369,6 +369,10 @@ void _showMember(BuildContext context, Member m) {
             value: [m.address, m.state].where((s) => s.isNotEmpty).join(', '),
           ),
           DetailRow(label: S.joinedOn, value: Fmt.date(m.joinDate)),
+          DetailRow(
+            label: S.fldContribution,
+            value: Fmt.money(m.contributionAmount),
+          ),
         ],
       ),
     ),

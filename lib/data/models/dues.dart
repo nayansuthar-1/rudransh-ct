@@ -162,6 +162,7 @@ class MemberDuesSummary {
     this.pending = 0,
     this.contributed = 0,
     this.lastContribution,
+    this.contributionAmount = 0,
   });
 
   final String memberId;
@@ -187,6 +188,9 @@ class MemberDuesSummary {
   final double contributed;
   final DateTime? lastContribution;
 
+  /// What the member pays for each closing.
+  final double contributionAmount;
+
   bool get owes => due > 0;
 
   /// Enough of the member for the payment form, which only shows who pays.
@@ -205,6 +209,7 @@ class MemberDuesSummary {
         agentId: agentId,
         joinDate: joinDate,
         status: status,
+        contributionAmount: contributionAmount,
       );
 }
 

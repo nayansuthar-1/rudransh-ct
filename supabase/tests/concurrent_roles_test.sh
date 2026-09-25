@@ -78,7 +78,8 @@ agent_batch() {
     for i in $(seq "$per_worker"); do
       echo "select public.agent_add_member(jsonb_build_object("
       echo "  'yojna_id', '$yojna', 'name', 'Conc member $uid-$i',"
-      echo "  'primary_phone', '9' || lpad((random() * 999999999)::bigint::text, 9, '0')));"
+      echo "  'primary_phone', '9' || lpad((random() * 999999999)::bigint::text, 9, '0'),"
+      echo "  'contribution_amount', 100));"
       echo "select public.agent_record_payment(jsonb_build_object("
       echo "  'member_id', '$seed', 'amount', 100, 'kind', 'contribution'));"
     done

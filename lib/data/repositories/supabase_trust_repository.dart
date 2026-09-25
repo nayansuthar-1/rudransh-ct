@@ -544,6 +544,7 @@ class SupabaseTrustRepository implements TrustRepository {
         lastContribution: r['last_contribution'] == null
             ? null
             : _parseDate(r['last_contribution']),
+        contributionAmount: _num(r['contribution_amount']),
       );
 
   @override
@@ -1107,7 +1108,7 @@ class SupabaseTrustRepository implements TrustRepository {
         'name': y.name,
         'code': y.code,
         'description': y.description,
-        'contribution_amount': y.contributionAmount,
+        'short_name': y.shortName.trim(),
         'claim_amount': y.claimAmount,
         'registration_fee': y.registrationFee,
         'start_date': y.startDate == null ? null : _date(y.startDate!),
@@ -1119,7 +1120,7 @@ class SupabaseTrustRepository implements TrustRepository {
         name: r['name'] as String,
         code: r['code'] as String,
         description: r['description'] as String? ?? '',
-        contributionAmount: _num(r['contribution_amount']),
+        shortName: r['short_name'] as String? ?? '',
         claimAmount: _num(r['claim_amount']),
         registrationFee: _num(r['registration_fee']),
         startDate:
@@ -1154,6 +1155,7 @@ class SupabaseTrustRepository implements TrustRepository {
         'closing_group': m.closingGroup,
         'photo_url': m.photoUrl,
         'email': m.email.trim().toLowerCase(),
+        'contribution_amount': m.contributionAmount,
       });
 
   static Member _memberFromRow(Map<String, dynamic> r) => Member(
@@ -1188,6 +1190,7 @@ class SupabaseTrustRepository implements TrustRepository {
         consentAt: _parseTimestamp(r['consent_at']),
         photoUrl: r['photo_url'] as String? ?? '',
         email: r['email'] as String? ?? '',
+        contributionAmount: _num(r['contribution_amount']),
       );
 
   static Map<String, dynamic> _agentToRow(Agent a) => _withId(a.id, {

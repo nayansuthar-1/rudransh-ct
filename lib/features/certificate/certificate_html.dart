@@ -109,7 +109,8 @@ String _art(String baseUrl) {
 /// One label with its dotted line and the member's value written on it.
 /// [width] is the line's length in points. A [hug] line is only that long at
 /// the least: it runs on under a longer value, up to the end of the row.
-/// [unit] follows the line, as `रुपये` does on the reference.
+/// [unit] follows the line, as `रुपये` does on the reference. A [fitLabel]
+/// label shrinks, when printed, until its row fits.
 class _Field {
   const _Field(
     this.label,
@@ -117,12 +118,14 @@ class _Field {
     required this.width,
     this.hug = false,
     this.unit = '',
+    this.fitLabel = false,
   });
   final String label;
   final String value;
   final double width;
   final bool hug;
   final String unit;
+  final bool fitLabel;
 }
 
 String _fieldHtml(_Field f) {
@@ -132,7 +135,7 @@ String _fieldHtml(_Field f) {
   final value = f.value.isEmpty ? '&#8203;' : _esc(f.value);
   final unit = f.unit.isEmpty ? '' : '<span class="l">${_esc(f.unit)}</span>';
   return '<div class="f${f.hug ? ' hug' : ''}">'
-      '<span class="l">${_esc(f.label)}</span>'
+      '<span class="l${f.fitLabel ? ' fit' : ''}">${_esc(f.label)}</span>'
       '<div class="ln" style="$width"><span class="v">$value</span></div>'
       '$unit</div>';
 }
@@ -162,8 +165,9 @@ String buildCertificateHtml(CertificateData d, {required String baseUrl}) {
       ? '<img src="${_esc(d.photoUrl)}" alt="">'
       : '<span>फोटो</span>';
 
-  // Rows 0–5 are the reference's own fields and line lengths, with its
-  // मायरा wording dropped from सहयोग राशि. The सम्बन्ध and नोंध rows are
+  // Rows 0–5 are the reference's own fields and line lengths. Row 5 names
+  // the Yojna in its सहयोग राशि label, as the reference names मायरा, so its
+  // वारिसदार line is shorter to make room. The सम्बन्ध and नोंध rows are
   // ours, in the same style; the नोंध line runs only as far as its note.
   final rows = [
     _rowHtml(0, spread: true, [
@@ -188,8 +192,9 @@ String buildCertificateHtml(CertificateData d, {required String baseUrl}) {
       _Field('राज्य:', d.state, width: 180),
     ]),
     _rowHtml(5, [
-      _Field('वारिसदार:', d.warisName, width: 160),
-      _Field('सहयोग राशि:', amount, width: 70, unit: 'रुपये'),
+      _Field('वारिसदार:', d.warisName, width: 120),
+      _Field('${d.contributionLabel}:', amount,
+          width: 60, unit: 'रुपये', fitLabel: true),
     ]),
     _rowHtml(6, [
       _Field('सम्बन्ध :', d.warisRelation, width: 160),
@@ -392,6 +397,15 @@ function fit(el, room, size, min) {
 function fitValues() {
   document.querySelectorAll('.v').forEach(function (el) {
     fit(el, function () { return el.parentNode.clientWidth; }, 10, 6);
+  });
+  // A long Yojna name shrinks its label until the row fits.
+  document.querySelectorAll('.l.fit').forEach(function (el) {
+    var row = el.closest('.row');
+    var size = 9.5;
+    while (row.scrollWidth > row.clientWidth && size > 6) {
+      size -= 0.25;
+      el.style.fontSize = size + 'pt';
+    }
   });
   // The rule's lines share the size the longest one needs, so they read as
   // one block.

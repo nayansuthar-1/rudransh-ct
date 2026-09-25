@@ -29,6 +29,10 @@ insert into public.members
   ('00000000-0000-0000-0000-0000000b0022', '00000000-0000-0000-0000-0000000b0001',
    '', 'Aadhaar M2', '9500000022', '00000000-0000-0000-0000-0000000b0011', '');
 
+-- Contribution is per member (20260929000100): each pays their Yojna's amount.
+update public.members m set contribution_amount = y.contribution_amount
+  from public.yojnas y where y.id = m.yojna_id;
+
 insert into public.profiles (user_id, role, agent_id, member_id) values
   ('00000000-0000-0000-0000-00000000b001', 'owner',  null, null),
   ('00000000-0000-0000-0000-00000000b002', 'staff',  null, null),

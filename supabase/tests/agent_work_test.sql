@@ -64,9 +64,10 @@ begin
 
   keep := public.agent_add_member(jsonb_build_object(
     'yojna_id', y1, 'name', 'New Keep', 'primary_phone', '9600000011', 'gender', 'female',
-    'dob', '1960-01-01', 'state', 'Gujarat'));
+    'dob', '1960-01-01', 'state', 'Gujarat', 'contribution_amount', 150));
   drop_ := public.agent_add_member(jsonb_build_object(
-    'yojna_id', y1, 'name', 'New Drop', 'primary_phone', '9600000012'));
+    'yojna_id', y1, 'name', 'New Drop', 'primary_phone', '9600000012',
+    'contribution_amount', 100));
   insert into aw values ('keep', keep), ('drop', drop_);
 
   assert (select status from public.agent_members() where id = keep) = 'pending', 'new member is pending';
@@ -77,6 +78,8 @@ begin
   assert (select state from public.agent_members() where id = keep) = 'Gujarat', 'state kept';
   assert (select state from public.agent_members() where id = drop_) = '', 'state defaults to blank';
   assert (select dob from public.agent_members() where id = drop_) is null, 'dob may be unknown';
+  -- Each member carries their own contribution.
+  assert (select contribution_amount from public.agent_members() where id = keep) = 150, 'agent sets the contribution';
 
   begin
     perform public.agent_add_member(jsonb_build_object('yojna_id', y2, 'name', 'Wrong', 'primary_phone', '9600000013'));
@@ -85,7 +88,13 @@ begin
     if sqlerrm not like 'You cannot enrol%' then raise; end if;
   end;
   begin
-    perform public.agent_add_member(jsonb_build_object('yojna_id', y1, 'name', 'Bad phone', 'primary_phone', '123'));
+    perform public.agent_add_member(jsonb_build_object('yojna_id', y1, 'name', 'No amount', 'primary_phone', '9600000014'));
+    raise exception 'member enrolled without a contribution';
+  exception when raise_exception then
+    if sqlerrm not like 'Enter the contribution%' then raise; end if;
+  end;
+  begin
+    perform public.agent_add_member(jsonb_build_object('yojna_id', y1, 'name', 'Bad phone', 'primary_phone', '123', 'contribution_amount', 100));
     raise exception 'short phone accepted';
   exception when check_violation then null;
   end;

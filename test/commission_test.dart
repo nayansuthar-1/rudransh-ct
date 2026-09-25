@@ -63,7 +63,6 @@ class _Scenario {
         id: '',
         name: 'Commission Test Yojna',
         code: 'CTY',
-        contributionAmount: 100,
         claimAmount: 50000,
         createdAt: DateTime.now(),
       ),
@@ -82,6 +81,7 @@ class _Scenario {
         aadhaar: '',
         agentId: me.id,
         joinDate: DateTime.now().subtract(const Duration(days: 400)),
+        contributionAmount: 100,
       ),
     );
 

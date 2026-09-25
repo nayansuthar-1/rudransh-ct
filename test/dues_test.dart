@@ -50,7 +50,6 @@ class _Scenario {
         id: '',
         name: 'Dues Test Yojna',
         code: 'DTY',
-        contributionAmount: 100,
         claimAmount: 50000,
         createdAt: now,
       ),
@@ -77,6 +76,7 @@ class _Scenario {
           aadhaar: '',
           agentId: agent.id,
           joinDate: daysAgo(joinedDaysAgo),
+          contributionAmount: 100,
           status: status,
         ),
       );

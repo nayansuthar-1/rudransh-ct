@@ -30,7 +30,7 @@ class _YojnaFormDialogState extends ConsumerState<YojnaFormDialog> {
   late final TextEditingController _name;
   late final TextEditingController _code;
   late final TextEditingController _description;
-  late final TextEditingController _contribution;
+  late final TextEditingController _shortName;
   late final TextEditingController _claim;
   late final TextEditingController _registration;
 
@@ -48,8 +48,7 @@ class _YojnaFormDialogState extends ConsumerState<YojnaFormDialog> {
     _name = TextEditingController(text: y?.name ?? '');
     _code = TextEditingController(text: y?.code ?? '');
     _description = TextEditingController(text: y?.description ?? '');
-    _contribution =
-        TextEditingController(text: y == null ? '' : _num(y.contributionAmount));
+    _shortName = TextEditingController(text: y?.shortName ?? '');
     _claim = TextEditingController(text: y == null ? '' : _num(y.claimAmount));
     _registration =
         TextEditingController(text: y == null ? '' : _num(y.registrationFee));
@@ -66,7 +65,7 @@ class _YojnaFormDialogState extends ConsumerState<YojnaFormDialog> {
       _name,
       _code,
       _description,
-      _contribution,
+      _shortName,
       _claim,
       _registration,
     ]) {
@@ -90,7 +89,7 @@ class _YojnaFormDialogState extends ConsumerState<YojnaFormDialog> {
             name: _name.text.trim(),
             code: _code.text.trim().toUpperCase(),
             description: _description.text.trim(),
-            contributionAmount: parse(_contribution),
+            shortName: _shortName.text.trim(),
             claimAmount: parse(_claim),
             registrationFee: parse(_registration),
             startDate: _startDate,
@@ -105,7 +104,7 @@ class _YojnaFormDialogState extends ConsumerState<YojnaFormDialog> {
             name: _name.text.trim(),
             code: _code.text.trim().toUpperCase(),
             description: _description.text.trim(),
-            contributionAmount: parse(_contribution),
+            shortName: _shortName.text.trim(),
             claimAmount: parse(_claim),
             registrationFee: parse(_registration),
             startDate: _startDate,
@@ -177,6 +176,14 @@ class _YojnaFormDialogState extends ConsumerState<YojnaFormDialog> {
                     hint: 'Short description of the Yojna',
                   ),
                 ),
+                // प्रत्येक <this> सहयोग राशि on the membership certificate.
+                GridItem(
+                  AppTextField(
+                    label: 'Name on certificate',
+                    controller: _shortName,
+                    hint: 'e.g. शादी — blank uses the Yojna name',
+                  ),
+                ),
                 GridItem(
                   AppTextField(
                     label: 'Registration fee (₹)',
@@ -184,16 +191,6 @@ class _YojnaFormDialogState extends ConsumerState<YojnaFormDialog> {
                     keyboardType: TextInputType.number,
                     inputFormatters: Fmts.amount(),
                     validator: V.optionalAmount,
-                  ),
-                ),
-                GridItem(
-                  AppTextField(
-                    label: 'Contribution per closing (₹)',
-                    required: true,
-                    controller: _contribution,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: Fmts.amount(),
-                    validator: V.amount,
                   ),
                 ),
                 GridItem(

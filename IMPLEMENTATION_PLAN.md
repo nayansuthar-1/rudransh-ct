@@ -376,7 +376,7 @@ Added 17 Sep 2026. Right now only invited admins can use the app. Release 2 give
 | --- | --- |
 | Agent's new member | Saved as **Pending approval**; reg number issued when an admin approves |
 | Agent's payment | Saved as **Pending**; counts toward totals only after an admin marks it Paid |
-| What "dues" means | One contribution per member per closing group, at the Yojna's `contributionAmount` |
+| What "dues" means | One contribution per member per closing, at the member's own `contributionAmount` (per member since 26 Sep 2026) |
 | Member login | **Lookup page** (reg no + phone + last 4 Aadhaar digits) for everyone; **email OTP** for members who have email |
 | Notifications | In-app bell and announcements, plus WhatsApp share links (`wa.me`). No SMS, no WhatsApp Business API, no bulk email |
 | Direct member payments | Trust UPI QR code; member enters the UTR; saved as Pending |
