@@ -240,6 +240,50 @@ void main() {
       expect(all.fold<double>(0, (sum, d) => sum + d.due), 200);
     });
 
+    test('the office dues list sums each member across closings', () async {
+      final s = await _Scenario.build();
+      final q = DuesQuery(yojnaId: s.yojnaId);
+
+      // Same order and totals as office_member_dues in dues_test.sql, before
+      // the agent collects from M2.
+      final page = await s.base.fetchDuesPage(q, offset: 0, limit: 20);
+      expect(
+        page.items.map((r) => r.name),
+        ['Dues M2', 'Dues M3', 'Dues M1', 'Dues M4', 'Dues M5'],
+      );
+      final m1 = page.items.singleWhere((r) => r.name == 'Dues M1');
+      expect((m1.closingsOwed, m1.due, m1.contributed), (0, 0, 100));
+      expect(m1.lastContribution, isNotNull);
+      final m2 = page.items.first;
+      expect((m2.closingsOwed, m2.due, m2.contributed), (1, 100, 0));
+
+      final totals = await s.base.fetchDuesTotals(q);
+      expect(
+        (totals.memberCount, totals.owingCount, totals.due, totals.contributed),
+        (5, 2, 200, 100),
+      );
+
+      Future<int> count(DuesQuery q) async =>
+          (await s.base.fetchDuesPage(q, offset: 0, limit: 20)).total;
+      expect(
+        await count(DuesQuery(yojnaId: s.yojnaId, standing: DuesStanding.owing)),
+        2,
+      );
+      expect(
+        await count(DuesQuery(yojnaId: s.yojnaId, standing: DuesStanding.clear)),
+        3,
+      );
+      final other = s.base.membersView
+          .singleWhere((m) => m.id == s.ids['M3'])
+          .agentId;
+      expect(await count(DuesQuery(yojnaId: s.yojnaId, agentId: other)), 1);
+
+      // The agent's collection waits; M2 still owes until it is approved.
+      await s.agent.recordPayment(s.contribution('M2'));
+      final after = await s.base.fetchDuesTotals(q);
+      expect((after.owingCount, after.due, after.pending), (2, 200, 100));
+    });
+
     test('collecting links the receipt and blocks a second collection', () async {
       final s = await _Scenario.build();
 
@@ -402,6 +446,77 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text(S.forClosing), findsOneWidget);
       expect(find.textContaining('${_Scenario.group} · '), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    Future<(ProviderContainer, _Scenario)> pumpOffice(
+      WidgetTester tester,
+      Size size,
+    ) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = size;
+      addTearDown(tester.view.reset);
+
+      final s = (await tester.runAsync(_Scenario.build))!;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            repositoryProvider.overrideWithValue(s.base),
+            signedInAs(UserRole.owner),
+          ],
+          child: const RudranshAdminApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(RudranshAdminApp)),
+      );
+      container.read(selectedYojnaIdProvider.notifier).select(s.yojnaId);
+      container.read(routerProvider).go(AppRoutes.dues);
+      await tester.pumpAndSettle();
+      return (container, s);
+    }
+
+    for (final size in [const Size(390, 844), const Size(1440, 900)]) {
+      testWidgets('the office dues page lays out at ${size.width.toInt()} px',
+          (tester) async {
+        await pumpOffice(tester, size);
+
+        expect(find.text('Members owing'), findsOneWidget);
+        expect(find.text('₹200'), findsWidgets, reason: 'total due tile');
+        for (final name in ['Dues M1', 'Dues M2', 'Dues M3', 'Dues M4', 'Dues M5']) {
+          expect(find.text(name), findsOneWidget);
+        }
+        expect(find.text('Dues D1'), findsNothing, reason: 'closed members');
+        expect(tester.takeException(), isNull);
+
+        // The breakdown: the closing and the past contributions.
+        await tester.ensureVisible(find.text('Dues M1'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Dues M1'));
+        await tester.pumpAndSettle();
+        expect(find.text('Past contributions'), findsOneWidget);
+        expect(find.text(_Scenario.group), findsOneWidget);
+        expect(find.text(DueState.paid.label), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
+    }
+
+    testWidgets('Pay on the dues page preselects the oldest closing owed',
+        (tester) async {
+      await pumpOffice(tester, const Size(1440, 900));
+
+      // Most owed first, so the first Pay is M2's.
+      await tester.tap(find.widgetWithText(FilledButton, 'Pay').first);
+      await tester.pumpAndSettle();
+      expect(find.text(S.addPayment), findsWidgets);
+      expect(find.text('Dues M2'), findsWidgets);
+      expect(find.textContaining('${_Scenario.group} · '), findsOneWidget);
+      expect(
+        find.widgetWithText(TextFormField, '100'),
+        findsOneWidget,
+        reason: 'the amount left on the closing',
+      );
       expect(tester.takeException(), isNull);
     });
 

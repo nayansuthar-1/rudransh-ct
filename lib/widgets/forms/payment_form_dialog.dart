@@ -12,23 +12,39 @@ import '../../state/providers.dart';
 import '../app_dialog.dart';
 import '../inputs.dart';
 
+/// [presetClosingCaseId] and [presetAmount] start a new contribution for one
+/// closing, as the Dues page does.
 Future<void> showPaymentFormDialog(
   BuildContext context, {
   Payment? existing,
   Member? presetMember,
+  String? presetClosingCaseId,
+  double? presetAmount,
 }) {
   return AppDialog.show<void>(
     context: context,
-    builder: (_) =>
-        PaymentFormDialog(existing: existing, presetMember: presetMember),
+    builder: (_) => PaymentFormDialog(
+      existing: existing,
+      presetMember: presetMember,
+      presetClosingCaseId: presetClosingCaseId,
+      presetAmount: presetAmount,
+    ),
   );
 }
 
 class PaymentFormDialog extends ConsumerStatefulWidget {
-  const PaymentFormDialog({super.key, this.existing, this.presetMember});
+  const PaymentFormDialog({
+    super.key,
+    this.existing,
+    this.presetMember,
+    this.presetClosingCaseId,
+    this.presetAmount,
+  });
 
   final Payment? existing;
   final Member? presetMember;
+  final String? presetClosingCaseId;
+  final double? presetAmount;
 
   @override
   ConsumerState<PaymentFormDialog> createState() => _PaymentFormDialogState();
@@ -59,8 +75,9 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
   void initState() {
     super.initState();
     final p = widget.existing;
+    final amount = p?.amount ?? widget.presetAmount;
     _amount = TextEditingController(
-      text: p == null ? '' : p.amount.toStringAsFixed(0),
+      text: amount == null || amount <= 0 ? '' : amount.toStringAsFixed(0),
     );
     _reference = TextEditingController(text: p?.reference ?? '');
     _note = TextEditingController(text: p?.note ?? '');
@@ -70,7 +87,7 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
     _date = p?.date ?? DateTime.now();
     _agentId = p?.agentId ?? widget.presetMember?.agentId;
     _member = widget.presetMember;
-    _closingCaseId = p?.closingCaseId;
+    _closingCaseId = p?.closingCaseId ?? widget.presetClosingCaseId;
     if (p != null && _member == null) _loadMember(p.memberId);
     if (_member != null) _loadDues(_member!.id);
   }

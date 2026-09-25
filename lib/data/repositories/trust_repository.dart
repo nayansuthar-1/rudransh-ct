@@ -128,6 +128,17 @@ abstract class TrustRepository {
   /// Closing groups [memberId] owes a contribution for, oldest first.
   Future<List<MemberDue>> fetchMemberDues(String memberId);
 
+  /// The office's Dues page: one row per active or inactive member matching
+  /// [query], most owed first.
+  Future<PageResult<MemberDuesSummary>> fetchDuesPage(
+    DuesQuery query, {
+    required int offset,
+    required int limit,
+  });
+
+  /// Totals across every page of [query], whatever its standing.
+  Future<DuesTotals> fetchDuesTotals(DuesQuery query);
+
   /// Deaths reported by agents and waiting for a decision, oldest first.
   Future<List<ClosingRequest>> fetchPendingClosingRequests();
 

@@ -296,6 +296,120 @@ final memberRecentPaymentsProvider =
 });
 
 // ---------------------------------------------------------------------------
+// Dues (the office's list of who owes)
+// ---------------------------------------------------------------------------
+
+/// One member on the Dues page: each closing they owe for (oldest first),
+/// their latest contribution receipts and what those add up to.
+typedef MemberDuesDetail = ({
+  List<MemberDue> dues,
+  List<Payment> receipts,
+  double contributed,
+});
+
+final memberDuesDetailProvider = FutureProvider.autoDispose
+    .family<MemberDuesDetail, String>((ref, memberId) async {
+  watchBackendData(ref);
+  final repo = ref.read(repositoryProvider);
+  final query =
+      PaymentQuery(memberId: memberId, kind: PaymentKind.contribution);
+  final dues = repo.fetchMemberDues(memberId);
+  final receipts = repo.fetchPaymentsPage(query, offset: 0, limit: 20);
+  final totals = repo.fetchPaymentTotals(query);
+  return (
+    dues: await dues,
+    receipts: (await receipts).items,
+    contributed: (await totals).paid,
+  );
+});
+
+@immutable
+class DuesFilter {
+  const DuesFilter({this.query = '', this.agentId, this.standing});
+
+  final String query;
+  final String? agentId;
+  final DuesStanding? standing;
+
+  bool get isEmpty => query.isEmpty && agentId == null && standing == null;
+}
+
+class DuesFilterNotifier extends Notifier<DuesFilter> {
+  @override
+  DuesFilter build() => const DuesFilter();
+
+  void setQuery(String value) => state = DuesFilter(
+        query: value,
+        agentId: state.agentId,
+        standing: state.standing,
+      );
+  void setAgent(String? value) => state = DuesFilter(
+        query: state.query,
+        agentId: value,
+        standing: state.standing,
+      );
+  void setStanding(DuesStanding? value) => state = DuesFilter(
+        query: state.query,
+        agentId: state.agentId,
+        standing: value,
+      );
+  void clear() => state = const DuesFilter();
+}
+
+final duesFilterProvider =
+    NotifierProvider<DuesFilterNotifier, DuesFilter>(DuesFilterNotifier.new);
+
+/// Top-bar scheme scope plus the Dues page filters.
+final duesQueryProvider = Provider<DuesQuery>((ref) {
+  final f = ref.watch(duesFilterProvider);
+  return DuesQuery(
+    yojnaId: ref.watch(selectedYojnaIdProvider),
+    text: f.query.trim(),
+    agentId: f.agentId,
+    standing: f.standing,
+  );
+});
+
+/// Zero-based page of the dues table. Resets when the query changes.
+class DuesPageNotifier extends Notifier<int> {
+  @override
+  int build() {
+    ref.watch(duesQueryProvider);
+    return 0;
+  }
+
+  void set(int page) => state = page;
+}
+
+final duesPageNumberProvider =
+    NotifierProvider<DuesPageNotifier, int>(DuesPageNotifier.new);
+
+final duesPageProvider =
+    FutureProvider<PageResult<MemberDuesSummary>>((ref) async {
+  watchBackendData(ref);
+  final query = ref.watch(duesQueryProvider);
+  final page = ref.watch(duesPageNumberProvider);
+  if (!await _settled(ref, query.text)) return PageResult.empty();
+  return ref.read(repositoryProvider).fetchDuesPage(
+        query,
+        offset: page * listPageSize,
+        limit: listPageSize,
+      );
+});
+
+/// The tiles, which ignore the standing filter so they show the whole scope.
+final duesTotalsProvider = FutureProvider<DuesTotals>((ref) async {
+  watchBackendData(ref);
+  final q = ref.watch(
+    duesQueryProvider.select(
+      (q) => DuesQuery(yojnaId: q.yojnaId, text: q.text, agentId: q.agentId),
+    ),
+  );
+  if (!await _settled(ref, q.text)) return DuesTotals.empty;
+  return ref.read(repositoryProvider).fetchDuesTotals(q);
+});
+
+// ---------------------------------------------------------------------------
 // Closing cases
 // ---------------------------------------------------------------------------
 

@@ -95,6 +95,14 @@ Every death claim from start to payout.
 - Totals for all claims, collected and still pending
 - Deleting a case by mistake makes the member Active again
 
+### Dues
+Who still owes for closings, member by member, for the Yojna picked in the top bar.
+- Tiles: members owing, total due, money waiting for approval, and every contribution received
+- Each member's total due across all closings and what they have contributed so far
+- Tap a member to see each closing they owe for and their past receipts
+- **Pay** opens the payment form with the oldest unpaid closing and its amount already filled in
+- Only closings with a **Closing group** filled in create dues
+
 ### Payments
 The receipt book.
 - Filter by dates, payment mode, type and status (Paid, Pending, Failed)

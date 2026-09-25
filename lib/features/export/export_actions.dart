@@ -70,6 +70,51 @@ List<List<Object?>> paymentCsvRows(
         ],
     ];
 
+/// The dues sheet: a header row, then one row per member.
+List<List<Object?>> duesCsvRows(
+  List<MemberDuesSummary> rows, {
+  required Map<String, Yojna> yojnas,
+  required Map<String, Agent> agents,
+}) =>
+    [
+      const [
+        'Reg no', 'Name', 'Phone', 'Village', 'Yojna', 'Agent', 'Status',
+        'Closings owed', 'Total due', 'Waiting for approval', 'Contributed',
+        'Last contribution',
+      ],
+      for (final s in rows)
+        [
+          s.regNo, s.name, s.phone, s.village, yojnas[s.yojnaId]?.name ?? '',
+          agents[s.agentId]?.name ?? '', s.status.label, s.closingsOwed,
+          s.due.toStringAsFixed(2), s.pending.toStringAsFixed(2),
+          s.contributed.toStringAsFixed(2), _date(s.lastContribution),
+        ],
+    ];
+
+/// Every member matching the Dues page's current filters, as a CSV file.
+Future<void> exportDuesCsv(BuildContext context, WidgetRef ref) async {
+  final repo = ref.read(repositoryProvider);
+  final query = ref.read(duesQueryProvider);
+  await _export(
+    context,
+    fileName: 'dues-${_stamp.format(DateTime.now())}.csv',
+    build: () async {
+      final all = <MemberDuesSummary>[];
+      while (true) {
+        final page =
+            await repo.fetchDuesPage(query, offset: all.length, limit: _chunk);
+        all.addAll(page.items);
+        if (page.items.isEmpty || all.length >= page.total) break;
+      }
+      return duesCsvRows(
+        all,
+        yojnas: ref.read(yojnaByIdProvider),
+        agents: ref.read(agentByIdProvider),
+      );
+    },
+  );
+}
+
 /// Every member matching the Members page's current filters, as a CSV file.
 Future<void> exportMembersCsv(BuildContext context, WidgetRef ref) async {
   final repo = ref.read(repositoryProvider);

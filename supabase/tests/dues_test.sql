@@ -248,6 +248,25 @@ begin
   assert (select sum(due) from public.member_dues where closing_group = 'G-1') = 200, '200 unpaid';
   assert (select count(*) from public.closing_groups where yojna_id = y1) = 1, 'one group in Y1';
 
+  -- The office's Dues page: every active or inactive Y1 member, most owed
+  -- first. D1 and D2 are closed, so they are not listed.
+  assert (select array_agg(name) from public.office_member_dues(y1))
+       = array['Dues M2', 'Dues M3', 'Dues M1', 'Dues M4', 'Dues M5'],
+    'office dues list: ' || (select array_agg(name)::text from public.office_member_dues(y1));
+  assert (select (closings_owed, due, pending, contributed)
+            from public.office_member_dues(y1) where name = 'Dues M2')
+       = (1::bigint, 100::numeric, 100::numeric, 0::numeric), 'M2 owes 100, collected and waiting';
+  assert (select (closings_owed, due, contributed, last_contribution)
+            from public.office_member_dues(y1) where name = 'Dues M1')
+       = (0::bigint, 0::numeric, 100::numeric, current_date), 'M1 paid 100 today';
+  assert (select count(*) from public.office_member_dues(y1, p_owing => true)) = 2, 'two owe';
+  assert (select count(*) from public.office_member_dues(y1, p_owing => false)) = 3, 'three owe nothing';
+  assert (select count(*) from public.office_member_dues(y1, p_agent_id => '00000000-0000-0000-0000-0000000f0012')) = 1,
+    'agent B has M3 only';
+  assert (select count(*) from public.office_member_dues(y1, 'dues m3')) = 1, 'search by name';
+  assert (select (member_count, owing_count, due, pending, contributed) from public.office_dues_totals(y1))
+       = (5::bigint, 2::bigint, 200::numeric, 100::numeric, 100::numeric), 'office dues totals: ' || (select row_to_json(t)::text from public.office_dues_totals(y1) t);
+
   -- Approving the agent's receipt settles M2.
   perform public.approve_payment((select id from dt where key = 'p_m2'));
   assert (select sum(due) from public.member_dues where closing_group = 'G-1') = 100, '100 unpaid after approval';
@@ -296,6 +315,16 @@ begin
     'agent sees the rejection reason';
   assert (select status from public.agent_closing_requests()
            where member_id = '00000000-0000-0000-0000-0000000f0021') = 'approved', 'agent sees the approval';
+  begin
+    perform public.office_member_dues();
+    raise exception 'agent read the office dues list';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.office_dues_totals();
+    raise exception 'agent read the office dues totals';
+  exception when insufficient_privilege then null;
+  end;
 end $$;
 
 -- ---------------------------------------------------------------------------
@@ -314,6 +343,11 @@ begin
   begin
     perform 1 from public.member_dues;
     raise exception 'anon read member_dues';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.office_member_dues();
+    raise exception 'anon called office_member_dues';
   exception when insufficient_privilege then null;
   end;
   begin

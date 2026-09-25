@@ -483,6 +483,70 @@ class SupabaseTrustRepository implements TrustRepository {
       });
 
   @override
+  Future<PageResult<MemberDuesSummary>> fetchDuesPage(
+    DuesQuery query, {
+    required int offset,
+    required int limit,
+  }) =>
+      _guard(() async {
+        final params = _duesParams(query);
+        try {
+          final res = await _db
+              .rpc('office_member_dues', params: params)
+              .select()
+              .order('due', ascending: false)
+              .order('name')
+              .order('reg_no')
+              .range(offset, offset + limit - 1)
+              .count(CountOption.exact);
+          return PageResult(
+            items: res.data.map(_duesSummaryFromRow).toList(),
+            total: res.count,
+          );
+        } on PostgrestException catch (e) {
+          if (!_isPastLastPage(e)) rethrow;
+          return PageResult<MemberDuesSummary>(
+            items: const [],
+            total: await _countRpc('office_member_dues', params),
+          );
+        }
+      });
+
+  @override
+  Future<DuesTotals> fetchDuesTotals(DuesQuery query) => _guard(() async {
+        final params = _duesParams(query)..remove('p_owing');
+        final row = await _firstRow('office_dues_totals', params);
+        if (row == null) return DuesTotals.empty;
+        return DuesTotals(
+          memberCount: (row['member_count'] as num?)?.toInt() ?? 0,
+          owingCount: (row['owing_count'] as num?)?.toInt() ?? 0,
+          due: _num(row['due']),
+          pending: _num(row['pending']),
+          contributed: _num(row['contributed']),
+        );
+      });
+
+  static MemberDuesSummary _duesSummaryFromRow(Map<String, dynamic> r) =>
+      MemberDuesSummary(
+        memberId: r['id'] as String,
+        yojnaId: r['yojna_id'] as String,
+        regNo: r['reg_no'] as String? ?? '',
+        name: r['name'] as String? ?? '',
+        joinDate: _parseDate(r['join_date']),
+        phone: r['primary_phone'] as String? ?? '',
+        village: r['village'] as String? ?? '',
+        agentId: r['agent_id'] as String?,
+        status: MemberStatus.fromName(r['status'] as String?),
+        closingsOwed: (r['closings_owed'] as num?)?.toInt() ?? 0,
+        due: _num(r['due']),
+        pending: _num(r['pending']),
+        contributed: _num(r['contributed']),
+        lastContribution: r['last_contribution'] == null
+            ? null
+            : _parseDate(r['last_contribution']),
+      );
+
+  @override
   Future<List<ClosingRequest>> fetchPendingClosingRequests() =>
       _guard(() async {
         final rows = await _db
@@ -863,6 +927,17 @@ class SupabaseTrustRepository implements TrustRepository {
         'p_status': q.status?.name,
         'p_agent_id': q.agentId,
         'p_district': q.district,
+      };
+
+  static Map<String, dynamic> _duesParams(DuesQuery q) => {
+        'p_yojna_id': q.yojnaId,
+        'p_query': q.text.trim(),
+        'p_agent_id': q.agentId,
+        'p_owing': switch (q.standing) {
+          null => null,
+          DuesStanding.owing => true,
+          DuesStanding.clear => false,
+        },
       };
 
   static Map<String, dynamic> _paymentParams(PaymentQuery q) => {

@@ -281,6 +281,7 @@ class S {
   // Dues and death reports (Phase 13)
   static const dues = 'Dues';
   static const duesSub = 'Contributions per closing';
+  static const officeDuesSub = 'Who owes, per member';
   static const forClosing = 'For closing';
   static const notForClosing = 'Not for a closing';
   static const toCollect = 'To collect';

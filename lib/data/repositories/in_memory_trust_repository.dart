@@ -725,6 +725,89 @@ class InMemoryTrustRepository implements TrustRepository {
           ..sort((a, b) => a.closingDate.compareTo(b.closingDate)),
       );
 
+  /// Every member's standing, by the rules of `office_member_dues`, before
+  /// the standing filter.
+  List<MemberDuesSummary> _duesSummaries(DuesQuery q) {
+    final text = q.text.trim().toLowerCase();
+    final dues = <String, List<MemberDue>>{};
+    for (final d in allDues()) {
+      if (q.yojnaId == null || d.yojnaId == q.yojnaId) {
+        dues.putIfAbsent(d.memberId, () => []).add(d);
+      }
+    }
+    final result = <MemberDuesSummary>[];
+    for (final m in _members) {
+      if (m.status != MemberStatus.active && m.status != MemberStatus.inactive) {
+        continue;
+      }
+      if (q.yojnaId != null && m.yojnaId != q.yojnaId) continue;
+      if (text.isNotEmpty && !m.searchIndex.contains(text)) continue;
+      if (q.agentId != null && m.agentId != q.agentId) continue;
+      final owed = dues[m.id] ?? const <MemberDue>[];
+      final paid = _payments.where((p) =>
+          p.memberId == m.id &&
+          p.kind == PaymentKind.contribution &&
+          p.status == PaymentStatus.paid &&
+          !p.isCancelled &&
+          (q.yojnaId == null || p.yojnaId == q.yojnaId));
+      result.add(
+        MemberDuesSummary(
+          memberId: m.id,
+          yojnaId: m.yojnaId,
+          regNo: m.regNo,
+          name: m.name,
+          joinDate: m.joinDate,
+          phone: m.primaryPhone,
+          village: m.village,
+          agentId: m.agentId,
+          status: m.status,
+          closingsOwed: owed.where((d) => d.due > 0).length,
+          due: owed.fold(0, (sum, d) => sum + d.due),
+          pending: owed.fold(0, (sum, d) => sum + d.pending),
+          contributed: paid.fold(0, (sum, p) => sum + p.amount),
+          lastContribution: paid.isEmpty
+              ? null
+              : paid.map((p) => _day(p.date)).reduce((a, b) => a.isAfter(b) ? a : b),
+        ),
+      );
+    }
+    return result
+      ..sort((a, b) {
+        final byDue = b.due.compareTo(a.due);
+        if (byDue != 0) return byDue;
+        final byName = a.name.compareTo(b.name);
+        return byName != 0 ? byName : a.regNo.compareTo(b.regNo);
+      });
+  }
+
+  @override
+  Future<PageResult<MemberDuesSummary>> fetchDuesPage(
+    DuesQuery query, {
+    required int offset,
+    required int limit,
+  }) {
+    final rows = _duesSummaries(query).where((s) => switch (query.standing) {
+          null => true,
+          DuesStanding.owing => s.owes,
+          DuesStanding.clear => !s.owes,
+        });
+    return _delayed(_slice(rows.toList(), offset, limit));
+  }
+
+  @override
+  Future<DuesTotals> fetchDuesTotals(DuesQuery query) {
+    final rows = _duesSummaries(query);
+    return _delayed(
+      DuesTotals(
+        memberCount: rows.length,
+        owingCount: rows.where((s) => s.owes).length,
+        due: rows.fold(0, (sum, s) => sum + s.due),
+        pending: rows.fold(0, (sum, s) => sum + s.pending),
+        contributed: rows.fold(0, (sum, s) => sum + s.contributed),
+      ),
+    );
+  }
+
   ClosingRequest _withMember(ClosingRequest r) {
     final m = _members.where((m) => m.id == r.memberId).firstOrNull;
     return m == null

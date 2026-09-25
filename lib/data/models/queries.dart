@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import 'dues.dart';
 import 'member.dart';
 import 'payment.dart';
 
@@ -90,6 +91,37 @@ class PaymentQuery {
   @override
   int get hashCode =>
       Object.hash(yojnaId, memberId, text, mode, status, kind, from, to);
+}
+
+/// Filters for the office's Dues page.
+@immutable
+class DuesQuery {
+  const DuesQuery({
+    this.yojnaId,
+    this.text = '',
+    this.agentId,
+    this.standing,
+  });
+
+  final String? yojnaId;
+
+  /// Matches what the members search matches.
+  final String text;
+  final String? agentId;
+
+  /// Null lists everyone.
+  final DuesStanding? standing;
+
+  @override
+  bool operator ==(Object other) =>
+      other is DuesQuery &&
+      other.yojnaId == yojnaId &&
+      other.text == text &&
+      other.agentId == agentId &&
+      other.standing == standing;
+
+  @override
+  int get hashCode => Object.hash(yojnaId, text, agentId, standing);
 }
 
 /// The few member fields a payment row needs to show who paid.

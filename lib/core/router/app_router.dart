@@ -13,6 +13,7 @@ import '../../features/commission/commission_page.dart';
 import '../../features/auth/login_page.dart';
 import '../../features/closing/closing_payments_page.dart';
 import '../../features/dashboard/dashboard_page.dart';
+import '../../features/dues/dues_page.dart';
 import '../../features/members/members_page.dart';
 import '../../features/payments/payments_page.dart';
 import '../../features/portal/lookup_page.dart';
@@ -79,6 +80,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           _shellRoute(AppRoutes.agents, const AgentsPage()),
           _shellRoute(AppRoutes.yojna, const YojnaPage()),
           _shellRoute(AppRoutes.closing, const ClosingPaymentsPage()),
+          _shellRoute(AppRoutes.dues, const DuesPage()),
           _shellRoute(AppRoutes.payments, const PaymentsPage()),
           _shellRoute(AppRoutes.approvals, const ApprovalsPage()),
           _shellRoute(AppRoutes.commission, const CommissionPage()),

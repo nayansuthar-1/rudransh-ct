@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import 'member.dart';
+
 /// Where one member stands for one closing group.
 enum DueState {
   due('Due'),
@@ -121,6 +123,106 @@ class ClosingGroupDues {
       toCollect: dues.fold(0, (sum, d) => sum + d.toCollect),
     );
   }
+}
+
+/// Which members the office's Dues page lists.
+enum DuesStanding {
+  owing('Owes money'),
+  clear('Nothing due');
+
+  const DuesStanding(this.label);
+  final String label;
+}
+
+/// One member's standing across every closing group of their Yojna, for the
+/// office's Dues page (the `office_member_dues` function).
+@immutable
+class MemberDuesSummary {
+  const MemberDuesSummary({
+    required this.memberId,
+    required this.yojnaId,
+    required this.regNo,
+    required this.name,
+    required this.joinDate,
+    this.phone = '',
+    this.village = '',
+    this.agentId,
+    this.status = MemberStatus.active,
+    this.closingsOwed = 0,
+    this.due = 0,
+    this.pending = 0,
+    this.contributed = 0,
+    this.lastContribution,
+  });
+
+  final String memberId;
+  final String yojnaId;
+  final String regNo;
+  final String name;
+  final DateTime joinDate;
+  final String phone;
+  final String village;
+  final String? agentId;
+  final MemberStatus status;
+
+  /// Closing groups not fully paid yet.
+  final int closingsOwed;
+
+  /// Still unpaid across those groups, ignoring money waiting for approval.
+  final double due;
+
+  /// Collected for a closing, waiting for an admin.
+  final double pending;
+
+  /// Every approved contribution the member has paid.
+  final double contributed;
+  final DateTime? lastContribution;
+
+  bool get owes => due > 0;
+
+  /// Enough of the member for the payment form, which only shows who pays.
+  Member toMember() => Member(
+        id: memberId,
+        yojnaId: yojnaId,
+        regNo: regNo,
+        name: name,
+        fatherOrHusbandName: '',
+        jati: '',
+        warisName: '',
+        warisRelation: '',
+        primaryPhone: phone,
+        aadhaar: '',
+        village: village,
+        agentId: agentId,
+        joinDate: joinDate,
+        status: status,
+      );
+}
+
+/// The tiles on the office's Dues page, across every page of the list.
+@immutable
+class DuesTotals {
+  const DuesTotals({
+    required this.memberCount,
+    required this.owingCount,
+    required this.due,
+    required this.pending,
+    required this.contributed,
+  });
+
+  static const empty = DuesTotals(
+    memberCount: 0,
+    owingCount: 0,
+    due: 0,
+    pending: 0,
+    contributed: 0,
+  );
+
+  final int memberCount;
+  final int owingCount;
+  final double due;
+  final double pending;
+  final double contributed;
 }
 
 enum RequestStatus {

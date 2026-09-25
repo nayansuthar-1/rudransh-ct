@@ -41,6 +41,7 @@ class AppRoutes {
   static const agents = '/agents';
   static const yojna = '/yojna';
   static const closing = '/closing-payments';
+  static const dues = '/dues';
   static const payments = '/payments';
   static const approvals = '/approvals';
   static const commission = '/commission';
@@ -100,6 +101,13 @@ class AppRoutes {
       sublabel: S.closingPaymentsSub,
       icon: Icons.assignment_turned_in_outlined,
       activeIcon: Icons.assignment_turned_in,
+    ),
+    NavItem(
+      path: dues,
+      label: S.dues,
+      sublabel: S.officeDuesSub,
+      icon: Icons.event_note_outlined,
+      activeIcon: Icons.event_note,
     ),
     NavItem(
       path: payments,
