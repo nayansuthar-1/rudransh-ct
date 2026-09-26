@@ -213,11 +213,13 @@ void main() {
     test('lays the reference page out in the top half of A4 portrait', () {
       expect(html, contains('width: 595.275574pt'));
       expect(html, contains('width: 210mm'));
-      expect(html, contains('height: 148.5mm'));
-      // Shrunk to leave 10mm of white at each side of the 210mm page.
-      expect(html, contains('scale(0.905)'));
+      // The same 5.53mm above, at either side, and between this one and the
+      // next printed after turning the paper round.
+      expect(html, contains('left: 5.53mm'));
+      expect(html, contains('top: 5.53mm'));
+      expect(html, contains('scale(0.9474)'));
       // One certificate per sheet: the bottom half stays blank.
-      expect('class="slot"'.allMatches(html), hasLength(1));
+      expect('class="sheet"'.allMatches(html), hasLength(1));
     });
 
     test('the heading gradient is referenced by its own id', () {
@@ -262,6 +264,14 @@ void main() {
         html,
         contains('<div class="name">Hemtaji Nagaji</div><div class="rule">'
             '</div><div class="role">कार्यकर्ता</div>'),
+      );
+    });
+
+    test('the trust signs as अध्यक्ष', () {
+      expect(
+        html,
+        contains('<div class="name">रुद्रांश चैरिटेबल ट्रस्ट</div>'
+            '<div class="rule"></div><div class="role">अध्यक्ष</div>'),
       );
     });
 

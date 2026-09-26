@@ -131,9 +131,10 @@ Sign in as the owner. You land on `/dashboard`.
   mark them Inactive instead.
 - **Print certificate** on the detail sheet opens a new tab and the print dialog.
   Check on paper: Hindi renders with matras joined, the certificate fills the
-  **top half of an A4 portrait** page with white space on every side, and the
-  bottom half is blank. Turn the sheet round and print a second member: it
-  lands in the bottom half without touching the first. The reg number, name,
+  **top half of an A4 portrait** page with the same white space above and at
+  both sides, and the bottom half is blank. Turn the sheet round and print a
+  second member at **Scale 100%**: it lands in the bottom half with the same
+  gap between the two. The trust's name prints over **अध्यक्ष**. The reg number, name,
   gotra, jati, date of birth,
   village, district, state, address, phone, nominee and karyakarta are all
   filled. Each frame prints whole, with a white margin round it and nothing

@@ -54,10 +54,14 @@ Details:
 
 - ~~A4 landscape, fixed one page.~~ **Changed 26 Sep 2026:** one certificate
   in the **top half** of an A4 portrait sheet,
-  `@page { size: A4 portrait; margin: 0 }`. It is drawn at 90.5%, about
-  190 × 134mm, leaving 10mm at the sides and 7mm above and below. The bottom
-  half stays blank: turn the paper round, feed it back in and print the next
-  member, whose certificate lands there with 14mm between the two.
+  `@page { size: A4 portrait; margin: 0 }`. It is about 199 × 140mm, with
+  the same 5.5mm of white above it and at either side. The bottom half stays
+  blank: turn the paper round, feed it back in and print the next member,
+  whose certificate lands there with the same 5.5mm between the two. Print at
+  **Scale 100% / Actual size**; any "fit" setting shrinks the page and widens
+  every gap.
+- The trust's name, रुद्रांश चैरिटेबल ट्रस्ट, prints over the अध्यक्ष line, as
+  the agent's name does over कार्यकर्ता.
 - The bundled `NotoSansDevanagari` font is referenced from the app's own asset
   URL, so the page looks the same on a machine with no Hindi font installed.
 - Decorative double border, centred logo, maroon/red ink on cream — matching the

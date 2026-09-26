@@ -36,14 +36,16 @@ String _assetUrl(String base, String path) {
 const _sheetW = 595.275574;
 const _sheetH = 419.527557;
 
-/// The sheet is drawn at 90.5% in the top half of the A4 page, 190 × 134mm.
-/// That leaves 10mm at the sides and 7mm above and below, clear of the
-/// unprintable edge of an office printer. The half is centred, so a second
-/// certificate printed after turning the paper round leaves 14mm between them.
-const _fit = 0.905;
+/// The white space, in mm, above the certificate and at either side of it,
+/// and between it and the next one printed after turning the paper round:
+/// the one gap that fits three times with two certificates down A4's 297mm,
+/// `3m + 2h = 297` with `h = (210 − 2m) × sheet height / sheet width`. It
+/// comes to 5.53mm.
+const _margin = (297 - 2 * 210 * _sheetH / _sheetW) / (3 - 4 * _sheetH / _sheetW);
 
-/// Half of A4 portrait's 297mm: the certificate's slot.
-const _slotH = 148.5;
+/// The sheet is the full 210mm A4 width less a margin each side, about
+/// 199 × 140mm.
+const _fit = (210 - 2 * _margin) / 210;
 
 /// The frame image, in pixels.
 const _artW = 2559;
@@ -219,7 +221,7 @@ String _sheetHtml(CertificateData d, String baseUrl) {
   ].join('\n  ');
 
   return '''
-<div class="slot"><div class="sheet">
+<div class="sheet">
   ${_art(baseUrl)}
   <div class="title">प्रमाण पत्र</div>
   <div class="photo">$photo</div>
@@ -229,9 +231,9 @@ String _sheetHtml(CertificateData d, String baseUrl) {
     <div class="name">${_esc(d.agentName)}</div><div class="rule"></div><div class="role">कार्यकर्ता</div>
   </div>
   <div class="sig" style="left:370.44pt;width:140pt">
-    <div class="name"></div><div class="rule"></div><div class="role">अध्यक्ष</div>
+    <div class="name">${_esc(TrustInfo.certificateName)}</div><div class="rule"></div><div class="role">अध्यक्ष</div>
   </div>
-</div></div>''';
+</div>''';
 }
 
 /// Builds the printable membership certificate as one self-contained HTML
@@ -286,15 +288,14 @@ html, body {
   overflow: hidden;
   margin: 0 auto;
 }
-.slot { position: absolute; left: 0; top: 0; width: 210mm; height: ${_slotH}mm; }
 .sheet {
   position: absolute;
-  left: 50%;
-  top: 50%;
+  left: ${_margin.toStringAsFixed(2)}mm;
+  top: ${_margin.toStringAsFixed(2)}mm;
   width: ${_sheetW}pt;
   height: ${_sheetH}pt;
-  transform: translate(-50%, -50%) scale($_fit);
-  transform-origin: 50% 50%;
+  transform: scale(${_fit.toStringAsFixed(4)});
+  transform-origin: 0 0;
   font-family: 'Noto Sans Devanagari', 'Nirmala UI', 'Mangal', sans-serif;
   color: #000;
   line-height: normal;
