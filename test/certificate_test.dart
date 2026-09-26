@@ -58,7 +58,6 @@ CertificateData _data({Member? member}) => CertificateData.forMember(
       member: member ?? _member(),
       yojna: _yojna,
       agent: _agent,
-      issuedOn: DateTime(2026, 6, 1),
     );
 
 void main() {
@@ -93,6 +92,17 @@ void main() {
       expect(d.agentName, 'Signed-in Agent');
     });
 
+    test('दिनांक is the joining date, even one from before the software', () {
+      final d = CertificateData.forMember(
+        member: _member().copyWith(joinDate: DateTime(2019, 3, 15)),
+      );
+      expect(d.joinedOn, DateTime(2019, 3, 15));
+      expect(
+        buildCertificateHtml(d, baseUrl: 'https://trust.test/'),
+        contains('<span class="v">15-03-2019</span>'),
+      );
+    });
+
     test('योजना प्रारंभ is the scheme start date, not the day it was typed in',
         () {
       expect(_data().yojnaStartedOn, DateTime(2026, 7, 1));
@@ -118,7 +128,7 @@ void main() {
     group('सहयोग राशि label names the Yojna', () {
       String label(String name, {String short = ''}) => CertificateData(
             regNo: '',
-            issuedOn: DateTime(2026),
+            joinedOn: DateTime(2026),
             name: '',
             yojnaName: name,
             yojnaShortName: short,
@@ -279,7 +289,6 @@ void main() {
       final h = buildCertificateHtml(
         CertificateData.forMember(
           member: _member().copyWith(photoUrl: 'https://cdn.test/p.jpg'),
-          issuedOn: DateTime(2026, 6, 1),
         ),
         baseUrl: 'https://trust.test/',
       );
@@ -318,7 +327,6 @@ void main() {
     test('missing values leave blank lines rather than the word null', () {
       final bare = CertificateData.forMember(
         member: _member(state: '').copyWith(clearDob: true),
-        issuedOn: DateTime(2026, 6, 1),
       );
       final h = buildCertificateHtml(bare, baseUrl: 'https://trust.test/');
       expect(h, isNot(contains('null')));

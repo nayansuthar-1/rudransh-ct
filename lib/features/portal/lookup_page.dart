@@ -393,7 +393,7 @@ Future<void> _printCertificate(
     context,
     CertificateData(
       regNo: m.regNo,
-      issuedOn: DateTime.now(),
+      joinedOn: m.joinDate,
       name: m.name,
       fatherOrHusbandName: m.fatherOrHusbandName,
       yojnaName: l.yojnaName,

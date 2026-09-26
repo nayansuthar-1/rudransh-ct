@@ -19,7 +19,7 @@ Approved 20 Sep 2026. Section 4 is settled: blank photo box, trust details as co
 | Scheme name (`परिवार सहयोग योजना`) | `Yojna.name` | yes |
 | `योजना प्रारंभ` (date) | `Yojna.startDate` (§8) | yes |
 | `सदस्यता क्रमांक` | `Member.regNo` | yes |
-| `दिनांक` | date the certificate is printed | yes |
+| `दिनांक` | the member's joining date, as typed on their record (was the print date until 26 Sep 2026) | yes |
 | Photo box | — | one blank frame (§4a) |
 | `नाम` | `Member.name` + `fatherOrHusbandName` | yes |
 | `गौत्र` / `जाति` | `Member.gotra` / `Member.jati` | yes |

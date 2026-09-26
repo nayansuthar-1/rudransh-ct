@@ -74,7 +74,6 @@ void main() {
         member: m,
         yojna: y,
         agent: a,
-        issuedOn: DateTime(2026, 9, 20),
       ),
       baseUrl: 'PREVIEW/',
     );

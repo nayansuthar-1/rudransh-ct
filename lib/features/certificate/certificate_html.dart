@@ -176,7 +176,7 @@ String _sheetHtml(CertificateData d, String baseUrl) {
   final rows = [
     _rowHtml(0, spread: true, [
       _Field('सदस्यता क्रमांक:', d.regNo, width: 90),
-      _Field('दिनांक:', _day(d.issuedOn), width: 62.74),
+      _Field('दिनांक:', _day(d.joinedOn), width: 62.74),
     ]),
     _rowHtml(1, [
       _Field('नाम:', d.name, width: 150),

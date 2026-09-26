@@ -539,7 +539,7 @@ void printMyCertificate(BuildContext context, Membership m, MemberText t) {
     context,
     CertificateData(
       regNo: member.regNo,
-      issuedOn: DateTime.now(),
+      joinedOn: member.joinDate,
       name: member.name,
       fatherOrHusbandName: member.fatherOrHusbandName,
       yojnaName: m.yojnaName,

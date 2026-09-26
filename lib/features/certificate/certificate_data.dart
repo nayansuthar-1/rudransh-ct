@@ -11,7 +11,7 @@ import '../../data/models/models.dart';
 class CertificateData {
   const CertificateData({
     required this.regNo,
-    required this.issuedOn,
+    required this.joinedOn,
     required this.name,
     this.fatherOrHusbandName = '',
     this.yojnaName = '',
@@ -43,12 +43,11 @@ class CertificateData {
     required Member member,
     Yojna? yojna,
     Agent? agent,
-    DateTime? issuedOn,
     String agentName = '',
   }) {
     return CertificateData(
       regNo: member.regNo,
-      issuedOn: issuedOn ?? DateTime.now(),
+      joinedOn: member.joinDate,
       name: member.name,
       fatherOrHusbandName: member.fatherOrHusbandName,
       yojnaName: yojna?.name ?? '',
@@ -74,8 +73,9 @@ class CertificateData {
   /// `सदस्यता क्रमांक`.
   final String regNo;
 
-  /// `दिनांक` — the day the certificate is printed.
-  final DateTime issuedOn;
+  /// `दिनांक` — the day the member joined, which for members who joined
+  /// before the software is the date typed in on their record.
+  final DateTime joinedOn;
 
   final String name;
   final String fatherOrHusbandName;
