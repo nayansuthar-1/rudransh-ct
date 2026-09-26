@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/l10n/strings.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/utils/validators.dart';
 import '../../data/models/models.dart';
 import '../../state/providers.dart';
@@ -157,6 +158,8 @@ class _YojnaFormDialogState extends ConsumerState<YojnaFormDialog> {
                     controller: _name,
                     hint: 'e.g. Suraksha Sahyog Yojna',
                     validator: V.required,
+                    // Keeps the certificate preview below current.
+                    onChanged: (_) => setState(() {}),
                   ),
                 ),
                 GridItem(
@@ -182,6 +185,7 @@ class _YojnaFormDialogState extends ConsumerState<YojnaFormDialog> {
                     label: 'Name on certificate',
                     controller: _shortName,
                     hint: 'e.g. शादी — blank uses the Yojna name',
+                    onChanged: (_) => setState(() {}),
                   ),
                 ),
                 GridItem(
@@ -214,6 +218,13 @@ class _YojnaFormDialogState extends ConsumerState<YojnaFormDialog> {
                 ),
               ],
             ),
+            const SizedBox(height: 10),
+            _CertificateLabelPreview(
+              label: Yojna.certificateLabel(
+                name: _name.text,
+                shortName: _shortName.text,
+              ),
+            ),
             const SizedBox(height: 12),
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
@@ -224,6 +235,41 @@ class _YojnaFormDialogState extends ConsumerState<YojnaFormDialog> {
                 'Only active schemes appear in the member form',
                 style: TextStyle(fontSize: 12),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// How the certificate's सहयोग राशि label will read, so the office sees the
+/// Hindi a Hinglish name turns into and can fix it in "Name on certificate".
+class _CertificateLabelPreview extends StatelessWidget {
+  const _CertificateLabelPreview({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: c.surfaceMuted,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: c.border),
+      ),
+      child: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: 'Prints on the certificate as:  ',
+              style: TextStyle(fontSize: 12.5, color: c.textSecondary),
+            ),
+            TextSpan(
+              text: '$label: ₹ ___',
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             ),
           ],
         ),

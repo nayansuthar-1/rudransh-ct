@@ -118,27 +118,6 @@ class CertificateData {
       [name, fatherOrHusbandName].where((p) => p.trim().isNotEmpty).join(' ');
 
   /// The सहयोग राशि label, naming the Yojna: `प्रत्येक शादी सहयोग राशि`.
-  /// Uses [yojnaShortName], or else [yojnaName] without its trailing
-  /// `सहयोग योजना`; plain `सहयोग राशि` when neither gives a word.
-  String get contributionLabel {
-    var word = yojnaShortName.trim();
-    if (word.isEmpty) {
-      final words = yojnaName.trim().split(RegExp(r'\s+'))
-        ..removeWhere((w) => w.isEmpty);
-      while (words.isNotEmpty && _yojnaWords.contains(words.last.toLowerCase())) {
-        words.removeLast();
-      }
-      word = words.join(' ');
-    }
-    return word.isEmpty ? 'सहयोग राशि' : 'प्रत्येक $word सहयोग राशि';
-  }
-
-  static const _yojnaWords = {
-    'योजना',
-    'सहयोग',
-    'yojana',
-    'yojna',
-    'sahyog',
-    'sahayog',
-  };
+  String get contributionLabel =>
+      Yojna.certificateLabel(name: yojnaName, shortName: yojnaShortName);
 }

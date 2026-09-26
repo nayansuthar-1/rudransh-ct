@@ -128,7 +128,24 @@ void main() {
         expect(label('शादी सहयोग योजना'), 'प्रत्येक शादी सहयोग राशि');
         expect(label('मायरा सहयोग योजना'), 'प्रत्येक मायरा सहयोग राशि');
         expect(label('सुरक्षा सहयोग योजना'), 'प्रत्येक सुरक्षा सहयोग राशि');
-        expect(label('Parivar Sahyog Yojna'), 'प्रत्येक Parivar सहयोग राशि');
+        expect(label('Parivar Sahyog Yojna'), 'प्रत्येक परिवार सहयोग राशि');
+      });
+
+      test('a Hinglish Yojna name prints in Hindi', () {
+        expect(label('Shadi Sahyog Yojana'), 'प्रत्येक शादी सहयोग राशि');
+        expect(label('SHAADI SAHYOG YOJNA'), 'प्रत्येक शादी सहयोग राशि');
+        expect(label('Mayra Sahyog'), 'प्रत्येक मायरा सहयोग राशि');
+        expect(label('Suraksha Sahayog Yojana'), 'प्रत्येक सुरक्षा सहयोग राशि');
+        expect(
+          label('Sarv Samaj Shadi-Mamera-Suraksha Sahyog Yojana'),
+          'प्रत्येक सर्व समाज शादी-मामेरा-सुरक्षा सहयोग राशि',
+        );
+        // A word not on the list is still written in Hindi.
+        expect(label('Gau Raksha Sahyog Yojana'), 'प्रत्येक गौ रक्षा सहयोग राशि');
+      });
+
+      test('a Hinglish name on certificate prints in Hindi too', () {
+        expect(label('Anything', short: 'shadi'), 'प्रत्येक शादी सहयोग राशि');
       });
 
       test('the Yojna\'s name on certificate wins', () {
@@ -163,7 +180,7 @@ void main() {
       expect(html, contains('Son'));
       expect(html, contains('Hemtaji Nagaji'));
       expect(html, contains('01-06-2026')); // दिनांक
-      expect(html, contains('>प्रत्येक Parivar सहयोग राशि:</span>'));
+      expect(html, contains('>प्रत्येक परिवार सहयोग राशि:</span>'));
       expect(html, isNot(contains('प्रत्येक मायरा पर')));
       expect(html, contains('>200/-<')); // सहयोग राशि
       expect(html, contains('तीन महीने तक रु 25000')); // नोंध
