@@ -24,8 +24,9 @@ String _assetUrl(String base, String path) {
 // (KALPESH_KUMAR_R707604_Certificate.pdf), measured off the PDF itself:
 //
 // * The sheet is the reference's A5 landscape page, 595.28 × 419.53pt, and
-//   every body position below is in those points. It is scaled up whole to
-//   fill A4 landscape, which has the same proportions.
+//   every body position below is in those points. Two sheets print on one A4
+//   portrait page, one in each half, each shrunk a little so the frame stays
+//   clear of the edge a printer cannot reach.
 // * The header lives in the pixel space of the frame image, 2559 × 1659.
 //   The reference stretches that image onto the page, so its header is 8.7%
 //   taller than drawn; laying ours out in the same space stretches it the
@@ -35,8 +36,14 @@ String _assetUrl(String base, String path) {
 const _sheetW = 595.275574;
 const _sheetH = 419.527557;
 
-/// A4 landscape is 297mm = 841.89pt wide.
-const _scale = 841.889764 / _sheetW;
+/// Each sheet is drawn at 93% in its half of the A4 page, 195 × 138mm. That
+/// leaves about 7mm at the sides and 5mm above and below, which clears the
+/// unprintable edge of an office printer, and 11mm between the two
+/// certificates to cut along.
+const _fit = 0.93;
+
+/// Half of A4 portrait's 297mm: one certificate's slot.
+const _slotH = 148.5;
 
 /// The frame image, in pixels.
 const _artW = 2559;
@@ -70,8 +77,9 @@ String _mixed(String s) {
 
 /// The frame, the two images and the trust's header, drawn in the frame
 /// image's pixel space. Sizes, baselines and colours are matched to the
-/// reference header.
-String _art(String baseUrl) {
+/// reference header. [id] keeps this sheet's gradient apart from the other
+/// sheet's on the same page.
+String _art(String baseUrl, String id) {
   final frame = _assetUrl(baseUrl, TrustInfo.certificateFrameAsset);
   final shiva = _assetUrl(baseUrl, TrustInfo.shivaAsset);
   final logo = _assetUrl(baseUrl, TrustInfo.logoAsset);
@@ -88,7 +96,7 @@ String _art(String baseUrl) {
   return '''
 <svg class="art" viewBox="0 0 $_artW $_artH" preserveAspectRatio="none">
   <defs>
-    <linearGradient id="heading-fill" gradientUnits="userSpaceOnUse" x1="0" y1="193" x2="0" y2="234">
+    <linearGradient id="$id"gradientUnits="userSpaceOnUse" x1="0" y1="193" x2="0" y2="234">
       <stop offset="0" stop-color="#1e1856"/>
       <stop offset="1" stop-color="#e31e27"/>
     </linearGradient>
@@ -98,7 +106,7 @@ String _art(String baseUrl) {
   ${TrustInfo.hasLogo ? '<image href="$logo" x="1964.4" y="157.9" width="354.2" height="354.2" preserveAspectRatio="none"/>' : ''}
   <text class="inv" transform="translate(327 0) scale(0.9 1)" y="145">${_esc(left)}</text>
   <text class="inv" transform="translate(2227 0) scale(0.9 1)" y="145" text-anchor="end">${_esc(right)}</text>
-  <text class="heading" transform="translate(1279.5 0) scale(0.897 1)" y="251" text-anchor="middle">${_esc(TrustInfo.certificateName)}</text>
+  <text class="heading" fill="url(#$id)" transform="translate(1279.5 0) scale(0.897 1)" y="251" text-anchor="middle">${_esc(TrustInfo.certificateName)}</text>
   <text class="place" x="1279.5" y="325" text-anchor="middle">${_esc('${TrustInfo.place} - ${TrustInfo.state}')}</text>
   <text class="line" x="1279.5" y="389" text-anchor="middle">${_mixed(established)}</text>
   <text class="line" x="1279.5" y="439" text-anchor="middle">${_mixed(TrustInfo.headOfficeAddress)}</text>
@@ -150,14 +158,9 @@ String _rowHtml(int index, List<_Field> fields, {bool spread = false}) {
       '${fields.map(_fieldHtml).join()}</div>';
 }
 
-/// Builds the printable membership certificate as one self-contained HTML
-/// page: a single A4 landscape sheet laid out as the reference certificate,
-/// carrying the trust's details and the member's.
-///
-/// [baseUrl] is the app's own base URL, used to reach the bundled assets.
-String buildCertificateHtml(CertificateData d, {required String baseUrl}) {
-  final fonts = _assetUrl(baseUrl, 'assets/fonts');
-
+/// One certificate, laid out as the reference sheet, in half [index] of the
+/// page: 0 for the top, 1 for the bottom.
+String _sheetHtml(CertificateData d, String baseUrl, int index) {
   final amount =
       d.contributionAmount > 0 ? '${_money.format(d.contributionAmount)}/-' : '';
 
@@ -216,11 +219,45 @@ String buildCertificateHtml(CertificateData d, {required String baseUrl}) {
           '${_esc(line)}</div>',
   ].join('\n  ');
 
+  return '''
+<div class="slot" style="top:${(index * _slotH).toStringAsFixed(1)}mm"><div class="sheet">
+  ${_art(baseUrl, 'heading-fill-$index')}
+  <div class="title">प्रमाण पत्र</div>
+  <div class="photo">$photo</div>
+  $rows
+  $rule
+  <div class="sig" style="left:77.09pt;width:155.49pt">
+    <div class="name">${_esc(d.agentName)}</div><div class="rule"></div><div class="role">कार्यकर्ता</div>
+  </div>
+  <div class="sig" style="left:370.44pt;width:140pt">
+    <div class="name"></div><div class="rule"></div><div class="role">अध्यक्ष</div>
+  </div>
+</div></div>''';
+}
+
+/// Builds the printable membership certificate as one self-contained HTML
+/// page: an A4 portrait sheet with [d] in its top half and, when given,
+/// [pair] in its bottom half. Each is an A5 certificate laid out as the
+/// reference, carrying the trust's details and the member's.
+///
+/// A certificate printed alone sits in the top half, so the paper can be
+/// turned round and fed back in for the next one, which then lands in the
+/// other half without touching the first.
+///
+/// [baseUrl] is the app's own base URL, used to reach the bundled assets.
+String buildCertificateHtml(
+  CertificateData d, {
+  required String baseUrl,
+  CertificateData? pair,
+}) {
+  final fonts = _assetUrl(baseUrl, 'assets/fonts');
+  final sheets = [d, ?pair];
+
   return '''<!DOCTYPE html>
 <html lang="hi">
 <head>
 <meta charset="utf-8">
-<title>प्रमाण पत्र - ${_esc(d.regNo)}</title>
+<title>प्रमाण पत्र - ${sheets.map((c) => _esc(c.regNo)).join(', ')}</title>
 <style>
 @font-face {
   font-family: 'Noto Sans Devanagari';
@@ -241,7 +278,7 @@ String buildCertificateHtml(CertificateData d, {required String baseUrl}) {
   src: url('$fonts/Arimo-Bold.ttf') format('truetype');
   font-weight: 700;
 }
-@page { size: A4 landscape; margin: 0; }
+@page { size: A4 portrait; margin: 0; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
   background: #fff;
@@ -250,19 +287,21 @@ html, body {
 }
 .page {
   position: relative;
-  width: 297mm;
-  height: ${(_sheetH * _scale / 72 * 25.4).toStringAsFixed(2)}mm;
+  width: 210mm;
+  /* A millimetre short of A4, so rounding never spills onto a second page. */
+  height: 296mm;
   overflow: hidden;
   margin: 0 auto;
 }
+.slot { position: absolute; left: 0; width: 210mm; height: ${_slotH}mm; }
 .sheet {
   position: absolute;
-  left: 0;
-  top: 0;
+  left: 50%;
+  top: 50%;
   width: ${_sheetW}pt;
   height: ${_sheetH}pt;
-  transform: scale(${_scale.toStringAsFixed(6)});
-  transform-origin: 0 0;
+  transform: translate(-50%, -50%) scale($_fit);
+  transform-origin: 50% 50%;
   font-family: 'Noto Sans Devanagari', 'Nirmala UI', 'Mangal', sans-serif;
   color: #000;
   line-height: normal;
@@ -274,7 +313,6 @@ html, body {
 .art .inv { font-size: 40.8px; fill: #e31e27; }
 .art .heading {
   font-size: 129.2px;
-  fill: url(#heading-fill);
   stroke: #fff;
   stroke-width: 13px;
   stroke-linejoin: round;
@@ -373,19 +411,8 @@ html, body {
 </style>
 </head>
 <body>
-<div class="page"><div class="sheet">
-  ${_art(baseUrl)}
-  <div class="title">प्रमाण पत्र</div>
-  <div class="photo">$photo</div>
-  $rows
-  $rule
-  <div class="sig" style="left:77.09pt;width:155.49pt">
-    <div class="name">${_esc(d.agentName)}</div><div class="rule"></div><div class="role">कार्यकर्ता</div>
-  </div>
-  <div class="sig" style="left:370.44pt;width:140pt">
-    <div class="name"></div><div class="rule"></div><div class="role">अध्यक्ष</div>
-  </div>
-</div></div>
+<div class="page">${[for (final (i, c) in sheets.indexed) _sheetHtml(c, baseUrl, i)].join()}
+</div>
 <script>
 // A value too long for its line is shrunk to fit rather than run over.
 function fit(el, room, size, min) {

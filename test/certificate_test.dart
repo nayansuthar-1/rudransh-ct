@@ -210,10 +210,28 @@ void main() {
       );
     });
 
-    test('lays the reference page out and scales it to A4 landscape', () {
+    test('lays the reference page out in the top half of A4 portrait', () {
       expect(html, contains('width: 595.275574pt'));
-      expect(html, contains('width: 297mm'));
-      expect(html, contains('height: 209.31mm'));
+      expect(html, contains('width: 210mm'));
+      expect(html, contains('scale(0.93)'));
+      expect(html, contains('<div class="slot" style="top:0.0mm">'));
+      expect(html, isNot(contains('top:148.5mm')));
+    });
+
+    test('a pair shares the sheet, the second in the bottom half', () {
+      final h = buildCertificateHtml(
+        _data(),
+        baseUrl: 'https://trust.test/',
+        pair: _data(member: _member(name: 'Ramesh', regNo: 'SSY-2026-0185')),
+      );
+      expect(h, contains('<div class="slot" style="top:0.0mm">'));
+      expect(h, contains('<div class="slot" style="top:148.5mm">'));
+      expect(h, contains('>Punamabhai<'));
+      expect(h, contains('>Ramesh<'));
+      expect(h, contains('SSY-2026-0184, SSY-2026-0185</title>'));
+      // Each sheet's heading keeps its own gradient.
+      expect(h, contains('id="heading-fill-0"'));
+      expect(h, contains('id="heading-fill-1"'));
     });
 
     test('writes the name and the father on their own lines', () {
@@ -282,8 +300,8 @@ void main() {
       expect(h, contains('https://trust.test/assets/assets/fonts/'));
     });
 
-    test('prints on A4 landscape and asks the browser to print', () {
-      expect(html, contains('size: A4 landscape'));
+    test('prints on A4 portrait and asks the browser to print', () {
+      expect(html, contains('size: A4 portrait'));
       expect(html, contains('window.print()'));
     });
 

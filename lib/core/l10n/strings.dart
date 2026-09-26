@@ -330,4 +330,11 @@ class S {
       'This member needs a registration number before a certificate can be printed.';
   static const certificateFailed =
       'Could not open the certificate. Allow pop-ups for this site and try again.';
+  static const certificateSheetNote = 'Two certificates fit on one A4 sheet.';
+  static const certificateKeep = 'Keep for next';
+  static const certificatePrintNow = 'Print now';
+  static const certificatePrintOne = 'Print this only';
+  static const certificatePrintBoth = 'Print both';
+  static const certificateKept =
+      'Kept. Print the next member\'s certificate to put both on one sheet.';
 }

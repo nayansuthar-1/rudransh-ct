@@ -77,6 +77,13 @@ void main() {
         issuedOn: DateTime(2026, 9, 20),
       ),
       baseUrl: 'PREVIEW/',
+      // A second member, to show the bottom half of the A4 sheet.
+      pair: CertificateData.forMember(
+        member: m.copyWith(regNo: '111622', name: 'सुरेश कुमार'),
+        yojna: y,
+        agent: a,
+        issuedOn: DateTime(2026, 9, 20),
+      ),
     );
 
     // The shipped page loads its fonts and images from the app's asset URLs.

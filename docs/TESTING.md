@@ -129,11 +129,14 @@ Sign in as the owner. You land on `/dashboard`.
 - Mark a member **Inactive** (owner only — staff must not be able to).
 - Try to delete a member who has receipts → must be refused, with the advice to
   mark them Inactive instead.
-- **Print certificate** on the detail sheet opens a new tab and the print dialog.
-  Check on paper: Hindi renders with matras joined, it fits **one A4 landscape**
-  page, the reg number, name, gotra, jati, date of birth, village, district,
-  state, address, phone, nominee and karyakarta are all filled. The certificate
-  frame is the **whole page** — nothing prints outside it. Blank dotted lines
+- **Print certificate** on the detail sheet asks **Keep for next** or **Print
+  now**. Keep one member, then print a second one and choose **Print both**: a
+  new tab opens with the print dialog. Check on paper: Hindi renders with matras
+  joined, both certificates fit **one A4 portrait** page, one per half, with a
+  clear gap between them. The reg number, name, gotra, jati, date of birth,
+  village, district, state, address, phone, nominee and karyakarta are all
+  filled. Each frame prints whole, with a white margin round it and nothing
+  cut off at the paper's edge. Blank dotted lines
   are expected wherever the client has not sent the trust's own details yet
   (`docs/MEMBERSHIP_CERTIFICATE_PLAN.md` §8).
 - ⚠️ `संस्था रजीस्टर नं.` currently reads **`F/0000/B.K., GJ/0000/B.K.`**. That
