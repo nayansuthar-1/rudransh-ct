@@ -213,25 +213,16 @@ void main() {
     test('lays the reference page out in the top half of A4 portrait', () {
       expect(html, contains('width: 595.275574pt'));
       expect(html, contains('width: 210mm'));
-      expect(html, contains('scale(0.93)'));
-      expect(html, contains('<div class="slot" style="top:0.0mm">'));
-      expect(html, isNot(contains('top:148.5mm')));
+      expect(html, contains('height: 148.5mm'));
+      // Shrunk to leave 10mm of white at each side of the 210mm page.
+      expect(html, contains('scale(0.905)'));
+      // One certificate per sheet: the bottom half stays blank.
+      expect('class="slot"'.allMatches(html), hasLength(1));
     });
 
-    test('a pair shares the sheet, the second in the bottom half', () {
-      final h = buildCertificateHtml(
-        _data(),
-        baseUrl: 'https://trust.test/',
-        pair: _data(member: _member(name: 'Ramesh', regNo: 'SSY-2026-0185')),
-      );
-      expect(h, contains('<div class="slot" style="top:0.0mm">'));
-      expect(h, contains('<div class="slot" style="top:148.5mm">'));
-      expect(h, contains('>Punamabhai<'));
-      expect(h, contains('>Ramesh<'));
-      expect(h, contains('SSY-2026-0184, SSY-2026-0185</title>'));
-      // Each sheet's heading keeps its own gradient.
-      expect(h, contains('id="heading-fill-0"'));
-      expect(h, contains('id="heading-fill-1"'));
+    test('the heading gradient is referenced by its own id', () {
+      expect(html, contains('<linearGradient id="heading-fill" '));
+      expect(html, contains('fill="url(#heading-fill)"'));
     });
 
     test('writes the name and the father on their own lines', () {

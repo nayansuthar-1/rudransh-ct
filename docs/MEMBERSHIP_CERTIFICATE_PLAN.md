@@ -52,13 +52,12 @@ dependency, and "Save as PDF" is built into Chrome on both desktop and Android.
 
 Details:
 
-- ~~A4 landscape, fixed one page.~~ **Changed 26 Sep 2026:** two A5
-  certificates on one A4 portrait sheet, `@page { size: A4 portrait; margin: 0 }`.
-  Each is drawn at 93% in its half, clear of the printer's unprintable edge.
-  **Print certificate** asks whether to print now or keep the certificate for
-  the next one, then prints both together. A certificate printed alone sits in
-  the top half, so turning the paper round and printing again fills the
-  bottom half without overlapping.
+- ~~A4 landscape, fixed one page.~~ **Changed 26 Sep 2026:** one certificate
+  in the **top half** of an A4 portrait sheet,
+  `@page { size: A4 portrait; margin: 0 }`. It is drawn at 90.5%, about
+  190 × 134mm, leaving 10mm at the sides and 7mm above and below. The bottom
+  half stays blank: turn the paper round, feed it back in and print the next
+  member, whose certificate lands there with 14mm between the two.
 - The bundled `NotoSansDevanagari` font is referenced from the app's own asset
   URL, so the page looks the same on a machine with no Hindi font installed.
 - Decorative double border, centred logo, maroon/red ink on cream — matching the

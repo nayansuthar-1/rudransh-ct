@@ -71,7 +71,7 @@ Add three members under Yojna TEST, all with agent *Test Agent*:
 | **M3** | leave empty | different phone | different Aadhaar | lookup with no login (§3.1) |
 
 - ✅ Pass if each member gets a reg number on save and shows as **Active**.
-- Open M1 → **Print certificate** → **Keep for next**. Open M2 → **Print certificate** → **Print both** → a new tab opens with both certificates on one A4 portrait sheet, one per half. Turn **Background graphics** on in the print dialog.
+- Open M1 → **Print certificate** → a new tab opens with the certificate in the top half of an A4 portrait sheet. Turn **Background graphics** on in the print dialog.
 - **Invite M2:** Members → M2 ⋯ → **Invite to app** → `rudranshct+m2@gmail.com` → **Send invite**.
   - ✅ Pass if it shows *"Invite email sent"* and M2's **App access** shows as invited.
   - Open the email in the inbox. ✅ Pass if it has the three sign-in steps in English and Hindi, and an **Open the app / ऐप खोलें** button that opens `…/m`. If it says **Activate account**, the template from §0.1 was not updated. Signing in still works, but fix the template.
