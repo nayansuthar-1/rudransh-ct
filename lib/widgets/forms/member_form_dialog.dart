@@ -12,6 +12,7 @@ import '../../state/providers.dart';
 import '../app_dialog.dart';
 import '../inputs.dart';
 import 'member_photo_picker.dart';
+import 'photo_crop_dialog.dart';
 
 /// Opens the "Add Member" dialog. Pass [existing] to edit instead.
 Future<void> showMemberFormDialog(
@@ -66,6 +67,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   MemberStatus _status = MemberStatus.active;
   DateTime _joinDate = DateTime.now();
   String _photoUrl = '';
+  String _aadhaarPhotoUrl = '';
+  String _warisPhotoUrl = '';
 
   bool _saving = false;
   bool _looking = false;
@@ -119,6 +122,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     _status = m?.status ?? MemberStatus.active;
     _joinDate = m?.joinDate ?? DateTime.now();
     _photoUrl = m?.photoUrl ?? '';
+    _aadhaarPhotoUrl = m?.aadhaarPhotoUrl ?? '';
+    _warisPhotoUrl = m?.warisPhotoUrl ?? '';
   }
 
   static String _num(double v) =>
@@ -227,6 +232,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             joinDate: _joinDate,
             status: _status,
             photoUrl: _photoUrl,
+            aadhaarPhotoUrl: _aadhaarPhotoUrl,
+            warisPhotoUrl: _warisPhotoUrl,
             contributionAmount: _contributionValue,
           ),
         );
@@ -259,6 +266,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             status: _status,
             consentAt: DateTime.now(),
             photoUrl: _photoUrl,
+            aadhaarPhotoUrl: _aadhaarPhotoUrl,
+            warisPhotoUrl: _warisPhotoUrl,
             contributionAmount: _contributionValue,
           ),
         );
@@ -391,6 +400,13 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                     ),
                   ),
                   GridItem(
+                    MemberPhotoPicker(
+                      label: S.fldWarisPhoto,
+                      url: _warisPhotoUrl,
+                      onChanged: (u) => setState(() => _warisPhotoUrl = u),
+                    ),
+                  ),
+                  GridItem(
                     AppDropdown<Gender>(
                       label: S.fldGender,
                       required: true,
@@ -471,6 +487,14 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                       validator: (v) => _isEdit && (v ?? '').trim().isEmpty
                           ? null
                           : V.aadhaar(v),
+                    ),
+                  ),
+                  GridItem(
+                    MemberPhotoPicker(
+                      label: S.fldAadhaarPhoto,
+                      url: _aadhaarPhotoUrl,
+                      shapes: const [CropShape.card, CropShape.whole],
+                      onChanged: (u) => setState(() => _aadhaarPhotoUrl = u),
                     ),
                   ),
                 ],

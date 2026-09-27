@@ -227,6 +227,8 @@ class SupabaseAgentRepository implements AgentRepository {
             'pincode': m.pincode,
             'join_date': _dateFormat.format(m.joinDate),
             'photo_url': m.photoUrl,
+            'aadhaar_photo_url': m.aadhaarPhotoUrl,
+            'waris_photo_url': m.warisPhotoUrl,
             'contribution_amount': m.contributionAmount,
           },
         },
@@ -589,7 +591,9 @@ class InMemoryAgentRepository implements AgentRepository {
         .where((m) =>
             (status == null || m.status == status) &&
             (q.isEmpty || m.searchIndex.contains(q)))
-        .map((m) => m.copyWith(aadhaar: ''))
+        // As `agent_members` does: no Aadhaar, nor the ID photos.
+        .map((m) =>
+            m.copyWith(aadhaar: '', aadhaarPhotoUrl: '', warisPhotoUrl: ''))
         .toList();
     return _slice(matches, offset, limit);
   }

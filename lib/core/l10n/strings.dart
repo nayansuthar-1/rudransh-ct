@@ -177,12 +177,14 @@ class S {
   static const fldGotra = 'Gotra (optional)';
   static const fldWaris = 'Nominee (Waris) name';
   static const fldWarisRelation = 'Relation to nominee';
+  static const fldWarisPhoto = 'Vaarisdar (nominee) photo';
   static const fldGender = 'Gender';
   static const fldDob = 'Date of birth';
   static const fldPrimaryPhone = 'Phone';
   static const fldAltPhone = 'Alternate phone (optional)';
   static const fldMemberEmail = 'Email (optional)';
   static const fldAadhaar = 'Aadhaar number';
+  static const fldAadhaarPhoto = 'Aadhaar card photo';
   static const fldVillage = 'Village / city';
   static const fldTehsil = 'Tehsil';
   static const fldDistrict = 'District';

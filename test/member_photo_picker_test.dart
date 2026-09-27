@@ -35,6 +35,29 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a saved photo can be adjusted', (tester) async {
+    await _pump(tester, 'https://res.cloudinary.com/demo/image/upload/p.jpg');
+    expect(find.text('Adjust'), findsOneWidget);
+  });
+
+  testWidgets('each photo carries its own label', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: MemberPhotoPicker(
+              label: 'Aadhaar card photo',
+              url: '',
+              onChanged: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Aadhaar card photo'), findsOneWidget);
+    expect(find.text('Member Photo'), findsNothing);
+  });
+
   testWidgets('Remove clears the photo', (tester) async {
     final changes = await _pump(
       tester,

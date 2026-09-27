@@ -18,6 +18,7 @@ import '../../widgets/inputs.dart';
 import '../../widgets/primitives.dart';
 import '../receipt/receipt_action.dart';
 import '../../widgets/forms/member_photo_picker.dart';
+import '../../widgets/forms/photo_crop_dialog.dart';
 
 // ---------------------------------------------------------------------------
 // Add member
@@ -61,6 +62,8 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
   /// Printed on the membership certificate; optional at sign-up.
   DateTime? _dob;
   String _photoUrl = '';
+  String _aadhaarPhotoUrl = '';
+  String _warisPhotoUrl = '';
   bool _saving = false;
 
   @override
@@ -103,6 +106,8 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
               joinDate: _joinDate,
               status: MemberStatus.pending,
               photoUrl: _photoUrl,
+              aadhaarPhotoUrl: _aadhaarPhotoUrl,
+              warisPhotoUrl: _warisPhotoUrl,
               contributionAmount: double.tryParse(
                     _contribution.text.trim().replaceAll(',', ''),
                   ) ??
@@ -226,6 +231,11 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
                     required: true,
                     validator: V.required,
                   )),
+                  GridItem(MemberPhotoPicker(
+                    label: S.fldWarisPhoto,
+                    url: _warisPhotoUrl,
+                    onChanged: (u) => setState(() => _warisPhotoUrl = u),
+                  )),
                   GridItem(AppTextField(
                     label: '${S.fldAadhaar} (optional)',
                     controller: _aadhaar,
@@ -233,6 +243,12 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
                     inputFormatters: Fmts.aadhaar(),
                     validator: (v) =>
                         (v ?? '').trim().isEmpty ? null : V.aadhaar(v),
+                  )),
+                  GridItem(MemberPhotoPicker(
+                    label: S.fldAadhaarPhoto,
+                    url: _aadhaarPhotoUrl,
+                    shapes: const [CropShape.card, CropShape.whole],
+                    onChanged: (u) => setState(() => _aadhaarPhotoUrl = u),
                   )),
                   GridItem(AppDateField(
                     label: S.fldDob,

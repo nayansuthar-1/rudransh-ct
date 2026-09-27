@@ -59,6 +59,8 @@ class Member {
     this.reviewNote = '',
     this.consentAt,
     this.photoUrl = '',
+    this.aadhaarPhotoUrl = '',
+    this.warisPhotoUrl = '',
     this.email = '',
     this.contributionAmount = 0,
   });
@@ -123,6 +125,13 @@ class Member {
 
   final String photoUrl;
 
+  /// Photo of the Aadhaar card. Office only: agents send it with a new
+  /// member but never get it back, as with the number itself.
+  final String aadhaarPhotoUrl;
+
+  /// Photo of the nominee (waris).
+  final String warisPhotoUrl;
+
   /// Optional, stored lowercase. A member whose email is on file can sign in
   /// with it without an invite.
   final String email;
@@ -181,6 +190,8 @@ class Member {
     String? reviewNote,
     DateTime? consentAt,
     String? photoUrl,
+    String? aadhaarPhotoUrl,
+    String? warisPhotoUrl,
     String? email,
     double? contributionAmount,
   }) {
@@ -213,6 +224,8 @@ class Member {
       reviewNote: reviewNote ?? this.reviewNote,
       consentAt: consentAt ?? this.consentAt,
       photoUrl: photoUrl ?? this.photoUrl,
+      aadhaarPhotoUrl: aadhaarPhotoUrl ?? this.aadhaarPhotoUrl,
+      warisPhotoUrl: warisPhotoUrl ?? this.warisPhotoUrl,
       email: email ?? this.email,
       contributionAmount: contributionAmount ?? this.contributionAmount,
     );
@@ -245,6 +258,8 @@ class Member {
         'closingGroup': closingGroup,
         'reviewNote': reviewNote,
         'photoUrl': photoUrl,
+        'aadhaarPhotoUrl': aadhaarPhotoUrl,
+        'warisPhotoUrl': warisPhotoUrl,
         'email': email,
         'contributionAmount': contributionAmount,
       };
@@ -278,6 +293,8 @@ class Member {
         closingGroup: map['closingGroup'] as String?,
         reviewNote: map['reviewNote'] as String? ?? '',
         photoUrl: map['photoUrl'] as String? ?? '',
+        aadhaarPhotoUrl: map['aadhaarPhotoUrl'] as String? ?? '',
+        warisPhotoUrl: map['warisPhotoUrl'] as String? ?? '',
         email: map['email'] as String? ?? '',
         contributionAmount:
             (map['contributionAmount'] as num?)?.toDouble() ?? 0,
