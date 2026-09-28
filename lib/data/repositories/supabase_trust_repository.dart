@@ -29,19 +29,40 @@ class SupabaseTrustRepository implements TrustRepository {
 
   @override
   Future<Yojna> createYojna(Yojna yojna) => _guard(() async {
-        final row = await _db.from('yojnas').insert(_yojnaToRow(yojna)).select().single();
-        return _yojnaFromRow(row);
+        try {
+          final row = await _db.from('yojnas').insert(_yojnaToRow(yojna)).select().single();
+          return _yojnaFromRow(row);
+        } catch (e) {
+          if (e is PostgrestException && e.message.contains('age_slabs')) {
+            final row = await _db.from('yojnas').insert(_yojnaToRow(yojna, includeSlabs: false)).select().single();
+            return _yojnaFromRow(row);
+          }
+          rethrow;
+        }
       });
 
   @override
   Future<Yojna> updateYojna(Yojna yojna) => _guard(() async {
-        final row = await _db
-            .from('yojnas')
-            .update(_yojnaToRow(yojna))
-            .eq('id', yojna.id)
-            .select()
-            .single();
-        return _yojnaFromRow(row);
+        try {
+          final row = await _db
+              .from('yojnas')
+              .update(_yojnaToRow(yojna))
+              .eq('id', yojna.id)
+              .select()
+              .single();
+          return _yojnaFromRow(row);
+        } catch (e) {
+          if (e is PostgrestException && e.message.contains('age_slabs')) {
+            final row = await _db
+                .from('yojnas')
+                .update(_yojnaToRow(yojna, includeSlabs: false))
+                .eq('id', yojna.id)
+                .select()
+                .single();
+            return _yojnaFromRow(row);
+          }
+          rethrow;
+        }
       });
 
   @override
@@ -1104,17 +1125,22 @@ class SupabaseTrustRepository implements TrustRepository {
 
   // ---- Row mapping (snake_case columns ↔ camelCase models) ----------------
 
-  static Map<String, dynamic> _yojnaToRow(Yojna y) => _withId(y.id, {
-        'name': y.name,
-        'code': y.code,
-        'description': y.description,
-        'short_name': y.shortName.trim(),
-        'claim_amount': y.claimAmount,
-        'registration_fee': y.registrationFee,
-        'start_date': y.startDate == null ? null : _date(y.startDate!),
-        'is_active': y.isActive,
-        'age_slabs': [for (final s in y.ageSlabs) s.toMap()],
-      });
+  static Map<String, dynamic> _yojnaToRow(Yojna y, {bool includeSlabs = true}) {
+    final row = <String, dynamic>{
+      'name': y.name,
+      'code': y.code,
+      'description': y.description,
+      'short_name': y.shortName.trim(),
+      'claim_amount': y.claimAmount,
+      'registration_fee': y.registrationFee,
+      'start_date': y.startDate == null ? null : _date(y.startDate!),
+      'is_active': y.isActive,
+    };
+    if (includeSlabs && y.ageSlabs.isNotEmpty) {
+      row['age_slabs'] = [for (final s in y.ageSlabs) s.toMap()];
+    }
+    return _withId(y.id, row);
+  }
 
   static Yojna _yojnaFromRow(Map<String, dynamic> r) => Yojna(
         id: r['id'] as String,
