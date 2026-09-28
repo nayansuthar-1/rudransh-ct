@@ -1,7 +1,4 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/l10n/strings.dart';
@@ -25,6 +22,7 @@ import '../../widgets/responsive_table.dart';
 import '../certificate/certificate_action.dart';
 import '../export/export_actions.dart';
 import '../export/export_button.dart';
+import 'member_export_dialog.dart';
 
 class MembersPage extends ConsumerWidget {
   const MembersPage({super.key});
@@ -414,9 +412,8 @@ Future<String?> memberEmailDialog(BuildContext context, Member member) {
   );
 }
 
-/// Hands the member's own data back to them, as JSON they can keep. Shown in a
-/// dialog rather than downloaded: the trust has a handful of these a year, and
-/// a file download needs platform plumbing this app does not otherwise carry.
+/// Shows the member's complete data in a human-readable table and card format,
+/// with options to download CSV or copy clean text.
 Future<void> _exportMemberData(
   BuildContext context,
   WidgetRef ref,
@@ -425,35 +422,7 @@ Future<void> _exportMemberData(
   try {
     final data = await ref.read(repositoryProvider).exportMemberData(member.id);
     if (!context.mounted) return;
-    final text = const JsonEncoder.withIndent('  ').convert(data);
-    await AppDialog.show<void>(
-      context: context,
-      builder: (dialogContext) => AppDialog(
-        title: '${S.exportData}: ${member.name}',
-        subtitle: member.regNo,
-        maxWidth: 720,
-        actions: [
-          OutlinedButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text(S.cancel),
-          ),
-          FilledButton.icon(
-            onPressed: () async {
-              await Clipboard.setData(ClipboardData(text: text));
-              if (dialogContext.mounted) {
-                showToast(dialogContext, 'Copied');
-              }
-            },
-            icon: const Icon(Icons.copy_all_outlined, size: 17),
-            label: const Text('Copy'),
-          ),
-        ],
-        child: SelectableText(
-          text,
-          style: const TextStyle(fontFamily: 'monospace', fontSize: 12.5),
-        ),
-      ),
-    );
+    await showMemberExportDialog(context, member: member, data: data);
   } catch (e) {
     if (context.mounted) showToast(context, '$e', error: true);
   }
