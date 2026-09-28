@@ -571,7 +571,6 @@ class _SlabRowEditorState extends State<_SlabRowEditor> {
     );
   }
 }
-}
 
 /// How the certificate's सहयोग राशि label will read, so the office sees the
 /// Hindi a Hinglish name turns into and can fix it in "Name on certificate".
