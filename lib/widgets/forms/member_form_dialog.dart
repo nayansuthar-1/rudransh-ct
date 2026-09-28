@@ -619,7 +619,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.cake_outlined, size: 16, color: c.accent),
+                            Icon(Icons.cake_outlined, size: 16, color: c.brand),
                             const SizedBox(width: 8),
                             Text(
                               'Age: $age yrs',
