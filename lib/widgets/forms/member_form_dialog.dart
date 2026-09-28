@@ -67,7 +67,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   MemberStatus _status = MemberStatus.active;
   DateTime _joinDate = DateTime.now();
   String _photoUrl = '';
-  String _aadhaarPhotoUrl = '';
+
   String _warisPhotoUrl = '';
   String _warisAadhaarFrontUrl = '';
   String _warisAadhaarBackUrl = '';
@@ -126,7 +126,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     _status = m?.status ?? MemberStatus.active;
     _joinDate = m?.joinDate ?? DateTime.now();
     _photoUrl = m?.photoUrl ?? '';
-    _aadhaarPhotoUrl = m?.aadhaarPhotoUrl ?? '';
+
     _warisPhotoUrl = m?.warisPhotoUrl ?? '';
     _warisAadhaarFrontUrl = m?.warisAadhaarFrontUrl ?? '';
     _warisAadhaarBackUrl = m?.warisAadhaarBackUrl ?? '';
@@ -240,7 +240,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             joinDate: _joinDate,
             status: _status,
             photoUrl: _photoUrl,
-            aadhaarPhotoUrl: _aadhaarPhotoUrl,
+
             warisPhotoUrl: _warisPhotoUrl,
             warisAadhaarFrontUrl: _warisAadhaarFrontUrl,
             warisAadhaarBackUrl: _warisAadhaarBackUrl,
@@ -278,7 +278,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             status: _status,
             consentAt: DateTime.now(),
             photoUrl: _photoUrl,
-            aadhaarPhotoUrl: _aadhaarPhotoUrl,
+
             warisPhotoUrl: _warisPhotoUrl,
             warisAadhaarFrontUrl: _warisAadhaarFrontUrl,
             warisAadhaarBackUrl: _warisAadhaarBackUrl,
@@ -424,6 +424,22 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                   ),
                   GridItem(
                     MemberPhotoPicker(
+                      label: S.fldMemberAadhaarFront,
+                      url: _memberAadhaarFrontUrl,
+                      shapes: const [CropShape.card, CropShape.whole],
+                      onChanged: (u) => setState(() => _memberAadhaarFrontUrl = u),
+                    ),
+                  ),
+                  GridItem(
+                    MemberPhotoPicker(
+                      label: S.fldMemberAadhaarBack,
+                      url: _memberAadhaarBackUrl,
+                      shapes: const [CropShape.card, CropShape.whole],
+                      onChanged: (u) => setState(() => _memberAadhaarBackUrl = u),
+                    ),
+                  ),
+                  GridItem(
+                    MemberPhotoPicker(
                       label: S.fldWarisAadhaarFront,
                       url: _warisAadhaarFrontUrl,
                       shapes: const [CropShape.card, CropShape.whole],
@@ -521,30 +537,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                           : V.aadhaar(v),
                     ),
                   ),
-                  GridItem(
-                    MemberPhotoPicker(
-                      label: S.fldAadhaarPhoto,
-                      url: _aadhaarPhotoUrl,
-                      shapes: const [CropShape.card, CropShape.whole],
-                      onChanged: (u) => setState(() => _aadhaarPhotoUrl = u),
-                    ),
-                  ),
-                  GridItem(
-                    MemberPhotoPicker(
-                      label: S.fldMemberAadhaarFront,
-                      url: _memberAadhaarFrontUrl,
-                      shapes: const [CropShape.card, CropShape.whole],
-                      onChanged: (u) => setState(() => _memberAadhaarFrontUrl = u),
-                    ),
-                  ),
-                  GridItem(
-                    MemberPhotoPicker(
-                      label: S.fldMemberAadhaarBack,
-                      url: _memberAadhaarBackUrl,
-                      shapes: const [CropShape.card, CropShape.whole],
-                      onChanged: (u) => setState(() => _memberAadhaarBackUrl = u),
-                    ),
-                  ),
+
                 ],
               ),
             ),
