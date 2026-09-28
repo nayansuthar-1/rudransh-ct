@@ -64,6 +64,10 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
   String _photoUrl = '';
   String _aadhaarPhotoUrl = '';
   String _warisPhotoUrl = '';
+  String _warisAadhaarFrontUrl = '';
+  String _warisAadhaarBackUrl = '';
+  String _memberAadhaarFrontUrl = '';
+  String _memberAadhaarBackUrl = '';
   bool _saving = false;
 
   @override
@@ -108,6 +112,10 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
               photoUrl: _photoUrl,
               aadhaarPhotoUrl: _aadhaarPhotoUrl,
               warisPhotoUrl: _warisPhotoUrl,
+              warisAadhaarFrontUrl: _warisAadhaarFrontUrl,
+              warisAadhaarBackUrl: _warisAadhaarBackUrl,
+              memberAadhaarFrontUrl: _memberAadhaarFrontUrl,
+              memberAadhaarBackUrl: _memberAadhaarBackUrl,
               contributionAmount: double.tryParse(
                     _contribution.text.trim().replaceAll(',', ''),
                   ) ??
@@ -236,6 +244,18 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
                     url: _warisPhotoUrl,
                     onChanged: (u) => setState(() => _warisPhotoUrl = u),
                   )),
+                  GridItem(MemberPhotoPicker(
+                    label: S.fldWarisAadhaarFront,
+                    url: _warisAadhaarFrontUrl,
+                    shapes: const [CropShape.card, CropShape.whole],
+                    onChanged: (u) => setState(() => _warisAadhaarFrontUrl = u),
+                  )),
+                  GridItem(MemberPhotoPicker(
+                    label: S.fldWarisAadhaarBack,
+                    url: _warisAadhaarBackUrl,
+                    shapes: const [CropShape.card, CropShape.whole],
+                    onChanged: (u) => setState(() => _warisAadhaarBackUrl = u),
+                  )),
                   GridItem(AppTextField(
                     label: '${S.fldAadhaar} (optional)',
                     controller: _aadhaar,
@@ -249,6 +269,18 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
                     url: _aadhaarPhotoUrl,
                     shapes: const [CropShape.card, CropShape.whole],
                     onChanged: (u) => setState(() => _aadhaarPhotoUrl = u),
+                  )),
+                  GridItem(MemberPhotoPicker(
+                    label: S.fldMemberAadhaarFront,
+                    url: _memberAadhaarFrontUrl,
+                    shapes: const [CropShape.card, CropShape.whole],
+                    onChanged: (u) => setState(() => _memberAadhaarFrontUrl = u),
+                  )),
+                  GridItem(MemberPhotoPicker(
+                    label: S.fldMemberAadhaarBack,
+                    url: _memberAadhaarBackUrl,
+                    shapes: const [CropShape.card, CropShape.whole],
+                    onChanged: (u) => setState(() => _memberAadhaarBackUrl = u),
                   )),
                   GridItem(AppDateField(
                     label: S.fldDob,

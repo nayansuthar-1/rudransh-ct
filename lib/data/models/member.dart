@@ -61,6 +61,10 @@ class Member {
     this.photoUrl = '',
     this.aadhaarPhotoUrl = '',
     this.warisPhotoUrl = '',
+    this.warisAadhaarFrontUrl = '',
+    this.warisAadhaarBackUrl = '',
+    this.memberAadhaarFrontUrl = '',
+    this.memberAadhaarBackUrl = '',
     this.email = '',
     this.contributionAmount = 0,
   });
@@ -132,6 +136,18 @@ class Member {
   /// Photo of the nominee (waris).
   final String warisPhotoUrl;
 
+  /// Varisdar (nominee) Aadhaar card – front side.
+  final String warisAadhaarFrontUrl;
+
+  /// Varisdar (nominee) Aadhaar card – back side.
+  final String warisAadhaarBackUrl;
+
+  /// Member's own Aadhaar card – front side.
+  final String memberAadhaarFrontUrl;
+
+  /// Member's own Aadhaar card – back side.
+  final String memberAadhaarBackUrl;
+
   /// Optional, stored lowercase. A member whose email is on file can sign in
   /// with it without an invite.
   final String email;
@@ -192,6 +208,10 @@ class Member {
     String? photoUrl,
     String? aadhaarPhotoUrl,
     String? warisPhotoUrl,
+    String? warisAadhaarFrontUrl,
+    String? warisAadhaarBackUrl,
+    String? memberAadhaarFrontUrl,
+    String? memberAadhaarBackUrl,
     String? email,
     double? contributionAmount,
   }) {
@@ -226,6 +246,10 @@ class Member {
       photoUrl: photoUrl ?? this.photoUrl,
       aadhaarPhotoUrl: aadhaarPhotoUrl ?? this.aadhaarPhotoUrl,
       warisPhotoUrl: warisPhotoUrl ?? this.warisPhotoUrl,
+      warisAadhaarFrontUrl: warisAadhaarFrontUrl ?? this.warisAadhaarFrontUrl,
+      warisAadhaarBackUrl: warisAadhaarBackUrl ?? this.warisAadhaarBackUrl,
+      memberAadhaarFrontUrl: memberAadhaarFrontUrl ?? this.memberAadhaarFrontUrl,
+      memberAadhaarBackUrl: memberAadhaarBackUrl ?? this.memberAadhaarBackUrl,
       email: email ?? this.email,
       contributionAmount: contributionAmount ?? this.contributionAmount,
     );
@@ -260,6 +284,10 @@ class Member {
         'photoUrl': photoUrl,
         'aadhaarPhotoUrl': aadhaarPhotoUrl,
         'warisPhotoUrl': warisPhotoUrl,
+        'warisAadhaarFrontUrl': warisAadhaarFrontUrl,
+        'warisAadhaarBackUrl': warisAadhaarBackUrl,
+        'memberAadhaarFrontUrl': memberAadhaarFrontUrl,
+        'memberAadhaarBackUrl': memberAadhaarBackUrl,
         'email': email,
         'contributionAmount': contributionAmount,
       };
@@ -295,6 +323,10 @@ class Member {
         photoUrl: map['photoUrl'] as String? ?? '',
         aadhaarPhotoUrl: map['aadhaarPhotoUrl'] as String? ?? '',
         warisPhotoUrl: map['warisPhotoUrl'] as String? ?? '',
+        warisAadhaarFrontUrl: map['warisAadhaarFrontUrl'] as String? ?? '',
+        warisAadhaarBackUrl: map['warisAadhaarBackUrl'] as String? ?? '',
+        memberAadhaarFrontUrl: map['memberAadhaarFrontUrl'] as String? ?? '',
+        memberAadhaarBackUrl: map['memberAadhaarBackUrl'] as String? ?? '',
         email: map['email'] as String? ?? '',
         contributionAmount:
             (map['contributionAmount'] as num?)?.toDouble() ?? 0,

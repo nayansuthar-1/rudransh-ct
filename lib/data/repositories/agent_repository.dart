@@ -229,6 +229,10 @@ class SupabaseAgentRepository implements AgentRepository {
             'photo_url': m.photoUrl,
             'aadhaar_photo_url': m.aadhaarPhotoUrl,
             'waris_photo_url': m.warisPhotoUrl,
+            'waris_aadhaar_front_url': m.warisAadhaarFrontUrl,
+            'waris_aadhaar_back_url': m.warisAadhaarBackUrl,
+            'member_aadhaar_front_url': m.memberAadhaarFrontUrl,
+            'member_aadhaar_back_url': m.memberAadhaarBackUrl,
             'contribution_amount': m.contributionAmount,
           },
         },
@@ -593,7 +597,9 @@ class InMemoryAgentRepository implements AgentRepository {
             (q.isEmpty || m.searchIndex.contains(q)))
         // As `agent_members` does: no Aadhaar, nor the ID photos.
         .map((m) =>
-            m.copyWith(aadhaar: '', aadhaarPhotoUrl: '', warisPhotoUrl: ''))
+            m.copyWith(aadhaar: '', aadhaarPhotoUrl: '', warisPhotoUrl: '',
+                warisAadhaarFrontUrl: '', warisAadhaarBackUrl: '',
+                memberAadhaarFrontUrl: '', memberAadhaarBackUrl: ''))
         .toList();
     return _slice(matches, offset, limit);
   }

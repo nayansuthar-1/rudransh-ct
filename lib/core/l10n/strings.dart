@@ -185,6 +185,10 @@ class S {
   static const fldMemberEmail = 'Email (optional)';
   static const fldAadhaar = 'Aadhaar number';
   static const fldAadhaarPhoto = 'Aadhaar card photo';
+  static const fldWarisAadhaarFront = 'Varisdar Aadhaar card (front)';
+  static const fldWarisAadhaarBack = 'Varisdar Aadhaar card (back)';
+  static const fldMemberAadhaarFront = 'Member Aadhaar card (front)';
+  static const fldMemberAadhaarBack = 'Member Aadhaar card (back)';
   static const fldVillage = 'Village / city';
   static const fldTehsil = 'Tehsil';
   static const fldDistrict = 'District';

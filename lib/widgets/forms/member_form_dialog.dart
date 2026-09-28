@@ -69,6 +69,10 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   String _photoUrl = '';
   String _aadhaarPhotoUrl = '';
   String _warisPhotoUrl = '';
+  String _warisAadhaarFrontUrl = '';
+  String _warisAadhaarBackUrl = '';
+  String _memberAadhaarFrontUrl = '';
+  String _memberAadhaarBackUrl = '';
 
   bool _saving = false;
   bool _looking = false;
@@ -124,6 +128,10 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     _photoUrl = m?.photoUrl ?? '';
     _aadhaarPhotoUrl = m?.aadhaarPhotoUrl ?? '';
     _warisPhotoUrl = m?.warisPhotoUrl ?? '';
+    _warisAadhaarFrontUrl = m?.warisAadhaarFrontUrl ?? '';
+    _warisAadhaarBackUrl = m?.warisAadhaarBackUrl ?? '';
+    _memberAadhaarFrontUrl = m?.memberAadhaarFrontUrl ?? '';
+    _memberAadhaarBackUrl = m?.memberAadhaarBackUrl ?? '';
   }
 
   static String _num(double v) =>
@@ -234,6 +242,10 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             photoUrl: _photoUrl,
             aadhaarPhotoUrl: _aadhaarPhotoUrl,
             warisPhotoUrl: _warisPhotoUrl,
+            warisAadhaarFrontUrl: _warisAadhaarFrontUrl,
+            warisAadhaarBackUrl: _warisAadhaarBackUrl,
+            memberAadhaarFrontUrl: _memberAadhaarFrontUrl,
+            memberAadhaarBackUrl: _memberAadhaarBackUrl,
             contributionAmount: _contributionValue,
           ),
         );
@@ -268,6 +280,10 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             photoUrl: _photoUrl,
             aadhaarPhotoUrl: _aadhaarPhotoUrl,
             warisPhotoUrl: _warisPhotoUrl,
+            warisAadhaarFrontUrl: _warisAadhaarFrontUrl,
+            warisAadhaarBackUrl: _warisAadhaarBackUrl,
+            memberAadhaarFrontUrl: _memberAadhaarFrontUrl,
+            memberAadhaarBackUrl: _memberAadhaarBackUrl,
             contributionAmount: _contributionValue,
           ),
         );
@@ -407,6 +423,22 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                     ),
                   ),
                   GridItem(
+                    MemberPhotoPicker(
+                      label: S.fldWarisAadhaarFront,
+                      url: _warisAadhaarFrontUrl,
+                      shapes: const [CropShape.card, CropShape.whole],
+                      onChanged: (u) => setState(() => _warisAadhaarFrontUrl = u),
+                    ),
+                  ),
+                  GridItem(
+                    MemberPhotoPicker(
+                      label: S.fldWarisAadhaarBack,
+                      url: _warisAadhaarBackUrl,
+                      shapes: const [CropShape.card, CropShape.whole],
+                      onChanged: (u) => setState(() => _warisAadhaarBackUrl = u),
+                    ),
+                  ),
+                  GridItem(
                     AppDropdown<Gender>(
                       label: S.fldGender,
                       required: true,
@@ -495,6 +527,22 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                       url: _aadhaarPhotoUrl,
                       shapes: const [CropShape.card, CropShape.whole],
                       onChanged: (u) => setState(() => _aadhaarPhotoUrl = u),
+                    ),
+                  ),
+                  GridItem(
+                    MemberPhotoPicker(
+                      label: S.fldMemberAadhaarFront,
+                      url: _memberAadhaarFrontUrl,
+                      shapes: const [CropShape.card, CropShape.whole],
+                      onChanged: (u) => setState(() => _memberAadhaarFrontUrl = u),
+                    ),
+                  ),
+                  GridItem(
+                    MemberPhotoPicker(
+                      label: S.fldMemberAadhaarBack,
+                      url: _memberAadhaarBackUrl,
+                      shapes: const [CropShape.card, CropShape.whole],
+                      onChanged: (u) => setState(() => _memberAadhaarBackUrl = u),
                     ),
                   ),
                 ],

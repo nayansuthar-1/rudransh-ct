@@ -1156,6 +1156,10 @@ class SupabaseTrustRepository implements TrustRepository {
         'photo_url': m.photoUrl,
         'aadhaar_photo_url': m.aadhaarPhotoUrl,
         'waris_photo_url': m.warisPhotoUrl,
+        'waris_aadhaar_front_url': m.warisAadhaarFrontUrl,
+        'waris_aadhaar_back_url': m.warisAadhaarBackUrl,
+        'member_aadhaar_front_url': m.memberAadhaarFrontUrl,
+        'member_aadhaar_back_url': m.memberAadhaarBackUrl,
         'email': m.email.trim().toLowerCase(),
         'contribution_amount': m.contributionAmount,
       });
@@ -1193,6 +1197,10 @@ class SupabaseTrustRepository implements TrustRepository {
         photoUrl: r['photo_url'] as String? ?? '',
         aadhaarPhotoUrl: r['aadhaar_photo_url'] as String? ?? '',
         warisPhotoUrl: r['waris_photo_url'] as String? ?? '',
+        warisAadhaarFrontUrl: r['waris_aadhaar_front_url'] as String? ?? '',
+        warisAadhaarBackUrl: r['waris_aadhaar_back_url'] as String? ?? '',
+        memberAadhaarFrontUrl: r['member_aadhaar_front_url'] as String? ?? '',
+        memberAadhaarBackUrl: r['member_aadhaar_back_url'] as String? ?? '',
         email: r['email'] as String? ?? '',
         contributionAmount: _num(r['contribution_amount']),
       );
