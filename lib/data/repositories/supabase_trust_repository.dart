@@ -1113,6 +1113,7 @@ class SupabaseTrustRepository implements TrustRepository {
         'registration_fee': y.registrationFee,
         'start_date': y.startDate == null ? null : _date(y.startDate!),
         'is_active': y.isActive,
+        'age_slabs': [for (final s in y.ageSlabs) s.toMap()],
       });
 
   static Yojna _yojnaFromRow(Map<String, dynamic> r) => Yojna(
@@ -1127,6 +1128,11 @@ class SupabaseTrustRepository implements TrustRepository {
             r['start_date'] == null ? null : _parseDate(r['start_date']),
         isActive: r['is_active'] as bool? ?? true,
         createdAt: _parseDate(r['created_at']),
+        ageSlabs: ((r['age_slabs'] ?? r['ageSlabs']) as List?)
+                ?.map((e) =>
+                    YojnaAgeSlab.fromMap(Map<String, dynamic>.from(e as Map)))
+                .toList() ??
+            const [],
       );
 
   static Map<String, dynamic> _memberToRow(Member m) => _withId(m.id, {

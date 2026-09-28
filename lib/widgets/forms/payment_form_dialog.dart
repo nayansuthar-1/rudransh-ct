@@ -149,8 +149,19 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
       _dues = null;
       _closingCaseId = null;
       if (_amount.text.trim().isEmpty && yojna != null) {
+        double regFee = yojna.registrationFee;
+        if (member.dob != null) {
+          final now = DateTime.now();
+          int age = now.year - member.dob!.year;
+          if (now.month < member.dob!.month ||
+              (now.month == member.dob!.month && now.day < member.dob!.day)) {
+            age--;
+          }
+          final slab = yojna.findSlabForAge(age);
+          if (slab != null) regFee = slab.registrationFee;
+        }
         _amount.text = (_kind == PaymentKind.registration
-                ? yojna.registrationFee
+                ? regFee
                 : member.contributionAmount)
             .toStringAsFixed(0);
       }

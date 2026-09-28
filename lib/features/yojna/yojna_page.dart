@@ -181,14 +181,18 @@ class _YojnaCard extends ConsumerWidget {
                   Expanded(
                     child: _Metric(
                       label: 'Reg. fee',
-                      value: Fmt.money(yojna.registrationFee),
+                      value: yojna.effectiveSlabs.isNotEmpty
+                          ? 'Age-based (${yojna.effectiveSlabs.length})'
+                          : Fmt.money(yojna.registrationFee),
                     ),
                   ),
                   VerticalDivider(width: 1, color: c.border),
                   Expanded(
                     child: _Metric(
                       label: 'Claim',
-                      value: Fmt.moneyCompact(yojna.claimAmount),
+                      value: yojna.claimAmount > 0
+                          ? Fmt.moneyCompact(yojna.claimAmount)
+                          : 'At claim',
                     ),
                   ),
                 ],

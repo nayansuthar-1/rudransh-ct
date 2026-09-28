@@ -120,12 +120,8 @@ class _ClosingCaseDialogState extends ConsumerState<_ClosingCaseDialog> {
   }
 
   void _pickMember(Member member) {
-    final yojna = ref.read(yojnaByIdProvider)[member.yojnaId];
     setState(() {
       _member = member;
-      if (_claim.text.trim().isEmpty && yojna != null) {
-        _claim.text = yojna.claimAmount.toStringAsFixed(0);
-      }
     });
   }
 

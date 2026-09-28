@@ -137,6 +137,31 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   static String _num(double v) =>
       v == v.roundToDouble() ? v.toInt().toString() : v.toString();
 
+  int? _calculateAge(DateTime? dob) {
+    if (dob == null) return null;
+    final now = DateTime.now();
+    int age = now.year - dob.year;
+    if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) {
+      age--;
+    }
+    return age >= 0 ? age : 0;
+  }
+
+  YojnaAgeSlab? _matchingSlab(List<Yojna> yojnas) {
+    final age = _calculateAge(_dob);
+    if (age == null || _yojnaId == null) return null;
+    final yojna = yojnas.where((y) => y.id == _yojnaId).firstOrNull;
+    if (yojna == null) return null;
+    return yojna.findSlabForAge(age);
+  }
+
+  void _applySlabIfFound(List<Yojna> yojnas) {
+    final slab = _matchingSlab(yojnas);
+    if (slab != null) {
+      _contribution.text = _num(slab.contributionAmount);
+    }
+  }
+
   double get _contributionValue =>
       double.tryParse(_contribution.text.trim().replaceAll(',', '')) ?? 0;
 
@@ -336,7 +361,12 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
               itemLabel: (y) => y.name,
               hint: S.selectYojna,
               validator: (v) => v == null ? S.required : null,
-              onChanged: (v) => setState(() => _yojnaId = v?.id),
+              onChanged: (v) {
+                setState(() {
+                  _yojnaId = v?.id;
+                  _applySlabIfFound(yojnas);
+                });
+              },
             ),
             const SizedBox(height: 18),
 
@@ -471,7 +501,12 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                       value: _dob,
                       firstDate: DateTime(1920),
                       lastDate: DateTime.now(),
-                      onChanged: (d) => setState(() => _dob = d),
+                      onChanged: (d) {
+                        setState(() {
+                          _dob = d;
+                          _applySlabIfFound(yojnas);
+                        });
+                      },
                     ),
                   ),
                 ],
@@ -567,8 +602,53 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
 
             FormSection(
               title: S.membershipInfo,
-              child: FormGrid(
-                items: [
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_dob != null) ...[
+                    Builder(builder: (context) {
+                      final age = _calculateAge(_dob);
+                      final slab = _matchingSlab(yojnas);
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 14),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                        decoration: BoxDecoration(
+                          color: c.surfaceMuted,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: c.border),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.cake_outlined, size: 16, color: c.accent),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Age: $age yrs',
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                            ),
+                            if (slab != null) ...[
+                              Text(
+                                ' · Slab: ${slab.displayRange} yrs',
+                                style: TextStyle(fontSize: 12.5, color: c.textSecondary),
+                              ),
+                              const Spacer(),
+                              Text(
+                                'Joining Fee: ${Fmt.money(slab.registrationFee)}',
+                                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: c.textPrimary),
+                              ),
+                            ] else ...[
+                              const Spacer(),
+                              Text(
+                                'No matching age slab',
+                                style: TextStyle(fontSize: 12, color: c.textSecondary),
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                  FormGrid(
+                    items: [
                   GridItem(
                     AppTextField(
                       label: S.fldContribution,
@@ -615,7 +695,9 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                   ),
                 ],
               ),
-            ),
+            ],
+          ),
+        ),
             if (!_isEdit) ...[
               const SizedBox(height: Space.lg),
               _ConsentTile(

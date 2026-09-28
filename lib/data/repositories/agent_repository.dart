@@ -174,6 +174,11 @@ class SupabaseAgentRepository implements AgentRepository {
               startDate:
                   r['start_date'] == null ? null : _date(r['start_date']),
               createdAt: DateTime.now(),
+              ageSlabs: ((r['age_slabs'] ?? r['ageSlabs']) as List?)
+                      ?.map((e) => YojnaAgeSlab.fromMap(
+                          Map<String, dynamic>.from(e as Map)))
+                      .toList() ??
+                  const [],
             ),
         ];
       });

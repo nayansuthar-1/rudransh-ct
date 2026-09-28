@@ -62,7 +62,6 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
   /// Printed on the membership certificate; optional at sign-up.
   DateTime? _dob;
   String _photoUrl = '';
-  String _aadhaarPhotoUrl = '';
   String _warisPhotoUrl = '';
   String _warisAadhaarFrontUrl = '';
   String _warisAadhaarBackUrl = '';
@@ -80,6 +79,33 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
       c.dispose();
     }
     super.dispose();
+  }
+
+  int? _calculateAge(DateTime? dob) {
+    if (dob == null) return null;
+    final now = DateTime.now();
+    int age = now.year - dob.year;
+    if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) {
+      age--;
+    }
+    return age >= 0 ? age : 0;
+  }
+
+  YojnaAgeSlab? _matchingSlab(List<Yojna> yojnas) {
+    final age = _calculateAge(_dob);
+    if (age == null || _yojnaId == null) return null;
+    final yojna = yojnas.where((y) => y.id == _yojnaId).firstOrNull;
+    if (yojna == null) return null;
+    return yojna.findSlabForAge(age);
+  }
+
+  void _applySlabIfFound(List<Yojna> yojnas) {
+    final slab = _matchingSlab(yojnas);
+    if (slab != null) {
+      final v = slab.contributionAmount;
+      _contribution.text =
+          v == v.roundToDouble() ? v.toInt().toString() : v.toString();
+    }
   }
 
   Future<void> _submit() async {
@@ -110,7 +136,6 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
               joinDate: _joinDate,
               status: MemberStatus.pending,
               photoUrl: _photoUrl,
-              aadhaarPhotoUrl: _aadhaarPhotoUrl,
               warisPhotoUrl: _warisPhotoUrl,
               warisAadhaarFrontUrl: _warisAadhaarFrontUrl,
               warisAadhaarBackUrl: _warisAadhaarBackUrl,
@@ -169,7 +194,12 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
                       items: [for (final y in yojnas) y.id],
                       itemLabel: (id) =>
                           yojnas.firstWhere((y) => y.id == id).name,
-                      onChanged: (v) => setState(() => _yojnaId = v),
+                      onChanged: (v) {
+                        setState(() {
+                          _yojnaId = v;
+                          _applySlabIfFound(yojnas);
+                        });
+                      },
                       validator: (v) => v == null ? S.required : null,
                     ),
                   ),
@@ -245,6 +275,18 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
                     onChanged: (u) => setState(() => _warisPhotoUrl = u),
                   )),
                   GridItem(MemberPhotoPicker(
+                    label: S.fldMemberAadhaarFront,
+                    url: _memberAadhaarFrontUrl,
+                    shapes: const [CropShape.card, CropShape.whole],
+                    onChanged: (u) => setState(() => _memberAadhaarFrontUrl = u),
+                  )),
+                  GridItem(MemberPhotoPicker(
+                    label: S.fldMemberAadhaarBack,
+                    url: _memberAadhaarBackUrl,
+                    shapes: const [CropShape.card, CropShape.whole],
+                    onChanged: (u) => setState(() => _memberAadhaarBackUrl = u),
+                  )),
+                  GridItem(MemberPhotoPicker(
                     label: S.fldWarisAadhaarFront,
                     url: _warisAadhaarFrontUrl,
                     shapes: const [CropShape.card, CropShape.whole],
@@ -264,30 +306,17 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
                     validator: (v) =>
                         (v ?? '').trim().isEmpty ? null : V.aadhaar(v),
                   )),
-                  GridItem(MemberPhotoPicker(
-                    label: S.fldAadhaarPhoto,
-                    url: _aadhaarPhotoUrl,
-                    shapes: const [CropShape.card, CropShape.whole],
-                    onChanged: (u) => setState(() => _aadhaarPhotoUrl = u),
-                  )),
-                  GridItem(MemberPhotoPicker(
-                    label: S.fldMemberAadhaarFront,
-                    url: _memberAadhaarFrontUrl,
-                    shapes: const [CropShape.card, CropShape.whole],
-                    onChanged: (u) => setState(() => _memberAadhaarFrontUrl = u),
-                  )),
-                  GridItem(MemberPhotoPicker(
-                    label: S.fldMemberAadhaarBack,
-                    url: _memberAadhaarBackUrl,
-                    shapes: const [CropShape.card, CropShape.whole],
-                    onChanged: (u) => setState(() => _memberAadhaarBackUrl = u),
-                  )),
                   GridItem(AppDateField(
                     label: S.fldDob,
                     value: _dob,
                     firstDate: DateTime(1920),
                     lastDate: DateTime.now(),
-                    onChanged: (d) => setState(() => _dob = d),
+                    onChanged: (d) {
+                      setState(() {
+                        _dob = d;
+                        _applySlabIfFound(yojnas);
+                      });
+                    },
                   )),
                 ],
               ),
@@ -555,8 +584,19 @@ class _AgentPaymentFormState extends ConsumerState<_AgentPaymentForm> {
     if (member == null || !mounted) return;
     final yojnas = ref.read(agentYojnasProvider).value ?? const <Yojna>[];
     final yojna = yojnas.where((y) => y.id == member.yojnaId).firstOrNull;
+    double regFee = yojna?.registrationFee ?? 0;
+    if (yojna != null && member.dob != null) {
+      final now = DateTime.now();
+      int age = now.year - member.dob!.year;
+      if (now.month < member.dob!.month ||
+          (now.month == member.dob!.month && now.day < member.dob!.day)) {
+        age--;
+      }
+      final slab = yojna.findSlabForAge(age);
+      if (slab != null) regFee = slab.registrationFee;
+    }
     final amount = _kind == PaymentKind.registration
-        ? (yojna?.registrationFee ?? 0)
+        ? regFee
         : member.contributionAmount;
     if (amount > 0) _amount.text = amount.toStringAsFixed(0);
     final due = _selectedDue;
