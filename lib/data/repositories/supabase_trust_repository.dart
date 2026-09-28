@@ -140,23 +140,55 @@ class SupabaseTrustRepository implements TrustRepository {
 
   @override
   Future<Member> createMember(Member member) => _guard(() async {
-        final row = await _db
-            .from('members')
-            .insert({..._memberToRow(member), 'reg_no': ''})
-            .select()
-            .single();
-        return _memberFromRow(row);
+        try {
+          final row = await _db
+              .from('members')
+              .insert({..._memberToRow(member), 'reg_no': ''})
+              .select()
+              .single();
+          return _memberFromRow(row);
+        } catch (e) {
+          if (e is PostgrestException &&
+              (e.message.contains('aadhaar_front_url') ||
+                  e.message.contains('aadhaar_back_url'))) {
+            final row = await _db
+                .from('members')
+                .insert({
+                  ..._memberToRow(member, includeAadhaarCardUrls: false),
+                  'reg_no': ''
+                })
+                .select()
+                .single();
+            return _memberFromRow(row);
+          }
+          rethrow;
+        }
       });
 
   @override
   Future<Member> updateMember(Member member) => _guard(() async {
-        final row = await _db
-            .from('members')
-            .update(_memberToRow(member))
-            .eq('id', member.id)
-            .select()
-            .single();
-        return _memberFromRow(row);
+        try {
+          final row = await _db
+              .from('members')
+              .update(_memberToRow(member))
+              .eq('id', member.id)
+              .select()
+              .single();
+          return _memberFromRow(row);
+        } catch (e) {
+          if (e is PostgrestException &&
+              (e.message.contains('aadhaar_front_url') ||
+                  e.message.contains('aadhaar_back_url'))) {
+            final row = await _db
+                .from('members')
+                .update(_memberToRow(member, includeAadhaarCardUrls: false))
+                .eq('id', member.id)
+                .select()
+                .single();
+            return _memberFromRow(row);
+          }
+          rethrow;
+        }
       });
 
   @override
@@ -1161,7 +1193,9 @@ class SupabaseTrustRepository implements TrustRepository {
             const [],
       );
 
-  static Map<String, dynamic> _memberToRow(Member m) => _withId(m.id, {
+  static Map<String, dynamic> _memberToRow(Member m,
+          {bool includeAadhaarCardUrls = true}) =>
+      _withId(m.id, {
         'yojna_id': m.yojnaId,
         'name': m.name,
         'father_or_husband_name': m.fatherOrHusbandName,
@@ -1188,10 +1222,12 @@ class SupabaseTrustRepository implements TrustRepository {
         'photo_url': m.photoUrl,
         'aadhaar_photo_url': m.aadhaarPhotoUrl,
         'waris_photo_url': m.warisPhotoUrl,
-        'waris_aadhaar_front_url': m.warisAadhaarFrontUrl,
-        'waris_aadhaar_back_url': m.warisAadhaarBackUrl,
-        'member_aadhaar_front_url': m.memberAadhaarFrontUrl,
-        'member_aadhaar_back_url': m.memberAadhaarBackUrl,
+        if (includeAadhaarCardUrls) ...{
+          'waris_aadhaar_front_url': m.warisAadhaarFrontUrl,
+          'waris_aadhaar_back_url': m.warisAadhaarBackUrl,
+          'member_aadhaar_front_url': m.memberAadhaarFrontUrl,
+          'member_aadhaar_back_url': m.memberAadhaarBackUrl,
+        },
         'email': m.email.trim().toLowerCase(),
         'contribution_amount': m.contributionAmount,
       });
