@@ -211,12 +211,16 @@ String _sheetHtml(CertificateData d, String baseUrl) {
   // The trust's rule, under the fields on the left, so the space above the
   // अध्यक्ष line stays clear for the trust's stamp. The lines sit centred on
   // the reference's two-line block, so a single line lands midway between
-  // its two.
+  // its two. Three or more lines close up, so the block stays between the
+  // नोंध line and the कार्यकर्ता signature.
   final ruleLines = TrustInfo.certificateRule;
+  final closeUp = ruleLines.length > 2;
+  final rulePitch = closeUp ? 8.6 : 11.9;
+  final ruleMid = _ruleBase + 11.9 / 2 + (closeUp ? 2 : 0);
   final rule = [
     for (final (i, line) in ruleLines.indexed)
       '<div class="rule-line" '
-          'style="top:${(_ruleBase + (i + 1 - ruleLines.length / 2) * 11.9 - 0.896 * 8.5).toStringAsFixed(2)}pt">'
+          'style="top:${(ruleMid + (i - (ruleLines.length - 1) / 2) * rulePitch - 0.896 * 8.5).toStringAsFixed(2)}pt">'
           '${_esc(line)}</div>',
   ].join('\n  ');
 
