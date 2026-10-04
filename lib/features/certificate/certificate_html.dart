@@ -213,7 +213,9 @@ String _sheetHtml(CertificateData d, String baseUrl) {
   // the reference's two-line block, so a single line lands midway between
   // its two. Three or more lines close up, so the block stays between the
   // नोंध line and the कार्यकर्ता signature.
-  final ruleLines = TrustInfo.certificateRule;
+  final ruleLines = d.isSuraksha
+      ? TrustInfo.surakshaCertificateRule
+      : TrustInfo.certificateRule;
   final closeUp = ruleLines.length > 2;
   final rulePitch = closeUp ? 8.6 : 11.9;
   final ruleMid = _ruleBase + 11.9 / 2 + (closeUp ? 2 : 0);

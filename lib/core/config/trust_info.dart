@@ -66,6 +66,16 @@ class TrustInfo {
   /// line. A line too long for the sheet is shrunk to fit between the
   /// frame's side lines.
   static const certificateRule = <String>[
+    'जुड़ने की तिथि से 9 महीने तक 0 | '
+        '10 से 12 महीने तक 51,000/- | '
+        '13 से 16 महीने तक 81,000/- | '
+        '17 महीने बाद — सभ्य के अनुसार |',
+    'संस्था के प्रबंधन एवं व्यवस्था संचालन के लिए 10% कटौती कर सहायता राशि दी जाएगी।',
+  ];
+
+  /// The rule a Suraksha Yojna's certificate prints in place of
+  /// [certificateRule]; Shadi and Mayara certificates keep that one.
+  static const surakshaCertificateRule = <String>[
     '8 महीने तक देहांत होने पर — 0 | '
         '9-12 महीने तक 41000/- | '
         '1 साल से 3 साल तक मेम्बर X सहयोग राशि — 15% खर्च बाद |',

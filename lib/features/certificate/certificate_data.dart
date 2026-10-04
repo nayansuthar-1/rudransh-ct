@@ -120,4 +120,8 @@ class CertificateData {
   /// The सहयोग राशि label, naming the Yojna: `प्रत्येक शादी सहयोग राशि`.
   String get contributionLabel =>
       Yojna.certificateLabel(name: yojnaName, shortName: yojnaShortName);
+
+  /// Whether the Yojna is Suraksha, whose certificate prints its own rule
+  /// under the नोंध line.
+  bool get isSuraksha => Yojna.isSurakshaName('$yojnaName $yojnaShortName');
 }

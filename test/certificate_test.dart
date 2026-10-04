@@ -269,6 +269,44 @@ void main() {
       }
     });
 
+    group('the Suraksha certificate has its own rule', () {
+      String rule(String yojnaName) => buildCertificateHtml(
+            CertificateData.forMember(
+              member: _member(),
+              yojna: _yojna.copyWith(name: yojnaName),
+            ),
+            baseUrl: 'https://trust.test/',
+          );
+
+      test('Suraksha prints the Suraksha rule, not the common one', () {
+        for (final name in ['सुरक्षा सहयोग योजना', 'Suraksha Sahyog Yojna']) {
+          final html = rule(name);
+          for (final line in TrustInfo.surakshaCertificateRule) {
+            expect(html, contains(line));
+          }
+          expect(html, isNot(contains(TrustInfo.certificateRule.first)));
+        }
+      });
+
+      test('Shadi, Mayara and a combined Yojna keep the common rule', () {
+        for (final name in [
+          'शादी सहयोग योजना',
+          'मायरा सहयोग योजना',
+          'Shadi Sahyog Yojna',
+          'सर्व समाज शादी-मामेरा-सुरक्षा सहयोग योजना',
+        ]) {
+          final html = rule(name);
+          for (final line in TrustInfo.certificateRule) {
+            expect(html, contains(line));
+          }
+          expect(
+            html,
+            isNot(contains(TrustInfo.surakshaCertificateRule.first)),
+          );
+        }
+      });
+    });
+
     test('the agent signs as कार्यकर्ता', () {
       expect(
         html,

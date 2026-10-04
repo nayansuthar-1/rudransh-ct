@@ -70,6 +70,23 @@ class Yojna {
     return const [];
   }
 
+  /// Whether this is the Suraksha Yojna, whose certificate prints its own
+  /// payout rule.
+  bool get isSuraksha =>
+      isSurakshaName('$name $shortName $code');
+
+  /// A name naming Suraksha and not Shadi or Mayara: a combined
+  /// `शादी-मामेरा-सुरक्षा` Yojna is not the Suraksha one.
+  static bool isSurakshaName(String text) {
+    final lower = text.toLowerCase();
+    bool any(List<String> words) => words.any(lower.contains);
+    return any(const ['suraksha', 'surakshaa', 'suraksa', 'surksha', 'सुरक्षा']) &&
+        !any(const [
+          'shadi', 'shaadi', 'sadi', 'mayara', 'mayra', 'mamera',
+          'शादी', 'मायरा', 'मामेरा',
+        ]);
+  }
+
   /// All active slabs for this Yojna, falling back to defaults by scheme name/code.
   List<YojnaAgeSlab> get effectiveSlabs {
     if (ageSlabs.isNotEmpty) return ageSlabs;
