@@ -81,16 +81,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   /// (IMPLEMENTATION_PLAN §7). Only asked on a new member.
   bool _consent = false;
 
-  static const _relations = [
-    'Son',
-    'Daughter',
-    'Wife',
-    'Husband',
-    'Brother',
-    'Mother',
-    'Father',
-    'Other',
-  ];
+  static const _relations = nomineeRelations;
 
   bool get _isEdit => widget.existing != null;
 

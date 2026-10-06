@@ -45,7 +45,7 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
   final _jati = TextEditingController();
   final _gotra = TextEditingController();
   final _waris = TextEditingController();
-  final _warisRelation = TextEditingController();
+  String _warisRelation = 'Son';
   final _phone = TextEditingController();
   final _altPhone = TextEditingController();
   final _aadhaar = TextEditingController();
@@ -72,7 +72,7 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
   @override
   void dispose() {
     for (final c in [
-      _name, _father, _jati, _gotra, _waris, _warisRelation, _phone,
+      _name, _father, _jati, _gotra, _waris, _phone,
       _altPhone, _aadhaar, _village, _tehsil, _district, _state, _pincode,
       _contribution,
     ]) {
@@ -123,7 +123,7 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
               gotra: _gotra.text.trim(),
               dob: _dob,
               warisName: _waris.text.trim(),
-              warisRelation: _warisRelation.text.trim(),
+              warisRelation: _warisRelation,
               gender: _gender,
               primaryPhone: _phone.text.trim(),
               altPhone: _altPhone.text.trim(),
@@ -263,11 +263,14 @@ class _AgentMemberFormState extends ConsumerState<_AgentMemberForm> {
                     required: true,
                     validator: V.required,
                   )),
-                  GridItem(AppTextField(
+                  GridItem(AppDropdown<String>(
                     label: S.fldWarisRelation,
-                    controller: _warisRelation,
                     required: true,
-                    validator: V.required,
+                    value: _warisRelation,
+                    items: nomineeRelations,
+                    itemLabel: (r) => r,
+                    onChanged: (v) =>
+                        setState(() => _warisRelation = v ?? _warisRelation),
                   )),
                   GridItem(MemberPhotoPicker(
                     label: S.fldWarisPhoto,

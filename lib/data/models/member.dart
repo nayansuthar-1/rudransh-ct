@@ -27,6 +27,20 @@ enum MemberStatus {
       .firstWhere((s) => s.name == value, orElse: () => MemberStatus.active);
 }
 
+/// Standard relation options for nominee / warisdar.
+const nomineeRelations = [
+  'Son',
+  'Daughter',
+  'Wife',
+  'Husband',
+  'Brother',
+  'Mother',
+  'Father',
+  'Uncle',
+  'Maternal Uncle',
+  'Other',
+];
+
 /// A trust member enrolled into one Yojna.
 @immutable
 class Member {
