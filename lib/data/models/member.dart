@@ -37,7 +37,7 @@ const nomineeRelations = [
   'Mother',
   'Father',
   'Uncle',
-  'Maternal Uncle',
+  'Mama',
   'Other',
 ];
 
